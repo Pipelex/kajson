@@ -176,6 +176,12 @@ class SerDeTestCases:
             obj_pydantic_tricky_types_json_str4,
         )
     ]
+    PYDANTIC_STR_CHECKS: ClassVar[List[Tuple[BaseModel, str]]] = [
+        (
+            obj_pydantic_tricky_types,
+            obj_pydantic_tricky_types_json_str4,
+        )
+    ]
     ARBITRARY_TYPES: ClassVar[List[Any]] = [
         my_root_model,
         obj_class_tricky_types,
