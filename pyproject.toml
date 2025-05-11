@@ -1,8 +1,9 @@
 [tool.poetry]
 name = "kajson"
-version = "0.1.1"
+version = "0.1.2"
 description = ""
-authors = ["Pipelex <contact@pipelex.com>"]
+authors = ["Evotis S.A.S. <contact@evotis.com>"]
+maintainers = ["Pipelex staff <oss@pipelex.com>"]
 exclude = ["tests/"]
 license = "Apache-2.0"
 
