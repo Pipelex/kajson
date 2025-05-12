@@ -1,0 +1,65 @@
+name: Version check
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+      - "release/v[0-9]+.[0-9]+.[0-9]+"
+jobs:
+  version-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the target branch (branch receiving the merge)
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+
+      - name: Get version from the target branch
+        id: target_version
+        run: |
+          target_version=$(grep '^version' pyproject.toml | sed -E 's/version = "(.*)"/\1/')
+          echo "Target branch version: $target_version"
+          echo "::set-output name=target_version::$target_version"
+
+      - name: Validate target branch version format
+        run: |
+          target_version="${{ steps.target_version.outputs.target_version }}"
+          if ! [[ "$target_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Error: Target branch version ($target_version) is not in the format x.y.z"
+            exit 1
+          fi
+
+      - name: Checkout the source branch (incoming branch)
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Get version from the source branch
+        id: source_version
+        run: |
+          source_version=$(grep '^version' pyproject.toml | sed -E 's/version = "(.*)"/\1/')
+          echo "Source branch version: $source_version"
+          echo "::set-output name=source_version::$source_version"
+
+      - name: Validate source branch version format
+        run: |
+          source_version="${{ steps.source_version.outputs.source_version }}"
+          if ! [[ "$source_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Error: Source branch version ($source_version) is not in the format x.y.z"
+            exit 1
+          fi
+
+      - name: Compare versions
+        run: |
+          echo "Comparing source and target branch versions"
+          source_version="${{ steps.source_version.outputs.source_version }}"
+          target_version="${{ steps.target_version.outputs.target_version }}"
+
+          # Compare the two versions using version sort and ensure source > target
+          if dpkg --compare-versions "$source_version" le "$target_version"; then
+            echo "Source version ($source_version) is not greater than the target version ($target_version)."
+            exit 1
+          else
+            echo "Source version ($source_version) is greater than the target version ($target_version)."
+          fi
