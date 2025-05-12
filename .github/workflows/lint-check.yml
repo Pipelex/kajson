@@ -12,15 +12,12 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VIRTUAL_ENV: ${{ github.workspace }}/.venv
-      EV_GITHUB_PAT: ${{ secrets.EV_GITHUB_PAT }}
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
           python-version: "3.11"
-      - name: Github connect machine
-        run: echo "machine github.com login x-access-token password ${{ env.EV_GITHUB_PAT }}" > ~/.netrc
 
       - name: Install poetry package
         run: pip install "poetry>=2.0.0,<2.1.0"
