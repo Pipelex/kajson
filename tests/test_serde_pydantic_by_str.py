@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-from typing import Any, Dict
 
 import pytest
 from pydantic import BaseModel
