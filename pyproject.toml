@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "kajson"
-version = "0.1.2"
+version = "0.1.0"
 description = ""
 authors = ["Evotis S.A.S. <contact@evotis.com>"]
 maintainers = ["Pipelex staff <oss@pipelex.com>"]
