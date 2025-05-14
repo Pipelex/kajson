@@ -4,6 +4,8 @@
 
 Powerful universal JSON encoder/decoder for Python objects with support for pydantic v2.
 
+This code is used by [Pipelex](https://github.com/Pipelex/pipelex).
+
 ## Installation
 
 ### Using pip
