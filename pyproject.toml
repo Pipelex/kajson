@@ -1,11 +1,14 @@
 [tool.poetry]
 name = "kajson"
-version = "0.1.0"
-description = ""
-authors = ["Evotis S.A.S. <contact@evotis.com>"]
+description = "Powerful universal JSON encoder/decoder for Python objects with support for pydantic v2."
+version = "0.1.2"
+authors = ["Evotis S.A.S. <contact@pipelex.com>"]
 maintainers = ["Pipelex staff <oss@pipelex.com>"]
 exclude = ["tests/"]
 license = "Apache-2.0"
+homepage = "https://github.com/pipelex/kajson"
+repository = "https://github.com/pipelex/kajson"
+documentation = "https://github.com/pipelex/kajson"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
