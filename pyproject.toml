@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "kajson"
 description = "Powerful universal JSON encoder/decoder for Python objects with support for pydantic v2."
-version = "0.1.1"
+version = "0.1.3"
 authors = ["Evotis S.A.S. <contact@pipelex.com>"]
 maintainers = ["Pipelex staff <oss@pipelex.com>"]
 exclude = ["tests/"]
