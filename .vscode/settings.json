@@ -8,12 +8,6 @@
     "search.exclude": {
         ".mypy_cache/*": true
     },
-    "editor.formatOnSave": true,
-    "workbench.colorCustomizations": {
-        "activityBar.background": "#7c0040",
-        "titleBar.activeBackground": "#5b007c",
-        "titleBar.activeForeground": "#F5FCF0"
-    },
     "files.exclude": {
         "**/__pycache__": true,
         ".mypy_cache": true,
