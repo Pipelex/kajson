@@ -26,4 +26,6 @@ This project is heavily based on code from [unijson](https://github.com/bpietrop
 
 ---
 
+"Pipelex" is a trademark of Evotis S.A.S.
+
 © 2025 Evotis S.A.S.
