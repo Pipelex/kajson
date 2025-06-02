@@ -20,6 +20,12 @@ pip install kajson
 poetry add kajson
 ```
 
+## Using uv (recommended)
+
+```bash
+uv pip install kajson
+```
+
 ## Hat tip
 
 This project is heavily based on code from [unijson](https://github.com/bpietropaoli/unijson) by Bastien Pietropaoli and distributed under the same license, [Apache 2.0](LICENSE).
