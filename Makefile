@@ -179,19 +179,20 @@ t: test-with-prints
 
 format: env
 	$(call PRINT_TITLE,"Formatting with ruff")
-	@$(VENV_RUFF) format .
+	$(VENV_RUFF) format .
 
 lint: env
 	$(call PRINT_TITLE,"Linting with ruff")
-	@$(VENV_RUFF) check . --fix
+	$(VENV_RUFF) check . --fix
 
 pyright: env
 	$(call PRINT_TITLE,"Typechecking with pyright")
-	@$(VENV_PYRIGHT)
+	$(VENV_PYRIGHT) --pythonpath $(VIRTUAL_ENV)/bin/python3  && \
+	echo "Done typechecking with pyright — disregard warning about latest version, it's giving us false positives"
 
 mypy: env
 	$(call PRINT_TITLE,"Typechecking with mypy")
-	@$(VENV_MYPY)
+	$(VENV_MYPY)
 
 ##########################################################################################
 ### MERGE CHECKS
@@ -199,19 +200,19 @@ mypy: env
 
 merge-check-ruff-format: env
 	$(call PRINT_TITLE,"Formatting with ruff")
-	@$(VENV_RUFF) format --check .
+	$(VENV_RUFF) format --check .
 
 merge-check-ruff-lint: env check-unused-imports
 	$(call PRINT_TITLE,"Linting with ruff without fixing files")
-	@$(VENV_RUFF) check .
+	$(VENV_RUFF) check .
 
 merge-check-pyright: env
 	$(call PRINT_TITLE,"Typechecking with pyright")
-	@$(VENV_PYRIGHT)
+	$(VENV_PYRIGHT) --pythonpath $(VIRTUAL_ENV)/bin/python3
 
 merge-check-mypy: env
 	$(call PRINT_TITLE,"Typechecking with mypy")
-	@$(VENV_MYPY) --config-file pyproject.toml
+	$(VENV_MYPY) --config-file pyproject.toml
 
 ##########################################################################################
 ### SHORTHANDS
