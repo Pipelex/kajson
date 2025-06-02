@@ -3,24 +3,31 @@ include .env
 export
 endif
 VIRTUAL_ENV := $(CURDIR)/.venv
-LOCAL_PYTHON := $(VIRTUAL_ENV)/bin/python3.11
 PROJECT_NAME := $(shell grep '^name = ' pyproject.toml | sed -E 's/name = "(.*)"/\1/')
 
-LOCAL_MYPY := $(VIRTUAL_ENV)/bin/mypy
-LOCAL_PYTEST := $(VIRTUAL_ENV)/bin/pytest
-LOCAL_PYRIGHT := $(VIRTUAL_ENV)/bin/pyright
-LOCAL_RUFF := $(VIRTUAL_ENV)/bin/ruff
+PYTHON_VERSION ?= 3.13
+VENV_PYTHON := $(VIRTUAL_ENV)/bin/python
+VENV_PYTEST := $(VIRTUAL_ENV)/bin/pytest
+VENV_RUFF := $(VIRTUAL_ENV)/bin/ruff
+VENV_PYRIGHT := $(VIRTUAL_ENV)/bin/pyright
+VENV_MYPY := $(VIRTUAL_ENV)/bin/mypy
+
+UV_MIN_VERSION = $(shell grep -m1 'required-version' pyproject.toml | sed -E 's/.*= *"([^<>=, ]+).*/\1/')
 
 define PRINT_TITLE
-    $(eval PADDED_PROJECT_NAME := $(shell printf '%-15s' "[$(PROJECT_NAME)] " | sed 's/ /=/g'))
-    $(eval PADDED_TARGET_NAME := $(shell printf '%-15s' "($@) " | sed 's/ /=/g'))
-    $(if $(1),\
-		$(eval TITLE := $(shell printf '%s' "=== $(PADDED_PROJECT_NAME) $(PADDED_TARGET_NAME)" | sed 's/[[:space:]]/ /g')$(shell echo " $(1) " | sed 's/[[:space:]]/ /g')),\
-		$(eval TITLE := $(shell printf '%s' "=== $(PADDED_PROJECT_NAME) $(PADDED_TARGET_NAME)" | sed 's/[[:space:]]/ /g'))\
-	)
-	$(eval PADDED_TITLE := $(shell printf '%-126s' "$(TITLE)" | sed 's/ /=/g'))
-	@echo ""
-	@echo "$(PADDED_TITLE)"
+    $(eval PROJECT_PART := [$(PROJECT_NAME)])
+    $(eval TARGET_PART := ($@))
+    $(eval MESSAGE_PART := $(1))
+    $(if $(MESSAGE_PART),\
+        $(eval FULL_TITLE := === $(PROJECT_PART) ===== $(TARGET_PART) ====== $(MESSAGE_PART) ),\
+        $(eval FULL_TITLE := === $(PROJECT_PART) ===== $(TARGET_PART) ====== )\
+    )
+    $(eval TITLE_LENGTH := $(shell echo -n "$(FULL_TITLE)" | wc -c | tr -d ' '))
+    $(eval PADDING_LENGTH := $(shell echo $$((126 - $(TITLE_LENGTH)))))
+    $(eval PADDING := $(shell printf '%*s' $(PADDING_LENGTH) '' | tr ' ' '='))
+    $(eval PADDED_TITLE := $(FULL_TITLE)$(PADDING))
+    @echo ""
+    @echo "$(PADDED_TITLE)"
 endef
 
 define HELP
@@ -28,9 +35,10 @@ Manage $(PROJECT_NAME) located in $(CURDIR).
 Usage:
 
 make env                      - Create python virtual env
-make lock                     - Refresh poetry.lock without updating anything
+make lock                     - Refresh uv.lock without updating anything
 make install                  - Create local virtualenv & install all dependencies
-make update                   - Upgrade dependencies via poetry
+make update                   - Upgrade dependencies via uv
+make build                    - Build the wheels
 
 make format                   - format with ruff format
 make lint                     - lint with ruff check
@@ -44,9 +52,8 @@ make cleanall                 - Remove all -> cleanenv + cleanderived
 make merge-check-ruff-lint    - Run ruff merge check without updating files
 make merge-check-ruff-format  - Run ruff merge check without updating files
 make merge-check-mypy         - Run mypy merge check without updating files
-make merge-check-pyright	  - Run pyright merge check without updating files
+make merge-check-pyright	     - Run pyright merge check without updating files
 
-make runtests		          - Run tests for github actions (exit on first failure)
 make test                     - Run unit tests
 make test-with-prints         - Run tests with prints
 make t                        - Shorthand -> test-with-prints
@@ -61,47 +68,53 @@ make fix-unused-imports       - Fix unused imports with ruff
 endef
 export HELP
 
-.PHONY: all help env lock install update format lint pyright mypy cleanderived cleanenv runtests test test-with-prints t check cc li merge-check-ruff-lint merge-check-ruff-format merge-check-mypy check-unused-imports fix-unused-imports test-name bump-version
+.PHONY: all help env lock install update build format lint pyright mypy cleanderived cleanenv cleanall test test-with-prints t check c cc li check-unused-imports fix-unused-imports check-uv check-TODOs
 
 all help:
 	@echo "$$HELP"
-
 
 ##########################################################################################
 ### SETUP
 ##########################################################################################
 
-env:
+check-uv:
+	$(call PRINT_TITLE,"Ensuring uv ≥ $(UV_MIN_VERSION)")
+	@command -v uv >/dev/null 2>&1 || { \
+		echo "uv not found – installing latest …"; \
+		curl -LsSf https://astral.sh/uv/install.sh | sh; \
+	}
+	@uv self update >/dev/null 2>&1 || true
+
+env: check-uv
 	$(call PRINT_TITLE,"Creating virtual environment")
 	@if [ ! -d $(VIRTUAL_ENV) ]; then \
 		echo "Creating Python virtual env in \`${VIRTUAL_ENV}\`"; \
-		python3.11 -m venv $(VIRTUAL_ENV); \
-		. $(VIRTUAL_ENV)/bin/activate && \
-		echo "Created Python virtual env in \`${VIRTUAL_ENV}\`"; \
+		uv venv $(VIRTUAL_ENV) --python $(PYTHON_VERSION); \
 	else \
 		echo "Python virtual env already exists in \`${VIRTUAL_ENV}\`"; \
 	fi
+	@echo "Using Python: $$($(VENV_PYTHON) --version) from $$(which $$(readlink -f $(VENV_PYTHON)))"
 
 install: env
 	$(call PRINT_TITLE,"Installing dependencies")
 	@. $(VIRTUAL_ENV)/bin/activate && \
-	$(LOCAL_PYTHON) -m pip install --upgrade pip setuptools wheel && \
-	$(LOCAL_PYTHON) -m pip install "poetry>=2.0.0,<2.1.0" && \
-	$(LOCAL_PYTHON) -m poetry install && \
-	echo "Installed kajson dependencies in ${VIRTUAL_ENV}";
+	uv sync --all-extras && \
+	echo "Installed kajson dependencies in ${VIRTUAL_ENV} with all extras";
 
 lock: env
 	$(call PRINT_TITLE,"Resolving dependencies without update")
-	@. $(VIRTUAL_ENV)/bin/activate && \
-	poetry lock && \
-	echo poetry lock without update;
+	@uv lock && \
+	echo uv lock without update;
 
 update: env
 	$(call PRINT_TITLE,"Updating all dependencies")
-	@. $(VIRTUAL_ENV)/bin/activate && \
-	$(LOCAL_PYTHON) -m pip install --upgrade pip setuptools wheel && \
-	poetry update && \
+	@uv lock --upgrade && \
+	uv sync && \
 	echo "Updated dependencies in ${VIRTUAL_ENV}";
+
+build: env
+	$(call PRINT_TITLE,"Building the wheels")
+	@uv build
 
 ##############################################################################################
 ############################      Cleaning                        ############################
@@ -123,38 +136,38 @@ cleanderived:
 
 cleanenv:
 	$(call PRINT_TITLE,"Erasing virtual environment")
-	find . -name '.Pipfile.lock' -delete && \
+	find . -name 'uv.lock' -delete && \
 	find . -type d -wholename './.venv' -exec rm -rf {} + && \
 	echo "Cleaned up virtual env and dependency lock files";
 
-cleanall: cleanderived cleanenv cleanlibraries
+cleanall: cleanderived cleanenv
 	@echo "Cleaned up all derived files and directories";
 
 ##########################################################################################
 ### TESTING
 ##########################################################################################
 
-runtests: env
+gha-tests: env
 	$(call PRINT_TITLE,"Unit testing for github actions")
-	@echo "• Running unit tests"
-	$(LOCAL_PYTEST) --exitfirst --quiet || [ $$? = 5 ]
-
+	@echo "• Running unit tests for github actions (excluding inference and gha_disabled)"
+	$(VENV_PYTEST) --exitfirst --quiet -m "not inference and not gha_disabled" || [ $$? = 5 ]
+	
 test: env
 	$(call PRINT_TITLE,"Unit testing without prints but displaying logs via pytest for WARNING level and above")
 	@echo "• Running unit tests"
 	@if [ -n "$(TEST)" ]; then \
-		$(LOCAL_PYTEST) -s -o log_cli=true -o log_level=WARNING -k "$(TEST)" $(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,-v)); \
+		$(VENV_PYTEST) -s -o log_cli=true -o log_level=WARNING -k "$(TEST)" $(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,-v)); \
 	else \
-		$(LOCAL_PYTEST) -s -o log_cli=true -o log_level=WARNING $(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,-v)); \
+		$(VENV_PYTEST) -s -o log_cli=true -o log_level=WARNING $(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,-v)); \
 	fi
 
 test-with-prints: env
-	$(call PRINT_TITLE,"Unit testing with prints and our rich logs")
+	$(call PRINT_TITLE,"Unit testing with prints")
 	@echo "• Running unit tests"
 	@if [ -n "$(TEST)" ]; then \
-		$(LOCAL_PYTEST) -s -k "$(TEST)" $(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,-v)); \
+		$(VENV_PYTEST) -s -k "$(TEST)" $(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,-v)); \
 	else \
-		$(LOCAL_PYTEST) -s $(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,-v)); \
+		$(VENV_PYTEST) -s $(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,-v)); \
 	fi
 
 t: test-with-prints
@@ -166,20 +179,20 @@ t: test-with-prints
 
 format: env
 	$(call PRINT_TITLE,"Formatting with ruff")
-	@$(LOCAL_RUFF) format .
+	$(VENV_RUFF) format .
 
 lint: env
 	$(call PRINT_TITLE,"Linting with ruff")
-	@$(LOCAL_RUFF) check . --fix
+	$(VENV_RUFF) check . --fix
 
 pyright: env
 	$(call PRINT_TITLE,"Typechecking with pyright")
-	@$(LOCAL_PYRIGHT) --pythonpath $(LOCAL_PYTHON)
+	$(VENV_PYRIGHT) --pythonpath $(VIRTUAL_ENV)/bin/python3  && \
+	echo "Done typechecking with pyright — disregard warning about latest version, it's giving us false positives"
 
 mypy: env
 	$(call PRINT_TITLE,"Typechecking with mypy")
-	@$(LOCAL_PYTHON) $(LOCAL_MYPY)
-
+	$(VENV_MYPY)
 
 ##########################################################################################
 ### MERGE CHECKS
@@ -187,24 +200,19 @@ mypy: env
 
 merge-check-ruff-format: env
 	$(call PRINT_TITLE,"Formatting with ruff")
-	. $(VIRTUAL_ENV)/bin/activate && \
-	$(LOCAL_RUFF) format --check -v .
+	$(VENV_RUFF) format --check .
 
 merge-check-ruff-lint: env check-unused-imports
 	$(call PRINT_TITLE,"Linting with ruff without fixing files")
-	. $(VIRTUAL_ENV)/bin/activate && \
-	$(LOCAL_RUFF) check -v .
+	$(VENV_RUFF) check .
 
 merge-check-pyright: env
 	$(call PRINT_TITLE,"Typechecking with pyright")
-	. $(VIRTUAL_ENV)/bin/activate && \
-	$(LOCAL_PYRIGHT) -p pyproject.toml
+	$(VENV_PYRIGHT) --pythonpath $(VIRTUAL_ENV)/bin/python3
 
 merge-check-mypy: env
 	$(call PRINT_TITLE,"Typechecking with mypy")
-	. $(VIRTUAL_ENV)/bin/activate && \
-	$(LOCAL_PYTHON) $(LOCAL_MYPY) --version && \
-	$(LOCAL_PYTHON) $(LOCAL_MYPY) --config-file pyproject.toml
+	$(VENV_MYPY) --config-file pyproject.toml
 
 ##########################################################################################
 ### SHORTHANDS
@@ -212,8 +220,7 @@ merge-check-mypy: env
 
 check-unused-imports: env
 	$(call PRINT_TITLE,"Checking for unused imports without fixing")
-	. $(VIRTUAL_ENV)/bin/activate && \
-	$(LOCAL_RUFF) check --select=F401 --no-fix .
+	@$(VENV_RUFF) check --select=F401 --no-fix .
 
 c: format lint pyright mypy
 	@echo "> done: c = check"
@@ -229,18 +236,8 @@ li: lock install
 
 check-TODOs: env
 	$(call PRINT_TITLE,"Checking for TODOs")
-	. $(VIRTUAL_ENV)/bin/activate && \
-	$(LOCAL_RUFF) check --select=TD -v .
+	@$(VENV_RUFF) check --select=TD -v .
 
 fix-unused-imports: env
 	$(call PRINT_TITLE,"Fixing unused imports")
-	. $(VIRTUAL_ENV)/bin/activate && \
-	$(LOCAL_RUFF) check --select=F401 --fix -v .
-
-CURRENT_VERSION := $(shell grep '^version = ' pyproject.toml | sed -E 's/version = "(.*)"/\1/')
-NEXT_VERSION := $(shell echo $(CURRENT_VERSION) | awk -F. '{$$NF = $$NF + 1;} 1' | sed 's/ /./g')
-
-bump-version: env
-	$(call PRINT_TITLE,"Bumping version from $(CURRENT_VERSION) to $(NEXT_VERSION)")
-	@. $(VIRTUAL_ENV)/bin/activate && poetry version $(NEXT_VERSION)
-	@echo "Version bumped to $(NEXT_VERSION)"
+	@$(VENV_RUFF) check --select=F401 --fix -v .
