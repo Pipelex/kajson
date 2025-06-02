@@ -1,34 +1,44 @@
-[tool.poetry]
+[project]
 name = "kajson"
+version = "0.1.5"
 description = "Powerful universal JSON encoder/decoder for Python objects with support for pydantic v2."
-version = "0.1.4"
-authors = ["Evotis S.A.S. <contact@pipelex.com>"]
-maintainers = ["Pipelex staff <oss@pipelex.com>"]
-exclude = ["tests/"]
+authors = [{ name = "Evotis S.A.S.", email = "contact@pipelex.com" }]
+maintainers = [{ name = "Pipelex staff", email = "oss@pipelex.com" }]
 license = "Apache-2.0"
-homepage = "https://github.com/pipelex/kajson"
-repository = "https://github.com/pipelex/kajson"
-documentation = "https://github.com/pipelex/kajson"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: Apache Software License",
+]
+
+dependencies = [
+    "pydantic==2.10.6",
+]
+
+[project.urls]
+Homepage = "https://github.com/pipelex/kajson"
+Repository = "https://github.com/pipelex/kajson"
+Documentation = "https://github.com/pipelex/kajson"
+
+[project.optional-dependencies]
+dev = [
+    "mypy>=1.11.2",
+    "pyright==1.1.398",
+    "pytest>=8.3.3",
+    "pytest-pretty==1.2.0",
+    "pytest-asyncio>=0.24.0",
+    "ruff>=0.6.8",
+]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
-
-[[tool.poetry.packages]]
-include = "kajson"
-
-[tool.poetry.dependencies]
-python = ">=3.11,<3.12"
-pydantic = "2.10.6"
-rich = "^13.8.1"
-
-[tool.poetry.group.dev.dependencies]
-mypy = "^1.11.2"
-pyright = "1.1.398"        # version 1.1.399 generates a ton of false positives
-pytest = "^8.3.3"
-pytest-pretty = "1.2.0"
-pytest_asyncio = "^0.24.0"
-ruff = "^0.6.8"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.mypy]
 check_untyped_defs = true
@@ -48,7 +58,7 @@ enableExperimentalFeatures = false
 enableTypeIgnoreComments = true
 exclude = ["**/node_modules", "**/__pycache__"]
 extraPaths = ["./tests"]
-include = ["cookbook", "pipelex_libraries"]
+include = ["kajson"]
 pythonVersion = "3.11"
 reportAbstractUsage = "error"
 reportArgumentType = "error"
@@ -167,3 +177,18 @@ select = [
     "E501",
     "I",
 ]
+
+[tool.uv]
+required-version = ">=0.7.2"
+
+[tool.hatch.build.targets.wheel]
+packages = ["kajson"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"pyproject.toml" = "kajson/pyproject.toml"
+
+[tool.hatch.build.targets.sdist]
+packages = ["kajson"]
+
+[tool.hatch.build.targets.sdist.force-include]
+"pyproject.toml" = "kajson/pyproject.toml"
