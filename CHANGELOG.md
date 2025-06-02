@@ -1,6 +1,6 @@
 # Changelog
 
-## [v0.1.4] - 2025-06-02
+## [v0.1.5] - 2025-06-02
 
 - Switch from `poetry` to `uv`
 - The python required version is now `>=3.9`
