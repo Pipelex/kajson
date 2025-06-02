@@ -147,6 +147,11 @@ cleanall: cleanderived cleanenv
 ### TESTING
 ##########################################################################################
 
+gha-tests: env
+	$(call PRINT_TITLE,"Unit testing for github actions")
+	@echo "• Running unit tests for github actions (excluding inference and gha_disabled)"
+	$(VENV_PYTEST) --exitfirst --quiet -m "not inference and not gha_disabled" || [ $$? = 5 ]
+	
 test: env
 	$(call PRINT_TITLE,"Unit testing without prints but displaying logs via pytest for WARNING level and above")
 	@echo "• Running unit tests"
