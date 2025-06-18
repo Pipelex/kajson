@@ -8,7 +8,7 @@ from typing import Any, Dict
 import pytest
 from pydantic import BaseModel
 
-from .conftest import SerDeTestCases
+from tests.conftest import SerDeTestCases
 
 
 class TestSerDePydanticByDict:

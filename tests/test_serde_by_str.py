@@ -9,8 +9,7 @@ from pydantic import BaseModel
 
 from kajson import kajson
 from kajson.exceptions import KajsonDecoderError
-
-from .conftest import SerDeTestCases, obj_pydantic_tricky_types_json_str4_with_validation_error
+from tests.conftest import SerDeTestCases, obj_pydantic_tricky_types_json_str4_with_validation_error
 
 
 class TestSerDeByStr:
