@@ -4,10 +4,12 @@
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, ClassVar, Dict, List, Optional, Type
 
 from pydantic import BaseModel, Field, PrivateAttr, RootModel
+from typing_extensions import Self, override
 
+from kajson.class_registry_abstract import ClassRegistryAbstract
 from kajson.exceptions import ClassRegistryInheritanceError, ClassRegistryNotFoundError
 from kajson.module_utils import find_classes_in_module, import_module_from_file
 from kajson.sandbox_manager import sandbox_manager
@@ -38,21 +40,31 @@ def find_files_in_dir(dir_path: str, pattern: str, is_recursive: bool) -> List[P
         return list(path.glob(pattern))
 
 
-class ClassRegistry(RootModel[ClassRegistryDict]):
+class ClassRegistry(RootModel[ClassRegistryDict], ClassRegistryAbstract):
     root: ClassRegistryDict = Field(default_factory=dict)
     _logger: logging.Logger = PrivateAttr(logging.getLogger(CLASS_REGISTRY_LOGGER_CHANNEL_NAME))
 
-    def log(self, message: str) -> None:
+    def _log(self, message: str) -> None:
         if sandbox_manager.is_in_sandbox():
             logger = logging.getLogger(CLASS_REGISTRY_LOGGER_CHANNEL_NAME_IN_SANDBOX)
             logger.debug(message)
         else:
             self._logger.debug(message)
 
-    def reset(self) -> None:
+    #########################################################################################
+    # ClassProviderProtocol methods
+    #########################################################################################
+
+    @override
+    def setup(self) -> None:
+        pass
+
+    @override
+    def teardown(self) -> None:
         """Resets the registry to an empty state."""
         self.root = {}
 
+    @override
     def register_class(
         self,
         class_type: Type[Any],
@@ -63,89 +75,61 @@ class ClassRegistry(RootModel[ClassRegistryDict]):
         key = name or class_type.__name__
         if key in self.root:
             if should_warn_if_already_registered:
-                self.log(f"Class '{name}' already exists in registry")
+                self._log(f"Class '{name}' already exists in registry")
         else:
-            self.log(f"Registered new single class '{key}' in registry")
+            self._log(f"Registered new single class '{key}' in registry")
         self.root[key] = class_type
 
+    @override
     def unregister_class(self, class_type: Type[Any]) -> None:
         """Unregisters a class from the registry."""
         key = class_type.__name__
         if key not in self.root:
             raise ClassRegistryNotFoundError(f"Class '{key}' not found in registry")
         del self.root[key]
-        self.log(f"Unregistered single class '{key}' from registry")
+        self._log(f"Unregistered single class '{key}' from registry")
 
+    @override
     def unregister_class_by_name(self, name: str) -> None:
         """Unregisters a class from the registry by its name."""
         if name not in self.root:
             raise ClassRegistryNotFoundError(f"Class '{name}' not found in registry")
         del self.root[name]
 
+    @override
     def register_classes_dict(self, classes: Dict[str, Type[Any]]) -> None:
         """Registers multiple classes in the registry with names."""
         self.root.update(classes)
         nb_classes = len(classes)
         if nb_classes > 1:
-            self.log(f"Registered {len(classes)} classes in registry")
+            self._log(f"Registered {len(classes)} classes in registry")
             classes_list_str = "\n".join([f"{key}: {value.__name__}" for key, value in classes.items()])
             logging.log(level=LOGGING_LEVEL_VERBOSE, msg=classes_list_str)
         else:
-            self.log(f"Registered single class '{list(classes.values())[0].__name__}' in registry")
+            self._log(f"Registered single class '{list(classes.values())[0].__name__}' in registry")
 
+    @override
     def register_classes(self, classes: List[Type[Any]]) -> None:
         """Registers multiple classes in the registry with names."""
         if not classes:
-            self.log("register_classes called with empty list of classes to register")
+            self._log("register_classes called with empty list of classes to register")
             return
 
         for class_type in classes:
             key = class_type.__name__
             if key in self.root:
-                self.log(f"Class '{key}' already exists in registry, skipping")
+                self._log(f"Class '{key}' already exists in registry, skipping")
                 continue
             self.root[key] = class_type
         nb_classes = len(classes)
         if nb_classes > 1:
-            self.log(f"Registered {nb_classes} classes in registry")
+            self._log(f"Registered {nb_classes} classes in registry")
             classes_list_str = "\n".join([f"{the_class.__name__}: {the_class}" for the_class in classes])
             logging.log(level=LOGGING_LEVEL_VERBOSE, msg=classes_list_str)
         else:
-            self.log(f"Registered single class '{classes[0].__name__}' in registry")
+            self._log(f"Registered single class '{classes[0].__name__}' in registry")
 
-    def get_class(self, name: str) -> Optional[Type[Any]]:
-        """Retrieves a class from the registry by its name. Returns None if not found."""
-        return self.root.get(name)
-
-    def get_required_class(self, name: str) -> Type[Any]:
-        """Retrieves a class from the registry by its name. Raises an error if not found."""
-        if name not in self.root:
-            raise ClassRegistryNotFoundError(f"Class '{name}' not found in registry")
-        return self.root[name]
-
-    def get_required_subclass(self, name: str, base_class: Type[Any]) -> Type[Any]:
-        """Retrieves a class from the registry by its name. Raises an error if not found."""
-        if name not in self.root:
-            raise ClassRegistryNotFoundError(f"Class '{name}' not found in registry")
-        if not issubclass(self.root[name], base_class):
-            raise ClassRegistryInheritanceError(f"Class '{name}' is not a subclass of {base_class}")
-        return self.root[name]
-
-    def get_required_base_model(self, name: str) -> Type[BaseModel]:
-        return self.get_required_subclass(name=name, base_class=BaseModel)
-
-    def has_class(self, name: str) -> bool:
-        """Checks if a class is in the registry by its name."""
-        return name in self.root
-
-    def has_subclass(self, name: str, base_class: Type[Any]) -> bool:
-        """Checks if a class is in the registry by its name."""
-        if name not in self.root:
-            return False
-        if not issubclass(self.root[name], base_class):
-            return False
-        return True
-
+    @override
     def register_classes_in_file(
         self,
         file_path: str,
@@ -167,6 +151,7 @@ class ClassRegistry(RootModel[ClassRegistryDict]):
 
         self.register_classes(classes=classes_to_register)
 
+    @override
     def register_classes_in_folder(
         self,
         folder_path: str,
@@ -200,5 +185,41 @@ class ClassRegistry(RootModel[ClassRegistryDict]):
                 is_include_imported=is_include_imported,
             )
 
+    @override
+    def get_class(self, name: str) -> Optional[Type[Any]]:
+        """Retrieves a class from the registry by its name. Returns None if not found."""
+        return self.root.get(name)
 
-class_registry = ClassRegistry()
+    @override
+    def get_required_class(self, name: str) -> Type[Any]:
+        """Retrieves a class from the registry by its name. Raises an error if not found."""
+        if name not in self.root:
+            raise ClassRegistryNotFoundError(f"Class '{name}' not found in registry")
+        return self.root[name]
+
+    @override
+    def get_required_subclass(self, name: str, base_class: Type[Any]) -> Type[Any]:
+        """Retrieves a class from the registry by its name. Raises an error if not found."""
+        if name not in self.root:
+            raise ClassRegistryNotFoundError(f"Class '{name}' not found in registry")
+        if not issubclass(self.root[name], base_class):
+            raise ClassRegistryInheritanceError(f"Class '{name}' is not a subclass of {base_class}")
+        return self.root[name]
+
+    @override
+    def get_required_base_model(self, name: str) -> Type[BaseModel]:
+        return self.get_required_subclass(name=name, base_class=BaseModel)
+
+    @override
+    def has_class(self, name: str) -> bool:
+        """Checks if a class is in the registry by its name."""
+        return name in self.root
+
+    @override
+    def has_subclass(self, name: str, base_class: Type[Any]) -> bool:
+        """Checks if a class is in the registry by its name."""
+        if name not in self.root:
+            return False
+        if not issubclass(self.root[name], base_class):
+            return False
+        return True
