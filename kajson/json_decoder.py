@@ -29,12 +29,10 @@ from typing import Any, Callable, ClassVar, Dict, Type, TypeVar
 
 from pydantic import BaseModel, RootModel, ValidationError
 
-from kajson.class_registry import class_registry
 from kajson.exceptions import KajsonDecoderError
-from kajson.sandbox_manager import sandbox_manager
+from kajson.kajson_manager import KajsonManager
 
 DECODER_LOGGER_CHANNEL_NAME = "kajson.decoder"
-DECODER_LOGGER_CHANNEL_NAME_IN_SANDBOX = "kajson.decoder.sandbox"
 IS_DECODER_FALLBACK_ENABLED = False
 FALLBACK_MESSAGE = " Trying something else."
 
@@ -90,11 +88,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
         self.logger = logging.getLogger(DECODER_LOGGER_CHANNEL_NAME)
 
     def log(self, message: str) -> None:
-        if sandbox_manager.is_in_sandbox():
-            logger = logging.getLogger(DECODER_LOGGER_CHANNEL_NAME_IN_SANDBOX)
-            logger.debug(message)
-        else:
-            self.logger.debug(message)
+        self.logger.debug(message)
 
     def universal_decoder(self, the_dict: Dict[str, Any]) -> Any:
         """
@@ -127,7 +121,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
         all_mods = _get_imported_modules()
         if module_name in all_mods:
             the_class = getattr(all_mods[module_name], class_name)
-        elif registered_class := class_registry.get_class(name=class_name):
+        elif registered_class := KajsonManager.get_class_registry().get_class(name=class_name):
             self.log(f"Found class '{class_name}' in registry")
             the_class = registered_class
         else:
