@@ -1,4 +1,3 @@
-
 import pytest
 
 import kajson.kajson_manager

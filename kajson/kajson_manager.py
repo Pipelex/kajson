@@ -1,4 +1,6 @@
-from typing import ClassVar, Optional, Self
+from typing import ClassVar, Optional
+
+from typing_extensions import Self
 
 from kajson.class_registry import ClassRegistry
 from kajson.class_registry_abstract import ClassRegistryAbstract
