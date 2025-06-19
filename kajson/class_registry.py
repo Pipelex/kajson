@@ -4,10 +4,10 @@
 import logging
 import sys
 from pathlib import Path
-from typing import Any, ClassVar, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional, Type
 
 from pydantic import BaseModel, Field, PrivateAttr, RootModel
-from typing_extensions import Self, override
+from typing_extensions import override
 
 from kajson.class_registry_abstract import ClassRegistryAbstract
 from kajson.exceptions import ClassRegistryInheritanceError, ClassRegistryNotFoundError
