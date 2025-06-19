@@ -1,8 +1,8 @@
 [project]
 name = "kajson"
-version = "0.1.5"
+version = "0.1.6"
 description = "Powerful universal JSON encoder/decoder for Python objects with support for pydantic v2."
-authors = [{ name = "Evotis S.A.S.", email = "contact@pipelex.com" }]
+authors = [{ name = "Evotis S.A.S.", email = "evotis@pipelex.com" }]
 maintainers = [{ name = "Pipelex staff", email = "oss@pipelex.com" }]
 license = "Apache-2.0"
 readme = "README.md"
@@ -17,9 +17,7 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
 ]
 
-dependencies = [
-    "pydantic==2.10.6",
-]
+dependencies = ["pydantic>=2.10.6"]
 
 [project.urls]
 Homepage = "https://github.com/pipelex/kajson"
@@ -31,8 +29,9 @@ dev = [
     "mypy>=1.11.2",
     "pyright==1.1.398",
     "pytest>=8.3.3",
-    "pytest-pretty==1.2.0",
-    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=6.1.1",
+    "pytest-mock>=3.14.0",
+    "pytest-sugar>=1.0.0",
     "ruff>=0.6.8",
 ]
 
@@ -148,7 +147,6 @@ typeCheckingMode = "strict"
 
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib -ra"
-asyncio_default_fixture_loop_scope = "session"
 minversion = "8.0"
 
 [tool.ruff]

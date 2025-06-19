@@ -9,8 +9,7 @@ from pydantic import BaseModel
 
 from kajson import kajson
 from kajson.exceptions import KajsonDecoderError
-
-from .conftest import SerDeTestCases, obj_pydantic_tricky_types_json_str4_with_validation_error
+from tests.test_data import SerDeTestCases, obj_pydantic_tricky_types_json_str4_with_validation_error
 
 
 class TestSerDeByStr:
@@ -52,7 +51,7 @@ class TestSerDeByStr:
             deserialized = kajson.loads(obj_pydantic_tricky_types_json_str4_with_validation_error)  # pyright: ignore[reportUnknownMemberType]
             logging.info(f"Deserialized by kajson as {type(deserialized).__name__}")
             logging.info(deserialized)
-        assert "using kwargs '<class 'tests.conftest.Number'>': 1 validation error for Number" in str(excinfo.value)
+        assert "using kwargs '<class 'tests.test_data.Number'>': 1 validation error for Number" in str(excinfo.value)
         logging.info(f"Caught expected error: {excinfo.value}")
 
     @pytest.mark.parametrize("test_obj", SerDeTestCases.ARBITRARY_TYPES)

@@ -7,8 +7,7 @@ import pytest
 from pydantic import BaseModel
 
 from kajson import kajson
-
-from .conftest import SerDeTestCases
+from tests.test_data import SerDeTestCases
 
 
 class TestSerDePydanticByStr:

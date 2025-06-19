@@ -4,7 +4,7 @@
 
 Powerful universal JSON encoder/decoder for Python objects with support for pydantic v2.
 
-This library is used by [Pipelex](https://github.com/Pipelex/pipelex), the language for reliable LLM pipelines, [check it out](https://github.com/Pipelex/pipelex).
+This library is used by [Pipelex](https://github.com/Pipelex/pipelex), the open-source language for repeatable AI workflows, [check it out](https://github.com/Pipelex/pipelex).
 
 ## Installation
 
