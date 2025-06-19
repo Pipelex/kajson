@@ -3,6 +3,8 @@ from typing import ClassVar, Optional, Self
 from kajson.class_registry import ClassRegistry
 from kajson.class_registry_abstract import ClassRegistryAbstract
 
+KAJSON_LOGGER_CHANNEL_NAME = "kajson.decoder"
+
 
 class KajsonManager:
     _instance: ClassVar[Optional[Self]] = None
@@ -13,7 +15,8 @@ class KajsonManager:
             raise RuntimeError("KajsonManager is not initialized")
         return cls._instance
 
-    def __init__(self, class_registry: Optional[ClassRegistryAbstract] = None) -> None:
+    def __init__(self, logger_channel_name: Optional[str] = None, class_registry: Optional[ClassRegistryAbstract] = None) -> None:
+        self.logger_channel_name = logger_channel_name or KAJSON_LOGGER_CHANNEL_NAME
         self._class_registry = class_registry or ClassRegistry()
         self.__class__._instance = self
 

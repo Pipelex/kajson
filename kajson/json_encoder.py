@@ -30,10 +30,8 @@ from typing_extensions import override
 
 import __main__
 from kajson.exceptions import UnijsonEncoderError
-from kajson.sandbox_manager import sandbox_manager
 
 ENCODER_LOGGER_CHANNEL_NAME = "kajson.encoder"
-ENCODER_LOGGER_CHANNEL_NAME_IN_SANDBOX = "kajson.encoder.sandbox"
 IS_ENCODER_FALLBACK_ENABLED = False
 FALLBACK_MESSAGE = " Trying something else."
 
@@ -71,11 +69,7 @@ class UniversalJSONEncoder(json.JSONEncoder):
         self.logger = logging.getLogger(ENCODER_LOGGER_CHANNEL_NAME)
 
     def log(self, message: str) -> None:
-        if sandbox_manager.is_in_sandbox():
-            logger = logging.getLogger(ENCODER_LOGGER_CHANNEL_NAME_IN_SANDBOX)
-            logger.debug(message)
-        else:
-            self.logger.debug(message)
+        self.logger.debug(message)
 
     # The registered encoding functions:
     _encoders: ClassVar[Dict[Type[Any], Callable[[Any], Dict[str, Any]]]] = {}

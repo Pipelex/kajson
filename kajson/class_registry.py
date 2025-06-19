@@ -12,7 +12,6 @@ from typing_extensions import Self, override
 from kajson.class_registry_abstract import ClassRegistryAbstract
 from kajson.exceptions import ClassRegistryInheritanceError, ClassRegistryNotFoundError
 from kajson.module_utils import find_classes_in_module, import_module_from_file
-from kajson.sandbox_manager import sandbox_manager
 
 LOGGING_LEVEL_VERBOSE = 5
 CLASS_REGISTRY_LOGGER_CHANNEL_NAME = "class_registry"
@@ -42,14 +41,13 @@ def find_files_in_dir(dir_path: str, pattern: str, is_recursive: bool) -> List[P
 
 class ClassRegistry(RootModel[ClassRegistryDict], ClassRegistryAbstract):
     root: ClassRegistryDict = Field(default_factory=dict)
-    _logger: logging.Logger = PrivateAttr(logging.getLogger(CLASS_REGISTRY_LOGGER_CHANNEL_NAME))
+    _logger: logging.Logger = PrivateAttr(default_factory=lambda: logging.getLogger(CLASS_REGISTRY_LOGGER_CHANNEL_NAME))
 
     def _log(self, message: str) -> None:
-        if sandbox_manager.is_in_sandbox():
-            logger = logging.getLogger(CLASS_REGISTRY_LOGGER_CHANNEL_NAME_IN_SANDBOX)
-            logger.debug(message)
-        else:
-            self._logger.debug(message)
+        self._logger.debug(message)
+
+    def set_logger(self, logger: logging.Logger) -> None:
+        self._logger = logger
 
     #########################################################################################
     # ClassProviderProtocol methods
