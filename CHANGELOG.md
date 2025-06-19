@@ -6,7 +6,7 @@
 - Added `KajsonManager` for better lifecycle management
 - Changed default Python version to 3.11 (still requires Python >=3.9)
 - Updated Pydantic dependency from exact version `==2.10.6` to minimum version `>=2.10.6`
-- Code cleanup and removal of unused components
+- Code cleanup and removal of unused components, most notably the `sandbox_manager`
 
 ## [v0.1.5] - 2025-06-02
 
