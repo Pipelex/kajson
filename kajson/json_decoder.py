@@ -23,7 +23,7 @@ All additions and modifications are Copyright (c) 2025 Evotis S.A.S.
 import importlib
 import json
 import logging
-import types
+import sys
 import warnings
 from typing import Any, Callable, ClassVar, Dict, Type, TypeVar
 
@@ -118,9 +118,9 @@ class UniversalJSONDecoder(json.JSONDecoder):
 
         the_class: Type[Any]
 
-        all_mods = _get_imported_modules()
-        if module_name in all_mods:
-            the_class = getattr(all_mods[module_name], class_name)
+        # Check if the module is already imported using sys.modules
+        if module_name in sys.modules:
+            the_class = getattr(sys.modules[module_name], class_name)
         elif registered_class := KajsonManager.get_class_registry().get_class(name=class_name):
             self.log(f"Found class '{class_name}' in registry")
             the_class = registered_class
@@ -225,23 +225,3 @@ class UniversalJSONDecoder(json.JSONDecoder):
 
         # Default, return the raw dict:
         return the_dict
-
-
-#########################################################################################
-#########################################################################################
-#########################################################################################
-
-
-def _get_imported_modules() -> Dict[str, types.ModuleType]:
-    """
-    Get all the already imported modules.
-    Found here: http://stackoverflow.com/a/4858123/5321016
-    Return:
-        dict[str:module] - A dictionary of the already imported modules.
-            Keys are modules' names.
-    """
-    result: Dict[str, types.ModuleType] = {}
-    for attribute in globals().values():
-        if isinstance(attribute, types.ModuleType):
-            result[attribute.__name__] = attribute
-    return result
