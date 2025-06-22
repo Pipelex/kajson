@@ -95,6 +95,21 @@ class UniversalJSONEncoder(json.JSONEncoder):
 
         UniversalJSONEncoder._encoders[obj_type] = encoding_function
 
+    @classmethod
+    def clear_encoders(cls) -> None:
+        """Clear all registered encoders. Primarily for testing purposes."""
+        cls._encoders.clear()
+
+    @classmethod
+    def is_encoder_registered(cls, obj_type: Type[Any]) -> bool:
+        """Check if an encoder is registered for the given type. Primarily for testing purposes."""
+        return obj_type in cls._encoders
+
+    @classmethod
+    def get_registered_encoder(cls, obj_type: Type[Any]) -> Callable[[Any], Dict[str, Any]] | None:
+        """Get the registered encoder for the given type. Primarily for testing purposes."""
+        return cls._encoders.get(obj_type)
+
     # argument must be named "o" to override the default method
     @override
     def default(self, o: Any) -> Dict[str, Any]:
