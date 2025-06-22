@@ -1,5 +1,5 @@
 ---
-title: Contributing to Pipelex
+title: Contributing to Kajson
 ---
 
 --8<-- "CONTRIBUTING.md"

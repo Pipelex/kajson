@@ -345,4 +345,4 @@ print(f"Successfully loaded {len(loaded_tasks)} tasks")
 
 - [Encoder API](encoder.md) - Detailed encoder documentation
 - [Decoder API](decoder.md) - Detailed decoder documentation
-- [Custom Types Guide](../guide/custom-types.md) - How to add custom type support 
+- [Custom Types Guide](../guide/custom-types.md) - How to add custom type support

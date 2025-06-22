@@ -234,4 +234,4 @@ def stream_json_objects(file_path: str) -> Iterator[Any]:
 Explore the specific examples:
 - [REST API Integration](rest-api.md) - Build robust APIs
 - [Configuration Files](config-files.md) - Manage app configuration
-- [Data Persistence](data-persistence.md) - Store and retrieve data 
+- [Data Persistence](data-persistence.md) - Store and retrieve data

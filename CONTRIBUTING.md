@@ -4,7 +4,7 @@ Thank you for your interest in Kajson! While Kajson is a stable and feature-comp
 
 Kajson is a powerful drop-in replacement for Python's standard `json` module that automatically handles complex object serialization, including Pydantic v2 models, datetime objects, and custom types. The library is maintained by the same team that develops Pipelex.
 
-Everyone interacting in codebases, issue trackers, mailing lists, or any other Kajson activities is expected to follow the [Code of Conduct](docs/CODE_OF_CONDUCT.md). Please review it before getting started.
+Everyone interacting in codebases, issue trackers, mailing lists, or any other Kajson activities is expected to follow the [Code of Conduct](CODE_OF_CONDUCT.md). Please review it before getting started.
 
 If you have questions or want to discuss potential contributions, feel free to join our community on Discord in the #code-contributions channel.
 
@@ -131,5 +131,5 @@ When adding support for new types:
 ## License
 
 * **CLA** – The first time you open a PR, the CLA-assistant bot will guide you through signing the Contributor License Agreement. The process uses the [CLA assistant lite](https://github.com/marketplace/actions/cla-assistant-lite).
-* **Code of Conduct** – Be kind. All interactions fall under [`docs/CODE_OF_CONDUCT.md`](docs/CODE_OF_CONDUCT.md).
+* **Code of Conduct** – Be kind. All interactions fall under [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
 * **License** – Kajson is licensed under the [Apache 2.0 License](LICENSE).

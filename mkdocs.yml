@@ -4,7 +4,7 @@ site_description: "Universal JSON encoder/decoder for Python with native support
 docs_dir: docs
 repo_url: "https://github.com/Pipelex/kajson"
 repo_name: "Kajson on GitHub"
-watch: [README.md, CHANGELOG.md, LICENSE]
+watch: [README.md, CONTRIBUTING.md, CHANGELOG.md, LICENSE]
 
 theme:
   name: material

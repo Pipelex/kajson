@@ -377,4 +377,4 @@ class User(BaseModel):
 
 - [Decoder API](decoder.md) - Corresponding decoder documentation
 - [kajson Module API](kajson.md) - Main module functions
-- [Custom Types Guide](../guide/custom-types.md) - Tutorial on adding custom types 
+- [Custom Types Guide](../guide/custom-types.md) - Tutorial on adding custom types

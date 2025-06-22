@@ -437,4 +437,4 @@ def decode_batch(json_strings: List[str]) -> List[Any]:
 
 - [Encoder API](encoder.md) - Corresponding encoder documentation
 - [kajson Module API](kajson.md) - Main module functions
-- [Error Handling Guide](../guide/error-handling.md) - Handling decoder errors 
+- [Error Handling Guide](../guide/error-handling.md) - Handling decoder errors
