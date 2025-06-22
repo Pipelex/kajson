@@ -41,7 +41,7 @@ title: "Kajson - Universal JSON Encoder/Decoder for Python"
     Help improve Kajson
 
     [:octicons-arrow-right-24: Contributing Guidelines](contributing.md)
-    [:octicons-arrow-right-24: GitHub Repository](https://github.com/PipelexLab/kajson)
+    [:octicons-arrow-right-24: GitHub Repository](https://github.com/Pipelex/kajson)
 
 </div>
 

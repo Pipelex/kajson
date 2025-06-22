@@ -2,7 +2,7 @@ site_name: Kajson Documentation
 site_url: https://kajson.readthedocs.io/
 site_description: "Universal JSON encoder/decoder for Python with native support for Pydantic v2, datetime objects, and custom types."
 docs_dir: docs
-repo_url: "https://github.com/PipelexLab/kajson"
+repo_url: "https://github.com/Pipelex/kajson"
 repo_name: "Kajson on GitHub"
 watch: [README.md, CHANGELOG.md, LICENSE]
 
@@ -36,7 +36,7 @@ copyright: "© 2025 Evotis S.A.S. <br/>Licensed under Apache 2.0"
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/PipelexLab/kajson
+      link: https://github.com/Pipelex/kajson
       name: Kajson on GitHub
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/kajson/

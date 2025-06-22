@@ -19,7 +19,7 @@ Since Kajson is a mature library, most contributions will likely be:
 
 ## Contribution process
 
-- Fork the [Kajson repository](https://github.com/PipelexLab/kajson)
+- Fork the [Kajson repository](https://github.com/Pipelex/kajson)
 - Clone the repository locally
 - Install dependencies: `make install` (creates .venv and installs dependencies)
 - Run checks to make sure all is good: `make check` & `make test`
