@@ -239,7 +239,7 @@ class TestUniversalJSONDecoder:
         with pytest.raises(KajsonDecoderError) as excinfo:
             self.decoder.universal_decoder(test_dict)
 
-        assert "Could not decode 'MockClassWithFailingJsonDecode' from json because static method __json_deconde__ failed" in str(excinfo.value)
+        assert "Could not decode 'MockClassWithFailingJsonDecode' from json because static method __json_decode__ failed" in str(excinfo.value)
 
     def test_universal_decoder_json_decode_method_failure_with_fallback(self, mocker: MockerFixture) -> None:
         """Test decoder with failing __json_decode__ method when fallback enabled."""
@@ -253,7 +253,7 @@ class TestUniversalJSONDecoder:
             # Should fall back to next decoding method (constructor with dict)
             assert isinstance(result, MockClassWithFailingJsonDecode)
             assert len(w) == 1
-            assert "Could not decode 'MockClassWithFailingJsonDecode' from json because static method __json_deconde__ failed" in str(w[0].message)
+            assert "Could not decode 'MockClassWithFailingJsonDecode' from json because static method __json_decode__ failed" in str(w[0].message)
 
     def test_universal_decoder_root_model_success(self) -> None:
         """Test decoder with successful RootModel."""

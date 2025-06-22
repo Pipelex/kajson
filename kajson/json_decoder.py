@@ -168,7 +168,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
         except AttributeError:
             pass
         except Exception as exc:
-            error_msg = f"Could not decode '{class_name}' from json because static method __json_deconde__ failed: '{exc}'."
+            error_msg = f"Could not decode '{class_name}' from json because static method __json_decode__ failed: '{exc}'."
             if IS_DECODER_FALLBACK_ENABLED:
                 warnings.warn(error_msg + FALLBACK_MESSAGE)
             else:
