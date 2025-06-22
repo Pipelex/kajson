@@ -51,7 +51,9 @@ class TestSerDeByStr:
             deserialized = kajson.loads(obj_pydantic_tricky_types_json_str4_with_validation_error)  # pyright: ignore[reportUnknownMemberType]
             logging.info(f"Deserialized by kajson as {type(deserialized).__name__}")
             logging.info(deserialized)
-        assert "using kwargs '<class 'tests.test_data.Number'>': 1 validation error for Number" in str(excinfo.value)
+        assert "Could not instantiate pydantic BaseModel '<class 'tests.test_data.Number'>' using kwargs: 1 validation error for Number" in str(
+            excinfo.value
+        )
         logging.info(f"Caught expected error: {excinfo.value}")
 
     @pytest.mark.parametrize("test_obj", SerDeTestCases.ARBITRARY_TYPES)

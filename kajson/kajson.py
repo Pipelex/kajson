@@ -25,6 +25,7 @@ import json
 from typing import IO, Any, Dict, Union
 from zoneinfo import ZoneInfo
 
+from kajson.exceptions import KajsonDecoderError
 from kajson.json_decoder import UniversalJSONDecoder
 from kajson.json_encoder import UniversalJSONEncoder
 
@@ -119,10 +120,10 @@ def json_encode_date(d: datetime.date) -> Dict[str, str]:
 UniversalJSONEncoder.register(datetime.date, json_encode_date)
 
 
-def json_decode_date(d: Dict[str, str]) -> datetime.date:
+def json_decode_date(obj_dict: Dict[str, str]) -> datetime.date:
     """Decoder for dates (from module datetime)."""
     # Split date string into parts and convert to integers
-    year, month, day = map(int, d["date"].split("-"))
+    year, month, day = map(int, obj_dict["date"].split("-"))
     return datetime.date(year, month, day)
 
 
@@ -142,9 +143,13 @@ UniversalJSONEncoder.register(datetime.datetime, json_encode_datetime)
 
 def json_decode_datetime(obj_dict: Dict[str, Any]) -> datetime.datetime:
     """Decoder for datetimes (from module datetime)."""
-    dt = datetime.datetime.strptime(obj_dict["datetime"], "%Y-%m-%d %H:%M:%S.%f")
-    if tzinfo := obj_dict.get("tzinfo"):
-        dt = dt.replace(tzinfo=ZoneInfo(tzinfo))
+    if datetime_str := obj_dict.get("datetime"):
+        dt = datetime.datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S.%f")
+    else:
+        raise KajsonDecoderError("Could not decode datetime from json: datetime field is required")
+
+    if tzinfo_str := obj_dict.get("tzinfo"):
+        dt = dt.replace(tzinfo=ZoneInfo(tzinfo_str))
     return dt
 
 

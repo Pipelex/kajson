@@ -75,9 +75,9 @@ class UniversalJSONDecoder(json.JSONDecoder):
                 provided type. Takes a single argument, a returns an object.
         """
         if not isinstance(obj_type, type):  # pyright: ignore[reportUnnecessaryIsInstance]
-            raise ValueError("Expected a type/class, a %s was passed instead." % type(obj_type))
+            raise TypeError("Expected a type/class, a %s was passed instead." % type(obj_type))
         if not callable(decoding_function):
-            raise ValueError("Expected a function, a %s was passed instead." % type(decoding_function))
+            raise TypeError("Expected a function, a %s was passed instead." % type(decoding_function))
 
         UniversalJSONDecoder._decoders[obj_type] = decoding_function
 
@@ -141,7 +141,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
                 return UniversalJSONDecoder._decoders[the_class](the_dict)
             except Exception as exc:
                 func_name = UniversalJSONDecoder._decoders[the_class].__name__
-                error_msg = f"Decoding function '{func_name}' used for type '{the_class}' raised an exception: '{exc}'."
+                error_msg = f"Could not decode '{class_name}' from json because function '{func_name}' failed: '{exc}'."
                 if IS_DECODER_FALLBACK_ENABLED:
                     warnings.warn(error_msg + FALLBACK_MESSAGE)
                 else:
@@ -153,7 +153,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
         except AttributeError:
             pass
         except Exception as exc:
-            error_msg = f"Static method __json_deconde__ used for type '{the_class}' raised an exception: '{exc}'."
+            error_msg = f"Could not decode '{class_name}' from json because static method __json_deconde__ failed: '{exc}'."
             if IS_DECODER_FALLBACK_ENABLED:
                 warnings.warn(error_msg + FALLBACK_MESSAGE)
             else:
@@ -168,7 +168,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
                 root_model_obj: RootModel[Any] = the_class(**the_dict)
                 self.log(f"Root model '{the_class}' created: {root_model_obj}")
             except ValidationError as exc:
-                error_msg = f"Error: creating root_model '{the_class}': {exc}\n\nthe_dict:\n{the_dict}"
+                error_msg = f"Could not decode '{class_name}' pydantic RootModel from json: {exc}\n\nthe_dict:\n{the_dict}"
                 self.log(error_msg)
                 raise KajsonDecoderError(error_msg) from exc
 
@@ -178,7 +178,9 @@ class UniversalJSONDecoder(json.JSONDecoder):
                 self.log(f"Root model '{the_class}' validated")
                 return root_model_obj
             except ValidationError as exc:
-                error_msg = f"Error: post validate root_model '{the_class}': {exc}\n\nthe_dict:\n{the_dict}\n\nroot_model_obj:\n{root_model_obj}"
+                error_msg = (
+                    f"Could not post validate pydantic RootModel '{the_class}': {exc}\n\nthe_dict:\n{the_dict}\n\nroot_model_obj:\n{root_model_obj}"
+                )
                 self.log(error_msg)
                 raise KajsonDecoderError(error_msg) from exc
 
@@ -187,12 +189,12 @@ class UniversalJSONDecoder(json.JSONDecoder):
             try:
                 return the_class.model_validate(the_dict)
             except ValidationError as exc:
-                error_msg = f"Error: model_validate for '{the_class}': {exc}\n\nthe_dict:\n{the_dict}"
+                error_msg = f"Could not model_validate pydantic BaseModel '{the_class}': {exc}\n\nthe_dict:\n{the_dict}"
                 self.log(error_msg)
                 try:
                     base_model_obj = the_class(**the_dict)
                 except ValidationError as exc:
-                    error_msg = f"Error while trying to instantiate using kwargs '{the_class}': {exc}\n\nthe_dict:\n{the_dict}"
+                    error_msg = f"Could not instantiate pydantic BaseModel '{the_class}' using kwargs: {exc}\n\nthe_dict:\n{the_dict}"
                     self.log(error_msg)
                     raise KajsonDecoderError(error_msg) from exc
                 try:
@@ -202,7 +204,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
                     return base_model_obj
                 except ValidationError as exc:
                     error_msg = (
-                        f"Error while trying to post validate base_model '{the_class}': "
+                        f"Could not post validate pydantic BaseModel '{the_class}': "
                         f"{exc}\n\nthe_dict:\n{the_dict}\n\nbase_model_obj:\n{base_model_obj}"
                     )
                     self.log(error_msg)
