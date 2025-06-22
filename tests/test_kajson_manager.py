@@ -190,25 +190,6 @@ class TestKajsonManager:
                 pass
 
             @override
-            def register_classes_in_file(
-                self,
-                file_path: str,
-                base_class: Optional[Type[Any]],
-                is_include_imported: bool,
-            ) -> None:
-                pass
-
-            @override
-            def register_classes_in_folder(
-                self,
-                folder_path: str,
-                base_class: Optional[Type[Any]] = None,
-                is_recursive: bool = True,
-                is_include_imported: bool = False,
-            ) -> None:
-                pass
-
-            @override
             def get_class(self, name: str) -> Optional[Type[Any]]:
                 return self.classes.get(name)
 

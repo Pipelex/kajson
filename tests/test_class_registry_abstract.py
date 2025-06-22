@@ -41,8 +41,6 @@ class TestClassRegistryAbstract:
             "unregister_class_by_name",
             "register_classes_dict",
             "register_classes",
-            "register_classes_in_file",
-            "register_classes_in_folder",
             "get_class",
             "get_required_class",
             "get_required_subclass",
@@ -88,17 +86,17 @@ class TestClassRegistryAbstract:
         assert get_class_sig.return_annotation == Optional[Type[Any]]
 
         # Test register_classes_in_folder method
-        register_folder_method = getattr(ClassRegistryAbstract, "register_classes_in_folder")
-        register_folder_sig = inspect.signature(register_folder_method)
-        params = register_folder_sig.parameters
-        assert "self" in params
-        assert "folder_path" in params
-        assert "base_class" in params
-        assert "is_recursive" in params
-        assert "is_include_imported" in params
-        assert params["base_class"].default is None
-        assert params["is_recursive"].default is True
-        assert params["is_include_imported"].default is False
+        # register_folder_method = getattr(ClassRegistryAbstract, "register_classes_in_folder")
+        # register_folder_sig = inspect.signature(register_folder_method)
+        # params = register_folder_sig.parameters
+        # assert "self" in params
+        # assert "folder_path" in params
+        # assert "base_class" in params
+        # assert "is_recursive" in params
+        # assert "is_include_imported" in params
+        # assert params["base_class"].default is None
+        # assert params["is_recursive"].default is True
+        # assert params["is_include_imported"].default is False
 
     def test_incomplete_subclass_cannot_be_instantiated(self):
         """Test that subclasses missing abstract method implementations cannot be instantiated."""
@@ -162,25 +160,6 @@ class TestClassRegistryAbstract:
                 pass
 
             @override
-            def register_classes_in_file(
-                self,
-                file_path: str,
-                base_class: Optional[Type[Any]],
-                is_include_imported: bool,
-            ) -> None:
-                pass
-
-            @override
-            def register_classes_in_folder(
-                self,
-                folder_path: str,
-                base_class: Optional[Type[Any]] = None,
-                is_recursive: bool = True,
-                is_include_imported: bool = False,
-            ) -> None:
-                pass
-
-            @override
             def get_class(self, name: str) -> Optional[Type[Any]]:
                 return None
 
@@ -235,16 +214,6 @@ class TestClassRegistryAbstract:
 
             @override
             def register_classes(self, classes: List[Type[Any]]) -> None:
-                pass
-
-            @override
-            def register_classes_in_file(self, file_path: str, base_class: Optional[Type[Any]], is_include_imported: bool) -> None:
-                pass
-
-            @override
-            def register_classes_in_folder(
-                self, folder_path: str, base_class: Optional[Type[Any]] = None, is_recursive: bool = True, is_include_imported: bool = False
-            ) -> None:
                 pass
 
             @override

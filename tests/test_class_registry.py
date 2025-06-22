@@ -8,7 +8,7 @@ import pytest
 from pydantic import BaseModel
 from pytest_mock import MockerFixture
 
-from kajson.class_registry import ClassRegistry, find_files_in_dir
+from kajson.class_registry import ClassRegistry
 from kajson.exceptions import ClassRegistryInheritanceError, ClassRegistryNotFoundError
 
 
@@ -296,49 +296,6 @@ class TestClassRegistry:
         # Non-existing class
         assert registry.has_subclass("NonExistent", TestBase) is False
 
-    def test_register_classes_in_file(self, mocker: MockerFixture):
-        """Test registering classes from a Python file."""
-        registry = ClassRegistry()
-
-        # Mock the module utilities to avoid complex file operations
-        mock_module = mocker.MagicMock()
-        mock_module.__name__ = "test_module"
-
-        mock_import = mocker.patch("kajson.class_registry.import_module_from_file", return_value=mock_module)
-        mock_find = mocker.patch("kajson.class_registry.find_classes_in_module", return_value=[str, int])
-        mock_sys = mocker.patch("kajson.class_registry.sys")
-
-        registry.register_classes_in_file(file_path="/fake/path.py", base_class=None, is_include_imported=False)
-
-        # Verify the mocked functions were called correctly
-        mock_import.assert_called_once_with("/fake/path.py")
-        mock_find.assert_called_once_with(module=mock_module, base_class=None, include_imported=False)
-        # Verify sys.modules cleanup
-        assert mock_module.__name__ in mock_sys.modules.__delitem__.call_args_list[0][0]
-
-        # Verify classes were registered
-        assert registry.has_class("str")
-        assert registry.has_class("int")
-
-    def test_register_classes_in_folder(self, mocker: MockerFixture):
-        """Test registering classes from a folder."""
-        registry = ClassRegistry()
-
-        # Mock the file finding and registration
-        mock_files = [Path("/fake/file1.py"), Path("/fake/file2.py")]
-        mock_find_files = mocker.patch("kajson.class_registry.find_files_in_dir", return_value=mock_files)
-        mock_register_file = mocker.patch.object(ClassRegistry, "register_classes_in_file")
-
-        registry.register_classes_in_folder(folder_path="/fake/folder", base_class=BaseModel, is_recursive=True, is_include_imported=False)
-
-        # Verify find_files_in_dir was called correctly
-        mock_find_files.assert_called_once_with(dir_path="/fake/folder", pattern="*.py", is_recursive=True)
-
-        # Verify register_classes_in_file was called for each file
-        assert mock_register_file.call_count == 2
-        mock_register_file.assert_any_call(file_path="/fake/file1.py", base_class=BaseModel, is_include_imported=False)
-        mock_register_file.assert_any_call(file_path="/fake/file2.py", base_class=BaseModel, is_include_imported=False)
-
     def test_logging_setup(self, mocker: MockerFixture):
         """Test logger setup and usage."""
         registry = ClassRegistry()
@@ -364,66 +321,3 @@ class TestClassRegistry:
 
         # Verify _log was called with correct message
         spy_log.assert_called_with("Registered new single class 'str' in registry")
-
-
-class TestFindFilesInDir:
-    """Test the find_files_in_dir helper function."""
-
-    def test_find_files_non_recursive(self):
-        """Test finding files non-recursively."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create files
-            (Path(temp_dir) / "file1.py").touch()
-            (Path(temp_dir) / "file2.py").touch()
-            (Path(temp_dir) / "file3.txt").touch()
-
-            # Create subdirectory with files
-            sub_dir = Path(temp_dir) / "subdir"
-            sub_dir.mkdir()
-            (sub_dir / "file4.py").touch()
-
-            # Find Python files non-recursively
-            files = find_files_in_dir(temp_dir, "*.py", is_recursive=False)
-
-            assert len(files) == 2
-            file_names = [f.name for f in files]
-            assert "file1.py" in file_names
-            assert "file2.py" in file_names
-            assert "file4.py" not in file_names
-
-    def test_find_files_recursive(self):
-        """Test finding files recursively."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create files
-            (Path(temp_dir) / "file1.py").touch()
-            (Path(temp_dir) / "file2.py").touch()
-            (Path(temp_dir) / "file3.txt").touch()
-
-            # Create subdirectory with files
-            sub_dir = Path(temp_dir) / "subdir"
-            sub_dir.mkdir()
-            (sub_dir / "file4.py").touch()
-
-            # Find Python files recursively
-            files = find_files_in_dir(temp_dir, "*.py", is_recursive=True)
-
-            assert len(files) == 3
-            file_names = [f.name for f in files]
-            assert "file1.py" in file_names
-            assert "file2.py" in file_names
-            assert "file4.py" in file_names
-
-    def test_find_files_empty_directory(self):
-        """Test finding files in empty directory."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            files = find_files_in_dir(temp_dir, "*.py", is_recursive=False)
-            assert len(files) == 0
-
-    def test_find_files_no_matches(self):
-        """Test finding files with no matches."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            (Path(temp_dir) / "file1.txt").touch()
-            (Path(temp_dir) / "file2.md").touch()
-
-            files = find_files_in_dir(temp_dir, "*.py", is_recursive=False)
-            assert len(files) == 0

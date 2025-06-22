@@ -42,25 +42,6 @@ class ClassRegistryAbstract(ABC):
         pass
 
     @abstractmethod
-    def register_classes_in_file(
-        self,
-        file_path: str,
-        base_class: Optional[Type[Any]],
-        is_include_imported: bool,
-    ) -> None:
-        pass
-
-    @abstractmethod
-    def register_classes_in_folder(
-        self,
-        folder_path: str,
-        base_class: Optional[Type[Any]] = None,
-        is_recursive: bool = True,
-        is_include_imported: bool = False,
-    ) -> None:
-        pass
-
-    @abstractmethod
     def get_class(self, name: str) -> Optional[Type[Any]]:
         pass
 
