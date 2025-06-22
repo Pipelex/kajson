@@ -148,6 +148,7 @@ typeCheckingMode = "strict"
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib -ra"
 minversion = "8.0"
+xfail_strict = true
 
 [tool.ruff]
 exclude = [".mypy_cache", ".ruff_cache", ".venv", ".vscode", "trigger_pipeline"]

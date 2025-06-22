@@ -1,0 +1,70 @@
+---
+description: 
+globs: tests/**/*.py
+alwaysApply: false
+---
+These rules apply when writing unit tests.
+- Always use pytest
+
+## Test file structure
+
+- Name test files with `test_` prefix
+- Use descriptive names that match the functionality being tested
+- Place test files in the appropriate test category directory:
+    - `tests/unit/` - for unit tests that test individual functions/classes in isolation
+    - `tests/integration/` - for integration tests that test component interactions
+    - `tests/e2e/` - for end-to-end tests
+- Fixtures are defined in conftest.py modules at different levels of the hierarchy, their scope is handled by pytest
+- Test data is placed inside test_data.py at different levels of the hierarchy, they must be imported with paths from the root like `tests.pipelex.test_data`. Their content is all constants, regrouped inside classes to keep things tidy.
+- Always put test inside Test classes.
+
+## Test Class Structure
+
+Always group the tests of a module into a test class:
+
+```python
+
+class TestSerDeByStr:
+    @pytest.mark.parametrize("test_obj", SerDeTestCases.PYDANTIC_EXAMPLES)
+    def test_serde_str_pydantic_with_subclasses(self, test_obj: Any):
+        ...
+```
+
+Sometimes it can be convenient to access the test's name in its body, for instance to include into a job_id. To achieve that, add the argument `request: FixtureRequest` into the signature and then you can get the test name using `cast(str, request.node.originalname),  # type: ignore`. 
+
+## Test Data Organization
+
+- If it's not already there, create a `test_data.py` file in the test directory
+
+```python
+class TestCases:
+    CASE_BLUEPRINT_1 = StuffBlueprint(
+        name="test_case_1",
+        concept_code="domain.ConceptName1",
+        value="test_value"
+    )
+    CASE_BLUEPRINT_2 = StuffBlueprint(
+        name="test_case_2",
+        concept_code="domain.ConceptName2",
+        value="test_value"
+    )
+
+    CASE_BLUEPRINTS: ClassVar[List[Tuple[str, str]]] = [  # topic, blueprint"
+        ("topic1", CASE_BLUEPRINT_1),
+        ("topic2", CASE_BLUEPRINT_2),
+    ]
+```
+
+Note how we avoid initializing a default mutable value within a class instance, instead we use ClassVar.
+Also note that we provide a topic for the test case, which is purely for convenience.
+
+## Best Practices for Testing
+
+- Use parametrize for multiple test cases
+- Test both success and failure cases
+- Verify working memory state
+- Check output structure and content
+- Use meaningful test case names
+- Include docstrings explaining test purpose
+- Log outputs for debugging
+- Generate reports for cost tracking
