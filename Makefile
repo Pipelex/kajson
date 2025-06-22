@@ -171,6 +171,18 @@ test: env
 		$(VENV_PYTEST) -s -o log_cli=true -o log_level=WARNING $(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,-v)); \
 	fi
 
+test-quiet: env
+	$(call PRINT_TITLE,"Unit testing without prints but displaying logs via pytest for WARNING level and above")
+	@echo "• Running unit tests"
+	@if [ -n "$(TEST)" ]; then \
+		$(VENV_PYTEST) -o log_cli=true -o log_level=WARNING -k "$(TEST)" $(if $(filter 1,$(VERBOSE)),-v,$(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,))); \
+	else \
+		$(VENV_PYTEST) -o log_cli=true -o log_level=WARNING $(if $(filter 1,$(VERBOSE)),-v,$(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,))); \
+	fi
+
+t: test-quiet
+	@echo "> done: t = test-quiet"
+
 test-with-prints: env
 	$(call PRINT_TITLE,"Unit testing with prints")
 	@echo "• Running unit tests"

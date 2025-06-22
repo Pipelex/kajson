@@ -29,7 +29,6 @@ def import_module_from_file(file_path: str) -> Any:
     # Validate that the file is a Python file
     if not file_path.endswith(".py"):
         raise ModuleFileError(f"File {file_path} is not a Python file (must end with .py)")
-
     module_name = file_path[:-3].replace(os.sep, ".")
     module = importlib.import_module(module_name)
 
