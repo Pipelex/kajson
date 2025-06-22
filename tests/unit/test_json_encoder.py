@@ -4,7 +4,7 @@
 import json
 import logging
 import warnings
-from typing import Any, Dict
+from typing import Any, Dict, Generator
 
 import pytest
 from pytest_mock import MockerFixture
@@ -66,31 +66,32 @@ class MockClassWithoutModule:
         self.data = data
 
 
+@pytest.fixture(autouse=True)
+def setup_encoder() -> Generator[UniversalJSONEncoder, None, None]:
+    """Set up test fixtures for each test."""
+    # Clear any existing encoders
+    UniversalJSONEncoder.clear_encoders()
+    # Create encoder instance
+    encoder = UniversalJSONEncoder()
+    yield encoder
+    # Clean up after each test
+    UniversalJSONEncoder.clear_encoders()
+
+
 class TestUniversalJSONEncoder:
     """Test cases for UniversalJSONEncoder class."""
 
-    @pytest.fixture(autouse=True)
-    def setup_encoder(self) -> None:
-        """Set up test fixtures for each test."""
-        # Clear any existing encoders
-        UniversalJSONEncoder.clear_encoders()
-        # Create encoder instance
-        self.encoder = UniversalJSONEncoder()
-
-    def teardown_method(self) -> None:
-        """Clean up after each test."""
-        UniversalJSONEncoder.clear_encoders()
-
-    def test_encoder_initialization(self) -> None:
+    def test_encoder_initialization(self, setup_encoder: UniversalJSONEncoder) -> None:
         """Test encoder initialization sets up logger correctly."""
-        encoder = UniversalJSONEncoder()
+        encoder = setup_encoder
         assert isinstance(encoder.logger, logging.Logger)
         assert encoder.logger.name == "kajson.encoder"
 
-    def test_log_method(self, mocker: MockerFixture) -> None:
+    def test_log_method(self, setup_encoder: UniversalJSONEncoder, mocker: MockerFixture) -> None:
         """Test log method calls logger debug (covers line 72)."""
-        mock_debug = mocker.patch.object(self.encoder.logger, "debug")
-        self.encoder.log("test message")
+        encoder = setup_encoder
+        mock_debug = mocker.patch.object(encoder.logger, "debug")
+        encoder.log("test message")
         mock_debug.assert_called_once_with("test message")
 
     def test_register_valid_type_and_function(self) -> None:
@@ -126,8 +127,9 @@ class TestUniversalJSONEncoder:
         json_result = json.dumps("test_string", cls=UniversalJSONEncoder)
         assert json_result == '"test_string"'
 
-    def test_default_with_registered_encoder_success(self) -> None:
+    def test_default_with_registered_encoder_success(self, setup_encoder: UniversalJSONEncoder) -> None:
         """Test default method with successfully registered encoder."""
+        encoder = setup_encoder
 
         def test_encoder(obj: MockClassWithDict) -> Dict[str, Any]:
             return {"encoded_name": obj.name, "encoded_value": obj.value}
@@ -135,7 +137,7 @@ class TestUniversalJSONEncoder:
         UniversalJSONEncoder.register(MockClassWithDict, test_encoder)
 
         test_obj = MockClassWithDict("test", 42)
-        result = self.encoder.default(test_obj)
+        result = encoder.default(test_obj)
 
         expected = {
             "encoded_name": "test",
@@ -145,8 +147,9 @@ class TestUniversalJSONEncoder:
         }
         assert result == expected
 
-    def test_default_with_registered_encoder_failure_no_fallback(self) -> None:
+    def test_default_with_registered_encoder_failure_no_fallback(self, setup_encoder: UniversalJSONEncoder) -> None:
         """Test registered encoder failure when fallback disabled (covers lines 130-136)."""
+        encoder = setup_encoder
 
         def failing_encoder(obj: MockClassWithDict) -> Dict[str, Any]:
             raise ValueError("Encoder failed")
@@ -156,13 +159,14 @@ class TestUniversalJSONEncoder:
         test_obj = MockClassWithDict("test", 42)
 
         with pytest.raises(UnijsonEncoderError) as excinfo:
-            self.encoder.default(test_obj)
+            encoder.default(test_obj)
 
         assert "Encoding function failing_encoder used for type" in str(excinfo.value)
         assert "raised an exception" in str(excinfo.value)
 
-    def test_default_with_registered_encoder_failure_with_fallback(self, mocker: MockerFixture) -> None:
+    def test_default_with_registered_encoder_failure_with_fallback(self, setup_encoder: UniversalJSONEncoder, mocker: MockerFixture) -> None:
         """Test registered encoder failure when fallback enabled (covers lines 133-134)."""
+        encoder = setup_encoder
         mocker.patch("kajson.json_encoder.IS_ENCODER_FALLBACK_ENABLED", True)
 
         def failing_encoder(obj: MockClassWithDict) -> Dict[str, Any]:
@@ -174,7 +178,7 @@ class TestUniversalJSONEncoder:
 
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            result = self.encoder.default(test_obj)
+            result = encoder.default(test_obj)
 
             # Should fall back to __dict__ encoding
             assert result["name"] == "test"
@@ -183,10 +187,11 @@ class TestUniversalJSONEncoder:
             assert len(w) == 1
             assert "Encoding function failing_encoder used for type" in str(w[0].message)
 
-    def test_default_with_json_encode_method_success(self) -> None:
+    def test_default_with_json_encode_method_success(self, setup_encoder: UniversalJSONEncoder) -> None:
         """Test default method with successful __json_encode__ method."""
+        encoder = setup_encoder
         test_obj = MockClassWithJsonEncode("test_data")
-        result = self.encoder.default(test_obj)
+        result = encoder.default(test_obj)
 
         expected = {
             "data": "test_data",
@@ -195,25 +200,27 @@ class TestUniversalJSONEncoder:
         }
         assert result == expected
 
-    def test_default_with_json_encode_method_failure_no_fallback(self) -> None:
+    def test_default_with_json_encode_method_failure_no_fallback(self, setup_encoder: UniversalJSONEncoder) -> None:
         """Test __json_encode__ method failure when fallback disabled (covers lines 145-150)."""
+        encoder = setup_encoder
         test_obj = MockClassWithFailingJsonEncode("test_data")
 
         with pytest.raises(UnijsonEncoderError) as excinfo:
-            self.encoder.default(test_obj)
+            encoder.default(test_obj)
 
         assert "Method __json_encode__() used for type" in str(excinfo.value)
         assert "raised an exception" in str(excinfo.value)
 
-    def test_default_with_json_encode_method_failure_with_fallback(self, mocker: MockerFixture) -> None:
+    def test_default_with_json_encode_method_failure_with_fallback(self, setup_encoder: UniversalJSONEncoder, mocker: MockerFixture) -> None:
         """Test __json_encode__ method failure when fallback enabled (covers lines 147-148)."""
+        encoder = setup_encoder
         mocker.patch("kajson.json_encoder.IS_ENCODER_FALLBACK_ENABLED", True)
 
         test_obj = MockClassWithFailingJsonEncode("test_data")
 
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            result = self.encoder.default(test_obj)
+            result = encoder.default(test_obj)
 
             # Should fall back to __dict__ encoding
             assert result["data"] == "test_data"
@@ -221,10 +228,11 @@ class TestUniversalJSONEncoder:
             assert len(w) == 1
             assert "Method __json_encode__() used for type" in str(w[0].message)
 
-    def test_default_with_dict_fallback_success(self) -> None:
+    def test_default_with_dict_fallback_success(self, setup_encoder: UniversalJSONEncoder) -> None:
         """Test default method with successful __dict__ fallback."""
+        encoder = setup_encoder
         test_obj = MockClassWithDict("test", 42)
-        result = self.encoder.default(test_obj)
+        result = encoder.default(test_obj)
 
         expected = {
             "name": "test",
@@ -234,27 +242,30 @@ class TestUniversalJSONEncoder:
         }
         assert result == expected
 
-    def test_default_with_dict_fallback_attribute_error(self) -> None:
+    def test_default_with_dict_fallback_attribute_error(self, setup_encoder: UniversalJSONEncoder) -> None:
         """Test __dict__ fallback when object has no __dict__ (covers line 157)."""
+        encoder = setup_encoder
         test_obj = MockClassWithoutDict("test_data")
 
         with pytest.raises(TypeError) as excinfo:
-            self.encoder.default(test_obj)
+            encoder.default(test_obj)
 
         assert "is not JSON serializable" in str(excinfo.value)
 
-    def test_default_all_methods_fail_raises_type_error(self) -> None:
+    def test_default_all_methods_fail_raises_type_error(self, setup_encoder: UniversalJSONEncoder) -> None:
         """Test that TypeError is raised when all encoding methods fail (covers line 162)."""
+        encoder = setup_encoder
         # Create an object that can't be encoded by any method
         test_obj = MockClassWithoutDict("test_data")
 
         with pytest.raises(TypeError) as excinfo:
-            self.encoder.default(test_obj)
+            encoder.default(test_obj)
 
         assert f"Type {type(test_obj)} is not JSON serializable" in str(excinfo.value)
 
-    def test_default_preserves_existing_class_and_module(self) -> None:
+    def test_default_preserves_existing_class_and_module(self, setup_encoder: UniversalJSONEncoder) -> None:
         """Test that existing __class__ and __module__ in dict are preserved."""
+        encoder = setup_encoder
 
         class MockWithExistingMetadata:
             def __json_encode__(self) -> Dict[str, Any]:
@@ -265,7 +276,7 @@ class TestUniversalJSONEncoder:
                 }
 
         test_obj = MockWithExistingMetadata()
-        result = self.encoder.default(test_obj)
+        result = encoder.default(test_obj)
 
         assert result["__class__"] == "CustomClass"
         assert result["__module__"] == "custom.module"
@@ -282,8 +293,9 @@ class TestUniversalJSONEncoder:
         assert result["__class__"] == "MockClassWithJsonEncode"
         assert result["__module__"] == "tests.unit.test_json_encoder"
 
-    def test_object_module_detection_without_module_attribute(self) -> None:
+    def test_object_module_detection_without_module_attribute(self, setup_encoder: UniversalJSONEncoder) -> None:
         """Test module detection when object raises AttributeError for __module__."""
+        encoder = setup_encoder
 
         class MockNoModule(MockClassWithDict):
             """Subclass that raises AttributeError when __module__ is accessed."""
@@ -295,11 +307,12 @@ class TestUniversalJSONEncoder:
         test_obj = MockNoModule("test", 42)
 
         # Encode the object - this should trigger the fallback to _get_type_module
-        result = self.encoder.default(test_obj)
+        result = encoder.default(test_obj)
         assert result["__module__"] == ""
 
-    def test_object_module_detection_main_handling(self, mocker: MockerFixture) -> None:
+    def test_object_module_detection_main_handling(self, setup_encoder: UniversalJSONEncoder, mocker: MockerFixture) -> None:
         """Test module detection with __main__ module handling (covers line 191)."""
+        encoder = setup_encoder
         # Create object with __main__ as module
         test_obj = MockClassWithDict("test", 42)
         # Modify the class's __module__ attribute to mimic objects defined in __main__
@@ -310,7 +323,7 @@ class TestUniversalJSONEncoder:
         mock_main.__file__ = "/path/to/script.py"
         mocker.patch("kajson.json_encoder.__main__", mock_main)
 
-        result = self.encoder.default(test_obj)
+        result = encoder.default(test_obj)
         assert result["__module__"] == "/path/to/script"
 
     def test_type_module_detection_with_builtin_types(self) -> None:
