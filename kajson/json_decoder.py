@@ -81,6 +81,21 @@ class UniversalJSONDecoder(json.JSONDecoder):
 
         UniversalJSONDecoder._decoders[obj_type] = decoding_function
 
+    @classmethod
+    def clear_decoders(cls) -> None:
+        """Clear all registered decoders. Primarily for testing purposes."""
+        cls._decoders.clear()
+
+    @classmethod
+    def is_decoder_registered(cls, obj_type: Type[Any]) -> bool:
+        """Check if a decoder is registered for the given type. Primarily for testing purposes."""
+        return obj_type in cls._decoders
+
+    @classmethod
+    def get_registered_decoder(cls, obj_type: Type[Any]) -> Callable[[Dict[str, Any]], Any] | None:
+        """Get the registered decoder for the given type. Primarily for testing purposes."""
+        return cls._decoders.get(obj_type)
+
     # Required to redirect the hook for decoding.
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Constructor redirecting the hook for decoding JSON objects."""

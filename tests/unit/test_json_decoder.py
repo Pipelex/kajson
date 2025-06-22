@@ -103,13 +103,13 @@ class TestUniversalJSONDecoder:
     def setup_decoder(self) -> None:
         """Set up test fixtures for each test."""
         # Clear any existing decoders
-        UniversalJSONDecoder._decoders.clear()  # pyright: ignore[reportProtectedAccess]
+        UniversalJSONDecoder.clear_decoders()
         # Create decoder instance
         self.decoder = UniversalJSONDecoder()
 
     def teardown_method(self) -> None:
         """Clean up after each test."""
-        UniversalJSONDecoder._decoders.clear()  # pyright: ignore[reportProtectedAccess]
+        UniversalJSONDecoder.clear_decoders()
 
     def test_register_valid_type_and_function(self) -> None:
         """Test registering a valid type and decoding function."""
@@ -118,8 +118,8 @@ class TestUniversalJSONDecoder:
             return f"decoded_{data['value']}"
 
         UniversalJSONDecoder.register(str, test_decoder)
-        assert str in UniversalJSONDecoder._decoders  # pyright: ignore[reportProtectedAccess]
-        assert UniversalJSONDecoder._decoders[str] is test_decoder  # pyright: ignore[reportProtectedAccess]
+        assert UniversalJSONDecoder.is_decoder_registered(str)
+        assert UniversalJSONDecoder.get_registered_decoder(str) is test_decoder
 
     def test_register_invalid_type_raises_error(self) -> None:
         """Test that registering invalid type raises TypeError."""
