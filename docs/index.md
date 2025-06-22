@@ -1,10 +1,10 @@
 ---
-title: "kajson - Universal JSON Encoder/Decoder for Python"
+title: "Kajson - Universal JSON Encoder/Decoder for Python"
 ---
 
-# Welcome to kajson Documentation
+# Welcome to Kajson Documentation
 
-**kajson** is a powerful drop-in replacement for Python's standard `json` module that automatically handles complex object serialization, including **Pydantic v2 models**, **datetime objects**, and **custom types**.
+**Kajson** is a powerful drop-in replacement for Python's standard `json` module that automatically handles complex object serialization, including **Pydantic v2 models**, **datetime objects**, and **custom types**.
 
 <div class="grid cards" markdown>
 
@@ -12,7 +12,7 @@ title: "kajson - Universal JSON Encoder/Decoder for Python"
 
     ---
 
-    Get up and running with kajson in minutes
+    Get up and running with Kajson in minutes
 
     [:octicons-arrow-right-24: Installation](pages/installation.md)
     [:octicons-arrow-right-24: Quick Start Guide](pages/quick-start.md)
@@ -21,7 +21,7 @@ title: "kajson - Universal JSON Encoder/Decoder for Python"
 
     ---
 
-    Master kajson's features with our comprehensive guides
+    Master Kajson's features with our comprehensive guides
 
     [:octicons-arrow-right-24: User Guide](pages/guide/overview.md)
     [:octicons-arrow-right-24: Examples](pages/examples/index.md)
@@ -30,7 +30,7 @@ title: "kajson - Universal JSON Encoder/Decoder for Python"
 
     ---
 
-    Detailed documentation of all kajson functions and classes
+    Detailed documentation of all Kajson functions and classes
 
     [:octicons-arrow-right-24: API Documentation](pages/api/kajson.md)
 
@@ -38,14 +38,14 @@ title: "kajson - Universal JSON Encoder/Decoder for Python"
 
     ---
 
-    Help improve kajson
+    Help improve Kajson
 
     [:octicons-arrow-right-24: Contributing Guidelines](contributing.md)
     [:octicons-arrow-right-24: GitHub Repository](https://github.com/PipelexLab/kajson)
 
 </div>
 
-## Why kajson?
+## Why Kajson?
 
 Say goodbye to `type X is not JSON serializable`!
 
@@ -66,7 +66,7 @@ user = User(name="Alice", created_at=datetime.now())
 json.dumps(user)  # TypeError: Object of type User is not JSON serializable
 ```
 
-### The kajson Solution
+### The Kajson Solution
 
 ```python
 import kajson
@@ -139,6 +139,6 @@ This library is used by [Pipelex](https://github.com/Pipelex/pipelex), the open-
 
 ## License
 
-kajson is distributed under the [Apache 2.0 License](license.md).
+Kajson is distributed under the [Apache 2.0 License](license.md).
 
 This project is based on the excellent work from [unijson](https://github.com/bpietropaoli/unijson) by Bastien Pietropaoli.

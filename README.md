@@ -1,14 +1,14 @@
-# 🚀 kajson - Universal JSON Encoder/Decoder for Python
+# 🚀 Kajson - Universal JSON Encoder/Decoder for Python
 
 [![PyPI version](https://img.shields.io/pypi/v/kajson.svg)](https://pypi.org/project/kajson/)
 [![Python versions](https://img.shields.io/pypi/pyversions/kajson.svg)](https://pypi.org/project/kajson/)
 [![License](https://img.shields.io/pypi/l/kajson.svg)](https://github.com/PipelexLab/kajson/blob/main/LICENSE)
 
-**kajson** is a powerful drop-in replacement for Python's standard `json` module that automatically handles complex object serialization, including **Pydantic v2 models**, **datetime objects**, and **custom types**.
+**Kajson** is a powerful drop-in replacement for Python's standard `json` module that automatically handles complex object serialization, including **Pydantic v2 models**, **datetime objects**, and **custom types**.
 
 This library is used by [Pipelex](https://github.com/Pipelex/pipelex), the open-source language for repeatable AI workflows, [check it out](https://github.com/Pipelex/pipelex).
 
-## ✨ Why kajson?
+## ✨ Why Kajson?
 
 Say goodbye to `type X is not JSON serializable`!
 
@@ -29,7 +29,7 @@ user = User(name="Alice", created_at=datetime.now())
 json.dumps(user)  # TypeError: Object of type User is not JSON serializable
 ```
 
-### The kajson Solution
+### The Kajson Solution
 
 ```python
 import kajson
@@ -78,7 +78,7 @@ class Article(BaseModel):
     tags: list[str]
 
 article = Article(
-    title="Why kajson is awesome",
+    title="Why Kajson is awesome",
     published_at=datetime.now(),
     tags=["python", "json", "pydantic"]
 )
@@ -112,7 +112,7 @@ class BlogPost(BaseModel):
 
 # Create complex nested structure
 post = BlogPost(
-    title="Introducing kajson",
+    title="Introducing Kajson",
     content="A powerful JSON library...",
     published_at=datetime.now(),
     comments=[
@@ -184,12 +184,12 @@ class Vector:
         self.y = y
     
     def __json_encode__(self):
-        """Called by kajson during serialization"""
+        """Called by Kajson during serialization"""
         return {"x": self.x, "y": self.y}
     
     @classmethod
     def __json_decode__(cls, data: dict):
-        """Called by kajson during deserialization"""
+        """Called by Kajson during deserialization"""
         return cls(data["x"], data["y"])
     
     def __eq__(self, other):
@@ -226,7 +226,7 @@ tasks = [
     ["plain", "list", "items"],
 ]
 
-# kajson handles everything!
+# Kajson handles everything!
 json_str = kajson.dumps(tasks)
 restored_tasks = kajson.loads(json_str)
 
@@ -238,7 +238,7 @@ assert isinstance(restored_tasks[2], datetime)
 
 ## 🛡️ Error Handling
 
-kajson provides clear error messages for validation issues:
+Kajson provides clear error messages for validation issues:
 
 ```python
 from pydantic import BaseModel, Field
@@ -277,7 +277,7 @@ import kajson as json  # Drop-in replacement!
 data = json.dumps(my_object)  # Works with complex objects
 ```
 
-Or use kajson's convenience functions directly:
+Or use Kajson's convenience functions directly:
 
 ```python
 import kajson
@@ -286,7 +286,7 @@ data = kajson.dumps(my_object)
 
 ## 🏗️ How It Works
 
-kajson extends the standard JSON encoder/decoder by:
+Kajson extends the standard JSON encoder/decoder by:
 
 1. **Type Preservation**: Adds `__class__` and `__module__` metadata to JSON objects
 2. **Smart Decoding**: Automatically reconstructs original Python objects

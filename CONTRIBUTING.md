@@ -1,16 +1,16 @@
-# Contributing to kajson
+# Contributing to Kajson
 
-Thank you for your interest in kajson! While kajson is a stable and feature-complete library, we do accept contributions if you find bugs or have improvements to suggest.
+Thank you for your interest in Kajson! While Kajson is a stable and feature-complete library, we do accept contributions if you find bugs or have improvements to suggest.
 
-kajson is a powerful drop-in replacement for Python's standard `json` module that automatically handles complex object serialization, including Pydantic v2 models, datetime objects, and custom types. The library is maintained by the same team that develops Pipelex.
+Kajson is a powerful drop-in replacement for Python's standard `json` module that automatically handles complex object serialization, including Pydantic v2 models, datetime objects, and custom types. The library is maintained by the same team that develops Pipelex.
 
-Everyone interacting in codebases, issue trackers, mailing lists, or any other kajson activities is expected to follow the [Code of Conduct](docs/CODE_OF_CONDUCT.md). Please review it before getting started.
+Everyone interacting in codebases, issue trackers, mailing lists, or any other Kajson activities is expected to follow the [Code of Conduct](docs/CODE_OF_CONDUCT.md). Please review it before getting started.
 
 If you have questions or want to discuss potential contributions, feel free to join our community on Discord in the #code-contributions channel.
 
 Most of the issues that are open for contributions are tagged with `good first issue` or `help-welcome`. If you see an issue that isn't tagged that you're interested in, post a comment with your approach, and we'll be happy to assign it to you. If you submit a fix that isn't linked to an issue you're assigned, there's a chance it won't be accepted. Don't hesitate to open an issue to discuss your ideas before getting to work.
 
-Since kajson is a mature library, most contributions will likely be:
+Since Kajson is a mature library, most contributions will likely be:
 
 - **Bug fixes**: Edge cases in serialization/deserialization
 - **Type support**: Adding support for additional third-party library types
@@ -19,7 +19,7 @@ Since kajson is a mature library, most contributions will likely be:
 
 ## Contribution process
 
-- Fork the [kajson repository](https://github.com/PipelexLab/kajson)
+- Fork the [Kajson repository](https://github.com/PipelexLab/kajson)
 - Clone the repository locally
 - Install dependencies: `make install` (creates .venv and installs dependencies)
 - Run checks to make sure all is good: `make check` & `make test`
@@ -79,13 +79,13 @@ make cleanall           # Remove all derived files and virtual env
 
 ## Pull Request Process
 
-1. Fork the kajson repository
+1. Fork the Kajson repository
 2. Clone the repository locally
 3. Install dependencies: `make install`
 4. Run checks to ensure everything works: `make check` & `make test`
 5. Create a branch for your feature/bug-fix with the format `user_name/feature/some_feature` or `user_name/fix/some_bugfix`
 6. Make and commit changes
-7. Write tests for your changes (kajson aims for high test coverage)
+7. Write tests for your changes (Kajson aims for high test coverage)
 8. When ready, run quality checks:
    - Run `make fix-unused-imports` to remove unused imports
    - Run `make check` for formatting, linting, and type-checking
@@ -132,4 +132,4 @@ When adding support for new types:
 
 * **CLA** – The first time you open a PR, the CLA-assistant bot will guide you through signing the Contributor License Agreement. The process uses the [CLA assistant lite](https://github.com/marketplace/actions/cla-assistant-lite).
 * **Code of Conduct** – Be kind. All interactions fall under [`docs/CODE_OF_CONDUCT.md`](docs/CODE_OF_CONDUCT.md).
-* **License** – kajson is licensed under the [Apache 2.0 License](LICENSE).
+* **License** – Kajson is licensed under the [Apache 2.0 License](LICENSE).
