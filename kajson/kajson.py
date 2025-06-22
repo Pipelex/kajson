@@ -131,24 +131,20 @@ UniversalJSONDecoder.register(datetime.date, json_decode_date)
 #########################################################################################
 
 
-def json_encode_datetime(d: datetime.datetime) -> Dict[str, Any]:
+def json_encode_datetime(datetime_value: datetime.datetime) -> Dict[str, Any]:
     """Encoder for datetimes (from module datetime)."""
-    tzinfo = str(d.tzinfo) if d.tzinfo else None
-    return {"datetime": d.strftime("%Y-%m-%d %H:%M:%S.%f"), "tzinfo": tzinfo, "__class__": "datetime", "__module__": "datetime"}
+    tzinfo = str(datetime_value.tzinfo) if datetime_value.tzinfo else None
+    return {"datetime": datetime_value.strftime("%Y-%m-%d %H:%M:%S.%f"), "tzinfo": tzinfo, "__class__": "datetime", "__module__": "datetime"}
 
 
 UniversalJSONEncoder.register(datetime.datetime, json_encode_datetime)
 
 
-def json_decode_datetime(d: Dict[str, Any]) -> datetime.datetime:
+def json_decode_datetime(obj_dict: Dict[str, Any]) -> datetime.datetime:
     """Decoder for datetimes (from module datetime)."""
-    dt = datetime.datetime.strptime(d["datetime"], "%Y-%m-%d %H:%M:%S.%f")
-    if d.get("tzinfo"):
-        try:
-            dt = dt.replace(tzinfo=ZoneInfo(d["tzinfo"]))
-        except Exception:
-            # If timezone conversion fails, return naive datetime
-            pass
+    dt = datetime.datetime.strptime(obj_dict["datetime"], "%Y-%m-%d %H:%M:%S.%f")
+    if tzinfo := obj_dict.get("tzinfo"):
+        dt = dt.replace(tzinfo=ZoneInfo(tzinfo))
     return dt
 
 
