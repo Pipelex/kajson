@@ -213,6 +213,9 @@ cov-missing: env
 		$(VENV_PYTEST) --cov=$(if $(PKG),$(PKG),kajson) --cov-report=term-missing $(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,-v)); \
 	fi
 
+cm: cov-missing
+	@echo "> done: cm = cov-missing"
+
 ############################################################################################
 ############################               Linting              ############################
 ############################################################################################
@@ -273,9 +276,6 @@ check: cleanderived check-unused-imports c
 
 li: lock install
 	@echo "> done: lock install"
-
-cm: cov-missing
-	@echo "> done: cm = cov-missing"
 
 check-TODOs: env
 	$(call PRINT_TITLE,"Checking for TODOs")
