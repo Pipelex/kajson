@@ -3,6 +3,7 @@
 
 import json
 import logging
+import sys
 import warnings
 from typing import Any, Dict
 
@@ -390,3 +391,59 @@ class TestUniversalJSONDecoder:
 
         result = json.loads(test_json, cls=UniversalJSONDecoder)
         assert result == test_obj
+
+    def test_universal_decoder_successful_module_import(self, mocker: MockerFixture) -> None:
+        """Test decoder with successful module import (covers lines 150-151)."""
+        # Mock the registry to return None, forcing module import
+        mock_registry_instance = mocker.MagicMock()
+        mock_registry_instance.get_class.return_value = None
+        mock_registry = mocker.patch("kajson.kajson_manager.KajsonManager.get_class_registry")
+        mock_registry.return_value = mock_registry_instance
+
+        # Use a module that exists but needs to be imported (datetime is a good example)
+        # Remove datetime from sys.modules temporarily to force import
+        datetime_module = sys.modules.pop("datetime", None)
+
+        try:
+            test_dict = {"__class__": "datetime", "__module__": "datetime", "year": 2023, "month": 1, "day": 1}
+
+            result = self.decoder.universal_decoder(test_dict)
+            # Should successfully create datetime object using constructor
+            import datetime as dt
+
+            assert isinstance(result, dt.datetime)
+            assert result.year == 2023
+            assert result.month == 1
+            assert result.day == 1
+        finally:
+            # Restore datetime module if it existed
+            if datetime_module is not None:
+                sys.modules["datetime"] = datetime_module
+
+    def test_universal_decoder_base_model_constructor_and_validation_success(self, mocker: MockerFixture) -> None:
+        """Test decoder with BaseModel constructor success and validation success (covers lines 218-219)."""
+        # Create a scenario where model_validate initially fails, but constructor succeeds and subsequent validation passes
+        validation_call_count = 0
+
+        def mock_model_validate(*args: Any, **kwargs: Any) -> Any:
+            nonlocal validation_call_count
+            validation_call_count += 1
+            if validation_call_count == 1:
+                # First call (direct validation) fails
+                raise ValidationError.from_exception_data("MockModelValid", [])
+            else:
+                # Second call (after constructor) succeeds
+                if "obj" in kwargs:
+                    return kwargs["obj"]
+                elif args:
+                    return args[0]
+                return None
+
+        mocker.patch.object(MockModelValid, "model_validate", side_effect=mock_model_validate)
+
+        test_dict = {"__class__": "MockModelValid", "__module__": "tests.unit.test_json_decoder", "name": "test", "value": 42}
+
+        result = self.decoder.universal_decoder(test_dict)
+        assert isinstance(result, MockModelValid)
+        assert result.name == "test"
+        assert result.value == 42
