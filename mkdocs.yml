@@ -1,0 +1,99 @@
+site_name: kajson Documentation
+site_url: https://kajson.readthedocs.io/
+site_description: "Universal JSON encoder/decoder for Python with native support for Pydantic v2, datetime objects, and custom types."
+docs_dir: docs
+repo_url: "https://github.com/PipelexLab/kajson"
+repo_name: "kajson on GitHub"
+watch: [README.md, CHANGELOG.md, LICENSE]
+
+theme:
+  name: material
+  favicon: images/favicon.png
+  features:
+    - navigation.footer
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - content.code.annotate
+  palette:
+  - scheme: default          # light
+    primary: teal
+    accent: deep purple
+    toggle:
+      icon: material/weather-night
+      name: Switch to dark mode
+  - scheme: slate            # dark
+    primary: teal
+    accent: purple
+    toggle:
+      icon: material/weather-sunny
+      name: Switch to light mode
+
+copyright: "© 2025 Evotis S.A.S. <br/>Licensed under Apache 2.0"
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/PipelexLab/kajson
+      name: kajson on GitHub
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/kajson/
+      name: kajson on PyPI
+  generator: false
+
+plugins:
+  - search
+  - meta-manager
+
+markdown_extensions:
+  - meta
+  - attr_list
+  - md_in_html
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      base_path: .
+      check_paths: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+nav:
+  - Home:
+    - Welcome: index.md
+    - Installation: pages/installation.md
+    - Quick Start: pages/quick-start.md
+  - User Guide:
+    - Overview: pages/guide/overview.md
+    - Basic Usage: pages/guide/basic-usage.md
+    - Pydantic Integration: pages/guide/pydantic.md
+    - Custom Types: pages/guide/custom-types.md
+    - Error Handling: pages/guide/error-handling.md
+  - API Reference:
+    - kajson module: pages/api/kajson.md
+    - Encoder: pages/api/encoder.md
+    - Decoder: pages/api/decoder.md
+  - Examples:
+    - Overview: pages/examples/index.md
+    - REST API: pages/examples/rest-api.md
+    - Configuration Files: pages/examples/config-files.md
+    - Data Persistence: pages/examples/data-persistence.md
+  - Contributing:
+    - Guidelines: contributing.md
+    - Code of Conduct: CODE_OF_CONDUCT.md
+  - About:
+    - License: license.md
+    - Changelog: changelog.md
+    - Credits: pages/credits.md
+
+extra_css:
+  - stylesheets/extra.css
+  
