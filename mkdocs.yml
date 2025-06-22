@@ -81,11 +81,12 @@ nav:
     - kajson module: pages/api/kajson.md
     - Encoder: pages/api/encoder.md
     - Decoder: pages/api/decoder.md
-  - Examples:
-    - Overview: pages/examples/index.md
-    - REST API: pages/examples/rest-api.md
-    - Configuration Files: pages/examples/config-files.md
-    - Data Persistence: pages/examples/data-persistence.md
+  # Examples are work in progress
+  # - Examples:
+  #   - Overview: pages/examples/index.md
+  #   - REST API: pages/examples/rest-api.md
+  #   - Configuration Files: pages/examples/config-files.md
+  #   - Data Persistence: pages/examples/data-persistence.md
   - Contributing:
     - Guidelines: contributing.md
     - Code of Conduct: CODE_OF_CONDUCT.md
