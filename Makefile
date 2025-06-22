@@ -56,7 +56,10 @@ make merge-check-pyright	     - Run pyright merge check without updating files
 
 make test                     - Run unit tests
 make test-with-prints         - Run tests with prints
-make t                        - Shorthand -> test-with-prints
+make tp                       - Shorthand -> test-with-prints
+make cov                      - Run tests with coverage stats (use PKG=module.name to scope coverage)
+make cov-missing              - Run tests with coverage and missing lines (use PKG=module.name to scope coverage)
+make cm                       - Shorthand -> cov-missing
 
 make check                    - Shorthand -> format lint mypy
 make c                        - Shorthand -> check
@@ -68,7 +71,14 @@ make fix-unused-imports       - Fix unused imports with ruff
 endef
 export HELP
 
-.PHONY: all help env lock install update build format lint pyright mypy cleanderived cleanenv cleanall test test-with-prints t check c cc li check-unused-imports fix-unused-imports check-uv check-TODOs
+.PHONY: all help \
+	env lock install update build \
+	format lint pyright mypy \
+	cleanderived cleanenv cleanall \
+	test test-with-prints tp cov cov-missing cm \
+	check c cc li \
+	check-unused-imports fix-unused-imports \
+	check-uv check-TODOs
 
 all help:
 	@echo "$$HELP"
@@ -170,8 +180,26 @@ test-with-prints: env
 		$(VENV_PYTEST) -s $(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,-v)); \
 	fi
 
-t: test-with-prints
-	@echo "> done: t = test-with-prints"
+tp: test-with-prints
+	@echo "> done: tp = test-with-prints"
+
+cov: env
+	$(call PRINT_TITLE,"Unit testing with coverage")
+	@echo "• Running unit tests with coverage"
+	@if [ -n "$(TEST)" ]; then \
+		$(VENV_PYTEST) --cov=$(if $(PKG),$(PKG),kajson) -k "$(TEST)" $(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,-v)); \
+	else \
+		$(VENV_PYTEST) --cov=$(if $(PKG),$(PKG),kajson) $(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,-v)); \
+	fi
+
+cov-missing: env
+	$(call PRINT_TITLE,"Unit testing with coverage and missing lines")
+	@echo "• Running unit tests with coverage and missing lines"
+	@if [ -n "$(TEST)" ]; then \
+		$(VENV_PYTEST) --cov=$(if $(PKG),$(PKG),kajson) --cov-report=term-missing -k "$(TEST)" $(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,-v)); \
+	else \
+		$(VENV_PYTEST) --cov=$(if $(PKG),$(PKG),kajson) --cov-report=term-missing $(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,-v)); \
+	fi
 
 ############################################################################################
 ############################               Linting              ############################
@@ -233,6 +261,9 @@ check: cleanderived check-unused-imports c
 
 li: lock install
 	@echo "> done: lock install"
+
+cm: cov-missing
+	@echo "> done: cm = cov-missing"
 
 check-TODOs: env
 	$(call PRINT_TITLE,"Checking for TODOs")
