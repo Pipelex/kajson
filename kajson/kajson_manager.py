@@ -18,6 +18,8 @@ class KajsonManager:
         return cls._instance
 
     def __init__(self, logger_channel_name: Optional[str] = None, class_registry: Optional[ClassRegistryAbstract] = None) -> None:
+        if self.__class__._instance is not None:
+            raise RuntimeError("KajsonManager is already initialized")
         self.logger_channel_name = logger_channel_name or KAJSON_LOGGER_CHANNEL_NAME
         self._class_registry = class_registry or ClassRegistry()
         self.__class__._instance = self
