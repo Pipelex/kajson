@@ -1,6 +1,6 @@
 [project]
 name = "kajson"
-version = "0.1.6"
+version = "0.2.0"
 description = "Powerful universal JSON encoder/decoder for Python objects with support for pydantic v2."
 authors = [{ name = "Evotis S.A.S.", email = "evotis@pipelex.com" }]
 maintainers = [{ name = "Pipelex staff", email = "oss@pipelex.com" }]
