@@ -34,6 +34,8 @@ json.dumps(user)  # TypeError: Object of type User is not JSON serializable
 
 ### The Kajson Solution
 
+**Full example:** [`ex_08_readme_basic_usage.py`](examples/ex_08_readme_basic_usage.py)
+
 ```python
 import kajson
 
@@ -69,37 +71,46 @@ uv pip install kajson
 
 ### Basic Usage
 
+**Full example:** [`ex_01_basic_pydantic_serialization.py`](examples/ex_01_basic_pydantic_serialization.py)
+
 ```python
-import kajson
-from datetime import datetime, date
+from datetime import datetime
 from pydantic import BaseModel
+from kajson import kajson, kajson_manager
 
-# Pydantic models with datetime fields
-class Article(BaseModel):
-    title: str
-    published_at: datetime
-    tags: list[str]
+class User(BaseModel):
+    name: str
+    email: str
+    created_at: datetime
 
-article = Article(
-    title="Why Kajson is awesome",
-    published_at=datetime.now(),
-    tags=["python", "json", "pydantic"]
-)
+def main():
+    # Create and serialize
+    user = User(
+        name="Alice", 
+        email="alice@example.com", 
+        created_at=datetime.now()
+    )
 
-# Serialize to JSON
-json_str = kajson.dumps(article, indent=2)
+    # Serialize to JSON
+    json_str = kajson.dumps(user, indent=2)
 
-# Deserialize back to object
-restored = kajson.loads(json_str)
-assert article == restored  # ✅ Perfect reconstruction!
+    # Deserialize back
+    restored_user = kajson.loads(json_str)
+    assert user == restored_user  # ✅ Perfect reconstruction!
+
+if __name__ == "__main__":
+    kajson_manager.KajsonManager()
+    main()
 ```
 
 ### Working with Complex Nested Models
 
+**Full example:** [`ex_09_readme_complex_nested.py`](examples/ex_09_readme_complex_nested.py)
+
 ```python
-from typing import List
-from pydantic import BaseModel
 from datetime import datetime
+from typing import Any, Dict, List
+from pydantic import BaseModel
 
 class Comment(BaseModel):
     author: str
@@ -111,7 +122,7 @@ class BlogPost(BaseModel):
     content: str
     published_at: datetime
     comments: List[Comment]
-    metadata: dict
+    metadata: Dict[str, Any]
 
 # Create complex nested structure
 post = BlogPost(
@@ -138,18 +149,21 @@ assert restored_post.comments[0].created_at.year == datetime.now().year
 
 ### Custom Type Registration
 
+**Full example:** [`ex_10_readme_custom_registration.py`](examples/ex_10_readme_custom_registration.py)
+
 Register encoders/decoders for any type:
 
 ```python
 from decimal import Decimal
 from pathlib import Path
+from typing import Any, Dict
 import kajson
 
 # Register Decimal support
-def encode_decimal(value: Decimal) -> dict:
+def encode_decimal(value: Decimal) -> Dict[str, str]:
     return {"decimal": str(value)}
 
-def decode_decimal(data: dict) -> Decimal:
+def decode_decimal(data: Dict[str, str]) -> Decimal:
     return Decimal(data["decimal"])
 
 kajson.UniversalJSONEncoder.register(Decimal, encode_decimal)
@@ -178,9 +192,14 @@ restored_config = kajson.loads(kajson.dumps(config))
 
 ### Custom Classes with Hooks
 
+**Full example:** [`ex_11_readme_custom_hooks.py`](examples/ex_11_readme_custom_hooks.py)
+
 Add JSON support to your own classes:
 
 ```python
+from typing import Any, Dict
+from typing_extensions import override
+
 class Vector:
     def __init__(self, x: float, y: float):
         self.x = x
@@ -191,11 +210,14 @@ class Vector:
         return {"x": self.x, "y": self.y}
     
     @classmethod
-    def __json_decode__(cls, data: dict):
+    def __json_decode__(cls, data: Dict[str, Any]):
         """Called by Kajson during deserialization"""
         return cls(data["x"], data["y"])
     
-    def __eq__(self, other):
+    @override
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Vector):
+            return False
         return self.x == other.x and self.y == other.y
 
 # Works automatically!
@@ -206,15 +228,18 @@ assert vector == restored
 
 ### Working with Mixed Types
 
+**Full example:** [`ex_12_readme_mixed_types.py`](examples/ex_12_readme_mixed_types.py)
+
 ```python
 from datetime import datetime, timedelta
+from typing import Any, Dict
 from pydantic import BaseModel
 
 class Task(BaseModel):
     name: str
     created_at: datetime
     duration: timedelta
-    metadata: dict
+    metadata: Dict[str, Any]
 
 # Create mixed-type list
 tasks = [
@@ -240,6 +265,8 @@ assert isinstance(restored_tasks[2], datetime)
 ```
 
 ## 🛡️ Error Handling
+
+**Full example:** [`ex_13_readme_error_handling.py`](examples/ex_13_readme_error_handling.py)
 
 Kajson provides clear error messages for validation issues:
 
@@ -303,6 +330,30 @@ Kajson extends the standard JSON encoder/decoder by:
 - **Message Queues**: Send rich objects through Redis/RabbitMQ
 - **Configuration**: Store config with proper types
 - **Data Science**: Serialize numpy arrays, pandas DataFrames (with custom encoders)
+
+## 🔗 Examples
+
+All code examples from this README are available as executable files in the [`examples/`](examples/) directory:
+
+- [`ex_01_basic_pydantic_serialization.py`](examples/ex_01_basic_pydantic_serialization.py) - Basic Pydantic model serialization
+- [`ex_02_nested_models_mixed_types.py`](examples/ex_02_nested_models_mixed_types.py) - Complex nested models with datetime and timedelta
+- [`ex_03_custom_classes_json_hooks.py`](examples/ex_03_custom_classes_json_hooks.py) - Point class using `__json_encode__`/`__json_decode__` hooks
+- [`ex_04_registering_custom_encoders.py`](examples/ex_04_registering_custom_encoders.py) - Custom type registration
+- [`ex_05_mixed_types_lists.py`](examples/ex_05_mixed_types_lists.py) - Lists containing different types (Task, datetime, dict, list, time)
+- [`ex_06_error_handling_validation.py`](examples/ex_06_error_handling_validation.py) - Error handling and validation
+- [`ex_07_drop_in_replacement.py`](examples/ex_07_drop_in_replacement.py) - Drop-in replacement for standard JSON
+- [`ex_08_readme_basic_usage.py`](examples/ex_08_readme_basic_usage.py) - Why Kajson? (README example)
+- [`ex_09_readme_complex_nested.py`](examples/ex_09_readme_complex_nested.py) - Complex nested models (README example)
+- [`ex_10_readme_custom_registration.py`](examples/ex_10_readme_custom_registration.py) - Custom type registration (README example)
+- [`ex_11_readme_custom_hooks.py`](examples/ex_11_readme_custom_hooks.py) - Custom hooks (README example)
+- [`ex_12_readme_mixed_types.py`](examples/ex_12_readme_mixed_types.py) - Mixed types (README example)
+- [`ex_13_readme_error_handling.py`](examples/ex_13_readme_error_handling.py) - Error handling (README example)
+
+Run any example with:
+```bash
+cd examples
+python ex_01_basic_pydantic_serialization.py
+```
 
 ## Credits
 
