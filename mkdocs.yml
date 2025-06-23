@@ -71,6 +71,7 @@ nav:
     - Welcome: index.md
     - Installation: pages/installation.md
     - Quick Start: pages/quick-start.md
+    - Examples: pages/examples/index.md
   - User Guide:
     - Overview: pages/guide/overview.md
     - Basic Usage: pages/guide/basic-usage.md
@@ -81,12 +82,6 @@ nav:
     - kajson module: pages/api/kajson.md
     - Encoder: pages/api/encoder.md
     - Decoder: pages/api/decoder.md
-  # Examples are work in progress
-  # - Examples:
-  #   - Overview: pages/examples/index.md
-  #   - REST API: pages/examples/rest-api.md
-  #   - Configuration Files: pages/examples/config-files.md
-  #   - Data Persistence: pages/examples/data-persistence.md
   - Contributing:
     - Guidelines: contributing.md
     - Code of Conduct: CODE_OF_CONDUCT.md
