@@ -229,14 +229,14 @@ class TestClassRegistry:
         assert registry.get_required_subclass("TestChild", TestBase) is TestChild
 
         # Invalid subclass
-        with pytest.raises(ClassRegistryInheritanceError) as excinfo:
+        with pytest.raises(ClassRegistryInheritanceError) as inheritance_excinfo:
             registry.get_required_subclass("TestUnrelated", TestBase)
-        assert "is not a subclass of" in str(excinfo.value)
+        assert "is not a subclass of" in str(inheritance_excinfo.value)
 
         # Non-existing class
-        with pytest.raises(ClassRegistryNotFoundError) as excinfo:
+        with pytest.raises(ClassRegistryNotFoundError) as notfound_excinfo:
             registry.get_required_subclass("NonExistent", TestBase)
-        assert "Class 'NonExistent' not found in registry" in str(excinfo.value)
+        assert "Class 'NonExistent' not found in registry" in str(notfound_excinfo.value)
 
     def test_get_required_base_model(self):
         """Test getting required BaseModel from registry."""

@@ -10,7 +10,7 @@ for Python's standard json module, handling complex types seamlessly.
 from datetime import datetime
 
 import kajson as json  # Instead of: import json
-from kajson import kajson, kajson_manager
+from kajson import kajson_manager
 
 
 def main():

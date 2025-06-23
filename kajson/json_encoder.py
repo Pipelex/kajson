@@ -30,7 +30,6 @@ from typing import Any, Callable, ClassVar, Dict, Type, TypeVar, cast
 
 from typing_extensions import override
 
-import __main__
 from kajson.exceptions import UnijsonEncoderError
 
 ENCODER_LOGGER_CHANNEL_NAME = "kajson.encoder"
