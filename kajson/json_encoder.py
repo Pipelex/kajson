@@ -20,6 +20,8 @@ limitations under the License.
 All additions and modifications are Copyright (c) 2025 Evotis S.A.S.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import re
