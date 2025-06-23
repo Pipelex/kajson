@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.2.0] - 2025-06-23
+
+- Test coverage 100%
+- New integration tests
+- New examples in `examples/` directory, used as e2e tests
+- Full documentation in `docs/` directory
+- MkDocs deployed on GitHub pages: [https://pipelex.github.io/kajson/](https://pipelex.github.io/kajson/) 
+
 ## [v0.1.6] - 2025-01-02
 
 - Introduced `ClassRegistryAbstract` (ABC) for dependency injection of ClassRegistry

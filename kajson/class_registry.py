@@ -2,8 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-import sys
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Type
 
 from pydantic import BaseModel, Field, PrivateAttr, RootModel
@@ -11,32 +9,11 @@ from typing_extensions import override
 
 from kajson.class_registry_abstract import ClassRegistryAbstract
 from kajson.exceptions import ClassRegistryInheritanceError, ClassRegistryNotFoundError
-from kajson.module_utils import find_classes_in_module, import_module_from_file
 
 LOGGING_LEVEL_VERBOSE = 5
 CLASS_REGISTRY_LOGGER_CHANNEL_NAME = "class_registry"
-CLASS_REGISTRY_LOGGER_CHANNEL_NAME_IN_SANDBOX = "class_registry.sandbox"
 
 ClassRegistryDict = Dict[str, Type[Any]]
-
-
-def find_files_in_dir(dir_path: str, pattern: str, is_recursive: bool) -> List[Path]:
-    """
-    Find files matching a pattern in a directory.
-
-    Args:
-        dir_path: Directory path to search in
-        pattern: File pattern to match (e.g. "*.py")
-        recursive: Whether to search recursively in subdirectories
-
-    Returns:
-        List of matching Path objects
-    """
-    path = Path(dir_path)
-    if is_recursive:
-        return list(path.rglob(pattern))
-    else:
-        return list(path.glob(pattern))
 
 
 class ClassRegistry(RootModel[ClassRegistryDict], ClassRegistryAbstract):
@@ -126,62 +103,6 @@ class ClassRegistry(RootModel[ClassRegistryDict], ClassRegistryAbstract):
             logging.log(level=LOGGING_LEVEL_VERBOSE, msg=classes_list_str)
         else:
             self._log(f"Registered single class '{classes[0].__name__}' in registry")
-
-    @override
-    def register_classes_in_file(
-        self,
-        file_path: str,
-        base_class: Optional[Type[Any]],
-        is_include_imported: bool,
-    ) -> None:
-        """Processes a Python file to find and register classes."""
-        module = import_module_from_file(file_path)
-
-        # Find classes that match criteria
-        classes_to_register = find_classes_in_module(
-            module=module,
-            base_class=base_class,
-            include_imported=is_include_imported,
-        )
-
-        # Clean up sys.modules to prevent memory leaks
-        del sys.modules[module.__name__]
-
-        self.register_classes(classes=classes_to_register)
-
-    @override
-    def register_classes_in_folder(
-        self,
-        folder_path: str,
-        base_class: Optional[Type[Any]] = None,
-        is_recursive: bool = True,
-        is_include_imported: bool = False,
-    ) -> None:
-        """
-        Registers all classes in Python files within folders that are subclasses of base_class.
-        If base_class is None, registers all classes.
-
-        Args:
-            folder_paths: List of paths to folders containing Python files
-            base_class: Optional base class to filter registerable classes
-            recursive: Whether to search recursively in subdirectories
-            exclude_files: List of filenames to exclude
-            exclude_dirs: List of directory names to exclude
-            include_imported: Whether to include classes imported from other modules
-        """
-
-        python_files = find_files_in_dir(
-            dir_path=folder_path,
-            pattern="*.py",
-            is_recursive=is_recursive,
-        )
-
-        for python_file in python_files:
-            self.register_classes_in_file(
-                file_path=str(python_file),
-                base_class=base_class,
-                is_include_imported=is_include_imported,
-            )
 
     @override
     def get_class(self, name: str) -> Optional[Type[Any]]:

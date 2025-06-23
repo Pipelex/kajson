@@ -20,6 +20,8 @@ limitations under the License.
 All additions and modifications are Copyright (c) 2025 Evotis S.A.S.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import re
@@ -28,7 +30,6 @@ from typing import Any, Callable, ClassVar, Dict, Type, TypeVar, cast
 
 from typing_extensions import override
 
-import __main__
 from kajson.exceptions import UnijsonEncoderError
 
 ENCODER_LOGGER_CHANNEL_NAME = "kajson.encoder"
@@ -94,6 +95,21 @@ class UniversalJSONEncoder(json.JSONEncoder):
             raise ValueError("Expected a function, a %s was passed instead." % type(encoding_function))
 
         UniversalJSONEncoder._encoders[obj_type] = encoding_function
+
+    @classmethod
+    def clear_encoders(cls) -> None:
+        """Clear all registered encoders. Primarily for testing purposes."""
+        cls._encoders.clear()
+
+    @classmethod
+    def is_encoder_registered(cls, obj_type: Type[Any]) -> bool:
+        """Check if an encoder is registered for the given type. Primarily for testing purposes."""
+        return obj_type in cls._encoders
+
+    @classmethod
+    def get_registered_encoder(cls, obj_type: Type[Any]) -> Callable[[Any], Dict[str, Any]] | None:
+        """Get the registered encoder for the given type. Primarily for testing purposes."""
+        return cls._encoders.get(obj_type)
 
     # argument must be named "o" to override the default method
     @override
@@ -187,8 +203,7 @@ def _get_object_module(obj: Any) -> str:
         module_name = str(obj.__module__)
     except AttributeError:
         module_name = _get_type_module(obj.__class__)
-    if module_name == "__main__":
-        module_name = __main__.__file__[:-3]  # Prevents having __main__ as a module.
+    # Keep __main__ as is - the decoder will handle it via class registry fallback
     return module_name
 
     # Remark 1: Builtin objects don't have a __module__ attribute.
