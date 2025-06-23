@@ -310,21 +310,17 @@ class TestUniversalJSONEncoder:
         result = encoder.default(test_obj)
         assert result["__module__"] == ""
 
-    def test_object_module_detection_main_handling(self, setup_encoder: UniversalJSONEncoder, mocker: MockerFixture) -> None:
-        """Test module detection with __main__ module handling (covers line 191)."""
+    def test_object_module_detection_main_handling(self, setup_encoder: UniversalJSONEncoder) -> None:
+        """Test module detection with __main__ module handling - should preserve __main__."""
         encoder = setup_encoder
         # Create object with __main__ as module
         test_obj = MockClassWithDict("test", 42)
         # Modify the class's __module__ attribute to mimic objects defined in __main__
         test_obj.__class__.__module__ = "__main__"  # type: ignore[attr-defined]
 
-        # Mock __main__.__file__ inside json_encoder module
-        mock_main = mocker.MagicMock()
-        mock_main.__file__ = "/path/to/script.py"
-        mocker.patch("kajson.json_encoder.__main__", mock_main)
-
         result = encoder.default(test_obj)
-        assert result["__module__"] == "/path/to/script"
+        # __main__ should be preserved as-is since decoder handles it via class registry fallback
+        assert result["__module__"] == "__main__"
 
     def test_type_module_detection_with_builtin_types(self) -> None:
         """Test _get_type_module directly with built-in types (covers lines 210-218)."""

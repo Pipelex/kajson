@@ -204,8 +204,7 @@ def _get_object_module(obj: Any) -> str:
         module_name = str(obj.__module__)
     except AttributeError:
         module_name = _get_type_module(obj.__class__)
-    if module_name == "__main__":
-        module_name = __main__.__file__[:-3]  # Prevents having __main__ as a module.
+    # Keep __main__ as is - the decoder will handle it via class registry fallback
     return module_name
 
     # Remark 1: Builtin objects don't have a __module__ attribute.
