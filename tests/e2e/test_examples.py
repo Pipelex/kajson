@@ -37,3 +37,6 @@ class TestExamples:
 
     def test_13_readme_error_handling(self):
         import examples.ex_13_readme_error_handling  # noqa: F401
+
+    def test_14_dynamic_class_registry(self):
+        import examples.ex_14_dynamic_class_registry  # noqa: F401
