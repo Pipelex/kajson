@@ -25,6 +25,12 @@ Repository = "https://github.com/pipelex/kajson"
 Documentation = "https://github.com/pipelex/kajson"
 
 [project.optional-dependencies]
+docs = [
+    "mkdocs==1.6.1",
+    "mkdocs-glightbox==0.4.0",
+    "mkdocs-material==9.6.14",
+    "mkdocs-meta-manager==1.1.0",
+]
 dev = [
     "mypy>=1.11.2",
     "pyright==1.1.398",
@@ -43,7 +49,7 @@ build-backend = "hatchling.build"
 check_untyped_defs = true
 exclude = "^.*\\.venv/.*$"
 mypy_path = "."
-packages = ["kajson"]
+packages = ["kajson", "examples", "tests"]
 plugins = ["pydantic.mypy"]
 python_version = "3.11"
 warn_return_any = true
@@ -57,7 +63,7 @@ enableExperimentalFeatures = false
 enableTypeIgnoreComments = true
 exclude = ["**/node_modules", "**/__pycache__"]
 extraPaths = ["./tests"]
-include = ["kajson"]
+include = ["kajson", "examples", "tests"]
 pythonVersion = "3.11"
 reportAbstractUsage = "error"
 reportArgumentType = "error"
@@ -148,6 +154,40 @@ typeCheckingMode = "strict"
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib -ra"
 minversion = "8.0"
+xfail_strict = true
+
+[tool.coverage.run]
+branch = true
+source = ["kajson"]
+
+[tool.coverage.report]
+exclude_lines = [
+    # Have to re-enable the standard pragma
+    "pragma: no cover",
+
+    # Don't complain about missing debug-only code:
+    "def __repr__",
+    "if self\\.debug",
+
+    # Don't complain if tests don't hit defensive assertion code:
+    "raise AssertionError",
+    "raise NotImplementedError",
+
+    # Don't complain if non-runnable code isn't run:
+    "if 0:",
+    "if __name__ == .__main__.:",
+
+    # Don't complain about abstract methods, they aren't run:
+    "@(abc\\.)?abstractmethod",
+    "^\\s*pass\\s*$",
+    "^\\s*\\.\\.\\.$",
+
+    # Don't complain about abstract classes that can't be instantiated
+    "^\\s*raise NotImplementedError\\(\\)$",
+]
+
+ignore_errors = true
+skip_covered = false
 
 [tool.ruff]
 exclude = [".mypy_cache", ".ruff_cache", ".venv", ".vscode", "trigger_pipeline"]

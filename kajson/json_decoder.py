@@ -20,10 +20,12 @@ limitations under the License.
 All additions and modifications are Copyright (c) 2025 Evotis S.A.S.
 """
 
+from __future__ import annotations
+
 import importlib
 import json
 import logging
-import types
+import sys
 import warnings
 from typing import Any, Callable, ClassVar, Dict, Type, TypeVar
 
@@ -75,11 +77,26 @@ class UniversalJSONDecoder(json.JSONDecoder):
                 provided type. Takes a single argument, a returns an object.
         """
         if not isinstance(obj_type, type):  # pyright: ignore[reportUnnecessaryIsInstance]
-            raise ValueError("Expected a type/class, a %s was passed instead." % type(obj_type))
+            raise TypeError("Expected a type/class, a %s was passed instead." % type(obj_type))
         if not callable(decoding_function):
-            raise ValueError("Expected a function, a %s was passed instead." % type(decoding_function))
+            raise TypeError("Expected a function, a %s was passed instead." % type(decoding_function))
 
         UniversalJSONDecoder._decoders[obj_type] = decoding_function
+
+    @classmethod
+    def clear_decoders(cls) -> None:
+        """Clear all registered decoders. Primarily for testing purposes."""
+        cls._decoders.clear()
+
+    @classmethod
+    def is_decoder_registered(cls, obj_type: Type[Any]) -> bool:
+        """Check if a decoder is registered for the given type. Primarily for testing purposes."""
+        return obj_type in cls._decoders
+
+    @classmethod
+    def get_registered_decoder(cls, obj_type: Type[Any]) -> Callable[[Dict[str, Any]], Any] | None:
+        """Get the registered decoder for the given type. Primarily for testing purposes."""
+        return cls._decoders.get(obj_type)
 
     # Required to redirect the hook for decoding.
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -118,9 +135,9 @@ class UniversalJSONDecoder(json.JSONDecoder):
 
         the_class: Type[Any]
 
-        all_mods = _get_imported_modules()
-        if module_name in all_mods:
-            the_class = getattr(all_mods[module_name], class_name)
+        # Check if the module is already imported using sys.modules
+        if module_name in sys.modules:
+            the_class = getattr(sys.modules[module_name], class_name)
         elif registered_class := KajsonManager.get_class_registry().get_class(name=class_name):
             self.log(f"Found class '{class_name}' in registry")
             the_class = registered_class
@@ -141,7 +158,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
                 return UniversalJSONDecoder._decoders[the_class](the_dict)
             except Exception as exc:
                 func_name = UniversalJSONDecoder._decoders[the_class].__name__
-                error_msg = f"Decoding function '{func_name}' used for type '{the_class}' raised an exception: '{exc}'."
+                error_msg = f"Could not decode '{class_name}' from json because function '{func_name}' failed: '{exc}'."
                 if IS_DECODER_FALLBACK_ENABLED:
                     warnings.warn(error_msg + FALLBACK_MESSAGE)
                 else:
@@ -153,7 +170,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
         except AttributeError:
             pass
         except Exception as exc:
-            error_msg = f"Static method __json_deconde__ used for type '{the_class}' raised an exception: '{exc}'."
+            error_msg = f"Could not decode '{class_name}' from json because static method __json_decode__ failed: '{exc}'."
             if IS_DECODER_FALLBACK_ENABLED:
                 warnings.warn(error_msg + FALLBACK_MESSAGE)
             else:
@@ -168,7 +185,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
                 root_model_obj: RootModel[Any] = the_class(**the_dict)
                 self.log(f"Root model '{the_class}' created: {root_model_obj}")
             except ValidationError as exc:
-                error_msg = f"Error: creating root_model '{the_class}': {exc}\n\nthe_dict:\n{the_dict}"
+                error_msg = f"Could not decode '{class_name}' pydantic RootModel from json: {exc}\n\nthe_dict:\n{the_dict}"
                 self.log(error_msg)
                 raise KajsonDecoderError(error_msg) from exc
 
@@ -178,7 +195,9 @@ class UniversalJSONDecoder(json.JSONDecoder):
                 self.log(f"Root model '{the_class}' validated")
                 return root_model_obj
             except ValidationError as exc:
-                error_msg = f"Error: post validate root_model '{the_class}': {exc}\n\nthe_dict:\n{the_dict}\n\nroot_model_obj:\n{root_model_obj}"
+                error_msg = (
+                    f"Could not post validate pydantic RootModel '{the_class}': {exc}\n\nthe_dict:\n{the_dict}\n\nroot_model_obj:\n{root_model_obj}"
+                )
                 self.log(error_msg)
                 raise KajsonDecoderError(error_msg) from exc
 
@@ -187,12 +206,12 @@ class UniversalJSONDecoder(json.JSONDecoder):
             try:
                 return the_class.model_validate(the_dict)
             except ValidationError as exc:
-                error_msg = f"Error: model_validate for '{the_class}': {exc}\n\nthe_dict:\n{the_dict}"
+                error_msg = f"Could not model_validate pydantic BaseModel '{the_class}': {exc}\n\nthe_dict:\n{the_dict}"
                 self.log(error_msg)
                 try:
                     base_model_obj = the_class(**the_dict)
                 except ValidationError as exc:
-                    error_msg = f"Error while trying to instantiate using kwargs '{the_class}': {exc}\n\nthe_dict:\n{the_dict}"
+                    error_msg = f"Could not instantiate pydantic BaseModel '{the_class}' using kwargs: {exc}\n\nthe_dict:\n{the_dict}"
                     self.log(error_msg)
                     raise KajsonDecoderError(error_msg) from exc
                 try:
@@ -202,7 +221,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
                     return base_model_obj
                 except ValidationError as exc:
                     error_msg = (
-                        f"Error while trying to post validate base_model '{the_class}': "
+                        f"Could not post validate pydantic BaseModel '{the_class}': "
                         f"{exc}\n\nthe_dict:\n{the_dict}\n\nbase_model_obj:\n{base_model_obj}"
                     )
                     self.log(error_msg)
@@ -225,23 +244,3 @@ class UniversalJSONDecoder(json.JSONDecoder):
 
         # Default, return the raw dict:
         return the_dict
-
-
-#########################################################################################
-#########################################################################################
-#########################################################################################
-
-
-def _get_imported_modules() -> Dict[str, types.ModuleType]:
-    """
-    Get all the already imported modules.
-    Found here: http://stackoverflow.com/a/4858123/5321016
-    Return:
-        dict[str:module] - A dictionary of the already imported modules.
-            Keys are modules' names.
-    """
-    result: Dict[str, types.ModuleType] = {}
-    for attribute in globals().values():
-        if isinstance(attribute, types.ModuleType):
-            result[attribute.__name__] = attribute
-    return result

@@ -11,6 +11,7 @@ VENV_PYTEST := $(VIRTUAL_ENV)/bin/pytest
 VENV_RUFF := $(VIRTUAL_ENV)/bin/ruff
 VENV_PYRIGHT := $(VIRTUAL_ENV)/bin/pyright
 VENV_MYPY := $(VIRTUAL_ENV)/bin/mypy
+VENV_MKDOCS := $(VIRTUAL_ENV)/bin/mkdocs
 
 UV_MIN_VERSION = $(shell grep -m1 'required-version' pyproject.toml | sed -E 's/.*= *"([^<>=, ]+).*/\1/')
 
@@ -56,7 +57,10 @@ make merge-check-pyright	     - Run pyright merge check without updating files
 
 make test                     - Run unit tests
 make test-with-prints         - Run tests with prints
-make t                        - Shorthand -> test-with-prints
+make tp                       - Shorthand -> test-with-prints
+make cov                      - Run tests with coverage stats (use PKG=module.name to scope coverage)
+make cov-missing              - Run tests with coverage and missing lines (use PKG=module.name to scope coverage)
+make cm                       - Shorthand -> cov-missing
 
 make check                    - Shorthand -> format lint mypy
 make c                        - Shorthand -> check
@@ -68,7 +72,14 @@ make fix-unused-imports       - Fix unused imports with ruff
 endef
 export HELP
 
-.PHONY: all help env lock install update build format lint pyright mypy cleanderived cleanenv cleanall test test-with-prints t check c cc li check-unused-imports fix-unused-imports check-uv check-TODOs
+.PHONY: all help \
+	env lock install update build \
+	format lint pyright mypy \
+	cleanderived cleanenv cleanall \
+	test test-with-prints tp cov cov-missing cm \
+	check c cc li \
+	check-unused-imports fix-unused-imports \
+	check-uv check-TODOs
 
 all help:
 	@echo "$$HELP"
@@ -161,6 +172,18 @@ test: env
 		$(VENV_PYTEST) -s -o log_cli=true -o log_level=WARNING $(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,-v)); \
 	fi
 
+test-quiet: env
+	$(call PRINT_TITLE,"Unit testing without prints but displaying logs via pytest for WARNING level and above")
+	@echo "• Running unit tests"
+	@if [ -n "$(TEST)" ]; then \
+		$(VENV_PYTEST) -o log_cli=true -o log_level=WARNING -k "$(TEST)" $(if $(filter 1,$(VERBOSE)),-v,$(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,))); \
+	else \
+		$(VENV_PYTEST) -o log_cli=true -o log_level=WARNING $(if $(filter 1,$(VERBOSE)),-v,$(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,))); \
+	fi
+
+t: test-quiet
+	@echo "> done: t = test-quiet"
+
 test-with-prints: env
 	$(call PRINT_TITLE,"Unit testing with prints")
 	@echo "• Running unit tests"
@@ -170,8 +193,29 @@ test-with-prints: env
 		$(VENV_PYTEST) -s $(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,-v)); \
 	fi
 
-t: test-with-prints
-	@echo "> done: t = test-with-prints"
+tp: test-with-prints
+	@echo "> done: tp = test-with-prints"
+
+cov: env
+	$(call PRINT_TITLE,"Unit testing with coverage")
+	@echo "• Running unit tests with coverage"
+	@if [ -n "$(TEST)" ]; then \
+		$(VENV_PYTEST) --cov=$(if $(PKG),$(PKG),kajson) -k "$(TEST)" $(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,-v)); \
+	else \
+		$(VENV_PYTEST) --cov=$(if $(PKG),$(PKG),kajson) $(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,-v)); \
+	fi
+
+cov-missing: env
+	$(call PRINT_TITLE,"Unit testing with coverage and missing lines")
+	@echo "• Running unit tests with coverage and missing lines"
+	@if [ -n "$(TEST)" ]; then \
+		$(VENV_PYTEST) --cov=$(if $(PKG),$(PKG),kajson) --cov-report=term-missing -k "$(TEST)" $(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,-v)); \
+	else \
+		$(VENV_PYTEST) --cov=$(if $(PKG),$(PKG),kajson) --cov-report=term-missing $(if $(filter 2,$(VERBOSE)),-vv,$(if $(filter 3,$(VERBOSE)),-vvv,-v)); \
+	fi
+
+cm: cov-missing
+	@echo "> done: cm = cov-missing"
 
 ############################################################################################
 ############################               Linting              ############################
@@ -241,3 +285,16 @@ check-TODOs: env
 fix-unused-imports: env
 	$(call PRINT_TITLE,"Fixing unused imports")
 	@$(VENV_RUFF) check --select=F401 --fix -v .
+
+doc: env
+	$(call PRINT_TITLE,"Serving documentation with mkdocs")
+	$(VENV_MKDOCS) serve
+
+doc-check: env
+	$(call PRINT_TITLE,"Checking documentation build with mkdocs")
+	$(VENV_MKDOCS) build --strict
+
+doc-deploy: env
+	$(call PRINT_TITLE,"Deploying documentation with mkdocs")
+	$(VENV_MKDOCS) gh-deploy --force --clean
+	

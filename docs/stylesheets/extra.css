@@ -1,0 +1,27 @@
+/* Custom styles for Kajson documentation */
+
+/* Adjust code block styling */
+.highlight pre {
+    line-height: 1.4;
+}
+
+/* Better spacing for API reference */
+.doc-heading code {
+    font-size: 0.95em;
+}
+
+/* Grid cards styling enhancement */
+.md-typeset .grid.cards> :is(ul, ol)>li> :first-child {
+    margin-top: 0;
+}
+
+/* Improve admonition spacing */
+.md-typeset .admonition {
+    margin: 1.5em 0;
+}
+
+/* Custom colors for Kajson branding */
+:root {
+    --md-primary-fg-color--light: #00897b;
+    --md-primary-fg-color--dark: #004d40;
+}
