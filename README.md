@@ -3,6 +3,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/kajson.svg)](https://pypi.org/project/kajson/)
 [![Python versions](https://img.shields.io/pypi/pyversions/kajson.svg)](https://pypi.org/project/kajson/)
 [![License](https://img.shields.io/pypi/l/kajson.svg)](https://github.com/Pipelex/kajson/blob/main/LICENSE)
+[![Documentation](https://img.shields.io/badge/docs-kajson-blue)](https://pipelex.github.io/kajson)
 [![Discord](https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white)](https://go.pipelex.com/discord)
 [![Website](https://img.shields.io/badge/Pipelex-03bb95?logo=google-chrome&logoColor=white&style=flat)](https://pipelex.com)
 
