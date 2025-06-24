@@ -3,6 +3,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/kajson.svg)](https://pypi.org/project/kajson/)
 [![Python versions](https://img.shields.io/pypi/pyversions/kajson.svg)](https://pypi.org/project/kajson/)
 [![License](https://img.shields.io/pypi/l/kajson.svg)](https://github.com/Pipelex/kajson/blob/main/LICENSE)
+[![Documentation](https://img.shields.io/badge/docs-kajson-blue)](https://pipelex.github.io/kajson)
 [![Discord](https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white)](https://go.pipelex.com/discord)
 [![Website](https://img.shields.io/badge/Pipelex-03bb95?logo=google-chrome&logoColor=white&style=flat)](https://pipelex.com)
 
@@ -51,6 +52,7 @@ assert user == restored_user  # Perfect reconstruction!
 - **🐍 Pydantic v2 support** - Seamless serialization of Pydantic models
 - **📅 DateTime handling** - Built-in support for date, time, datetime, timedelta
 - **🏗️ Type preservation** - Automatically preserves and reconstructs original types
+- **🏛️ Class registry** - Handle dynamic classes from distributed systems and runtime generation
 - **🔌 Extensible** - Easy registration of custom encoders/decoders
 - **🎁 Batteries included** - Common types work out of the box
 
@@ -287,6 +289,57 @@ except kajson.KajsonDecoderError as e:
     # Output: Validation failed: Could not instantiate pydantic BaseModel...
 ```
 
+### Dynamic Class Registry
+
+**Full example:** [`ex_14_dynamic_class_registry.py`](examples/ex_14_dynamic_class_registry.py)
+
+Kajson includes a powerful class registry for handling dynamically created classes that aren't available in standard module paths:
+
+```python
+from kajson import kajson, kajson_manager
+from kajson.kajson_manager import KajsonManager
+
+# Simulate dynamic class creation (e.g., from network, workflow definition)
+remote_class_definition = '''
+from pydantic import BaseModel, Field
+
+class RemoteTask(BaseModel):
+    task_id: str
+    name: str  
+    priority: int = Field(default=1, ge=1, le=10)
+'''
+
+# Execute and create the class dynamically
+remote_namespace = {}
+exec(remote_class_definition, remote_namespace)
+RemoteTask = remote_namespace["RemoteTask"]
+
+# Set module to simulate it's not available locally
+RemoteTask.__module__ = "remote.distributed.system"
+
+# Create and serialize
+task = RemoteTask(task_id="TASK_001", name="Process Data", priority=5)
+json_str = kajson.dumps(task)
+
+# Clear local definition (simulate distributed scenario)
+del remote_namespace["RemoteTask"]
+
+# Register in class registry for deserialization
+registry = KajsonManager.get_class_registry()
+registry.register_class(RemoteTask)
+
+# Now deserialization works via class registry!
+restored_task = kajson.loads(json_str)
+assert restored_task.task_id == "TASK_001"
+```
+
+**The Class Registry is essential for:**
+- 🌐 **Distributed systems** - Classes defined across different services
+- ⚙️ **Workflow orchestrators** - Dynamic task definitions at runtime  
+- 🔌 **Plugin systems** - Runtime-loaded classes from plugins
+- 🚀 **Microservices** - Exchanging complex object definitions
+- 🏭 **Dynamic generation** - Any runtime class creation scenarios
+
 ## 🤝 Compatibility
 
 - **Python**: 3.9+
@@ -348,6 +401,7 @@ All code examples from this README are available as executable files in the [`ex
 - [`ex_11_readme_custom_hooks.py`](examples/ex_11_readme_custom_hooks.py) - Custom hooks (README example)
 - [`ex_12_readme_mixed_types.py`](examples/ex_12_readme_mixed_types.py) - Mixed types (README example)
 - [`ex_13_readme_error_handling.py`](examples/ex_13_readme_error_handling.py) - Error handling (README example)
+- [`ex_14_dynamic_class_registry.py`](examples/ex_14_dynamic_class_registry.py) - Dynamic class registry for distributed systems and runtime class generation
 
 Run any example with:
 ```bash

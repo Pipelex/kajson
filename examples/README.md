@@ -29,6 +29,10 @@ This directory contains runnable Python examples demonstrating all the features 
 ### Integration Examples
 - **07_drop_in_replacement.py** - Using Kajson as a drop-in replacement for standard json
 
+## Development and Testing Examples
+
+- **14_dynamic_class_registry.py** - When and why to use the class registry for dynamic classes
+
 ## Running the Examples
 
 Each example can be run independently:

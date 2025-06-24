@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.2.1] - 2025-06-24
+
+- Added the last missing example & doc: using the class registry to handle dynamic classes from distributed systems and runtime generation
+- Fixed markdown of overview docs
+
 ## [v0.2.0] - 2025-06-23
 
 - Test coverage 100%

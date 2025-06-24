@@ -41,6 +41,9 @@ extra:
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/kajson/
       name: kajson on PyPI
+    - icon: fontawesome/brands/discord
+      link: https://go.pipelex.com/discord
+      name: Pipelex on Discord
   generator: false
 
 plugins:
@@ -77,6 +80,7 @@ nav:
     - Basic Usage: pages/guide/basic-usage.md
     - Pydantic Integration: pages/guide/pydantic.md
     - Custom Types: pages/guide/custom-types.md
+    - Class Registry: pages/guide/class-registry.md
     - Error Handling: pages/guide/error-handling.md
   - API Reference:
     - kajson module: pages/api/kajson.md
