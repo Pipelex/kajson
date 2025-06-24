@@ -389,6 +389,8 @@ assert restored_task.task_id == "TASK_001"
 
 ## 🔗 Examples
 
+For detailed examples and tutorials, visit: **[https://pipelex.github.io/kajson/pages/examples/](https://pipelex.github.io/kajson/pages/examples/)**
+
 All code examples from this README are available as executable files in the [`examples/`](examples/) directory:
 
 - [`ex_01_basic_pydantic_serialization.py`](examples/ex_01_basic_pydantic_serialization.py) - Basic Pydantic model serialization
