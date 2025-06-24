@@ -8,6 +8,7 @@ This guide is organized into several sections, each focusing on different aspect
 
 ### [Basic Usage](basic-usage.md)
 Learn the fundamentals of using Kajson as a drop-in replacement for Python's standard json module. Covers:
+
 - Basic serialization and deserialization
 - Working with files
 - Formatting options
@@ -15,6 +16,7 @@ Learn the fundamentals of using Kajson as a drop-in replacement for Python's sta
 
 ### [Pydantic Integration](pydantic.md)
 Discover how Kajson seamlessly integrates with Pydantic v2 models:
+
 - Automatic model serialization
 - Validation during deserialization
 - Nested model support
@@ -22,6 +24,7 @@ Discover how Kajson seamlessly integrates with Pydantic v2 models:
 
 ### [Custom Types](custom-types.md)
 Learn how to extend Kajson to support your own custom types:
+
 - Registering custom encoders/decoders
 - Using the `__json_encode__` and `__json_decode__` hooks
 - Best practices for custom type support
@@ -29,6 +32,7 @@ Learn how to extend Kajson to support your own custom types:
 
 ### [Error Handling](error-handling.md)
 Understand how to handle errors and edge cases:
+
 - Common error scenarios
 - Validation errors with Pydantic
 - Debugging serialization issues
