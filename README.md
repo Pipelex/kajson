@@ -147,6 +147,52 @@ assert isinstance(restored_post.comments[0], Comment)
 assert restored_post.comments[0].created_at.year == datetime.now().year
 ```
 
+## 🤝 Compatibility
+
+- **Python**: 3.9+
+- **Pydantic**: v2.x
+- **Dependencies**: Minimal, only standard library + pydantic
+
+## 🔄 Migration from Standard JSON
+
+Migrating is as simple as changing your import:
+
+```python
+# Before
+import json
+data = json.dumps(my_object)  # Often fails with complex objects
+
+# After  
+import kajson as json  # Drop-in replacement!
+data = json.dumps(my_object)  # Works with complex objects
+```
+
+Or use Kajson's convenience functions directly:
+
+```python
+import kajson
+data = kajson.dumps(my_object)
+```
+
+## 🏗️ How It Works
+
+Kajson extends the standard JSON encoder/decoder by:
+
+1. **Type Preservation**: Adds `__class__` and `__module__` metadata to JSON objects
+2. **Smart Decoding**: Automatically reconstructs original Python objects
+3. **Registry System**: Allows registration of custom encoders/decoders
+4. **Pydantic Integration**: Special handling for Pydantic models and validation
+5. **Class Registry**: Maintains a registry of dynamically created classes that aren't available in standard module paths, enabling serialization/deserialization in distributed systems and runtime scenarios
+
+## 📚 Use Cases
+
+- **REST APIs**: Serialize Pydantic models for API responses
+- **Data Persistence**: Save complex objects to JSON files
+- **Message Queues**: Send rich objects through Redis/RabbitMQ
+- **Configuration**: Store config with proper types
+- **Data Science**: Serialize numpy arrays, pandas DataFrames (with custom encoders)
+
+
 ## 🔧 Advanced Features
 
 ### Custom Type Registration
@@ -340,49 +386,6 @@ assert restored_task.task_id == "TASK_001"
 - 🚀 **Microservices** - Exchanging complex object definitions
 - 🏭 **Dynamic generation** - Any runtime class creation scenarios
 
-## 🤝 Compatibility
-
-- **Python**: 3.9+
-- **Pydantic**: v2.x
-- **Dependencies**: Minimal, only standard library + pydantic
-
-## 🔄 Migration from Standard JSON
-
-Migrating is as simple as changing your import:
-
-```python
-# Before
-import json
-data = json.dumps(my_object)  # Often fails with complex objects
-
-# After  
-import kajson as json  # Drop-in replacement!
-data = json.dumps(my_object)  # Works with complex objects
-```
-
-Or use Kajson's convenience functions directly:
-
-```python
-import kajson
-data = kajson.dumps(my_object)
-```
-
-## 🏗️ How It Works
-
-Kajson extends the standard JSON encoder/decoder by:
-
-1. **Type Preservation**: Adds `__class__` and `__module__` metadata to JSON objects
-2. **Smart Decoding**: Automatically reconstructs original Python objects
-3. **Registry System**: Allows registration of custom encoders/decoders
-4. **Pydantic Integration**: Special handling for Pydantic models and validation
-
-## 📚 Use Cases
-
-- **REST APIs**: Serialize Pydantic models for API responses
-- **Data Persistence**: Save complex objects to JSON files
-- **Message Queues**: Send rich objects through Redis/RabbitMQ
-- **Configuration**: Store config with proper types
-- **Data Science**: Serialize numpy arrays, pandas DataFrames (with custom encoders)
 
 ## 🔗 Examples
 
