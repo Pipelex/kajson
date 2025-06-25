@@ -120,57 +120,89 @@ Kajson includes built-in encoders for common types:
 ### DateTime Encoder
 
 ```python
-def encode_datetime(dt: datetime) -> dict:
-    """Encode datetime objects"""
+def json_encode_datetime(datetime_value: datetime.datetime) -> Dict[str, Any]:
+    """Encoder for datetimes (from module datetime)."""
+    tzinfo = str(datetime_value.tzinfo) if datetime_value.tzinfo else None
     return {
-        "__datetime__": dt.isoformat(),
-        "tzinfo": dt.tzinfo.tzname() if dt.tzinfo else None
+        "datetime": datetime_value.strftime("%Y-%m-%d %H:%M:%S.%f"), 
+        "tzinfo": tzinfo
     }
 ```
 
 ### Date Encoder
 
 ```python
-def encode_date(d: date) -> dict:
-    """Encode date objects"""
-    return {"__date__": d.isoformat()}
+def json_encode_date(d: datetime.date) -> Dict[str, str]:
+    """Encoder for dates (from module datetime)."""
+    return {"date": str(d)}
 ```
 
 ### Time Encoder
 
 ```python
-def encode_time(t: time) -> dict:
-    """Encode time objects"""
-    return {
-        "__time__": t.isoformat(),
-        "tzinfo": t.tzinfo.tzname() if t.tzinfo else None
-    }
+def json_encode_time(t: datetime.time) -> Dict[str, Any]:
+    """Encoder for times (from module datetime)."""
+    return {"time": t.strftime("%H:%M:%S.%f"), "tzinfo": t.tzinfo}
 ```
 
 ### Timedelta Encoder
 
 ```python
-def encode_timedelta(td: timedelta) -> dict:
-    """Encode timedelta objects"""
-    return {
-        "__timedelta__": {
-            "days": td.days,
-            "seconds": td.seconds,
-            "microseconds": td.microseconds
-        }
-    }
+def json_encode_timedelta(t: datetime.timedelta) -> Dict[str, float]:
+    """Encoder for timedeltas (from module datetime)."""
+    return {"seconds": t.total_seconds()}
 ```
 
 ### Timezone Encoder
 
 ```python
-def encode_timezone(tz: timezone) -> dict:
-    """Encode timezone objects"""
+def json_encode_timezone(t: ZoneInfo) -> Dict[str, Any]:
+    """Encoder for timezones (using zoneinfo from Python 3.9+)."""
+    return {"zone": t.key}
+```
+
+## Automatic Metadata Handling
+
+**Important:** You'll notice that the built-in encoders above don't include `__class__` and `__module__` fields in their returned dictionaries. This is because `UniversalJSONEncoder` automatically adds these metadata fields to enable object reconstruction during decoding.
+
+### How It Works
+
+When you register an encoder function, the `UniversalJSONEncoder` will:
+
+1. Call your encoder function to get the data dictionary
+2. Automatically add `__class__` and `__module__` fields if they're not already present
+3. Use these fields during decoding to reconstruct the original object type
+
+### Example
+
+```python
+# Your encoder function
+def encode_point(point: Point) -> Dict[str, Any]:
+    return {"x": point.x, "y": point.y}  # No __class__ or __module__ needed
+
+# What gets serialized automatically:
+# {
+#     "x": 3.14,
+#     "y": 2.71,
+#     "__class__": "Point",      # Added automatically
+#     "__module__": "__main__"   # Added automatically
+# }
+```
+
+### When to Include Metadata Explicitly
+
+You should only include `__class__` and `__module__` explicitly when you want to override the automatic detection, such as:
+
+- Using one encoder for multiple related types
+- Encoding with a different class name than the actual type
+- Creating cross-compatible encodings between different class hierarchies
+
+```python
+def encode_shape(shape: Union[Circle, Rectangle]) -> Dict[str, Any]:
     return {
-        "__timezone__": {
-            "offset": tz.utcoffset(None).total_seconds(),
-            "name": tz.tzname(None)
-        }
+        "area": shape.area(),
+        "__class__": "Shape",  # Override: use base class name
+        "__module__": "geometry"
     }
 ```
 
