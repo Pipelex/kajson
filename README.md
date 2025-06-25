@@ -386,6 +386,49 @@ assert restored_task.task_id == "TASK_001"
 - 🚀 **Microservices** - Exchanging complex object definitions
 - 🏭 **Dynamic generation** - Any runtime class creation scenarios
 
+### Pydantic Subclass Polymorphism
+
+**Full example:** [`ex_15_pydantic_subclass_polymorphism.py`](examples/ex_15_pydantic_subclass_polymorphism.py)
+
+Kajson perfectly handles polymorphism with Pydantic models, preserving exact subclass types during serialization:
+
+```python
+from pydantic import BaseModel
+
+class Animal(BaseModel):
+    name: str
+    species: str
+
+class Dog(Animal):
+    breed: str
+    is_good_boy: bool = True
+
+class Pet(BaseModel):
+    owner: str
+    animal: Animal  # ← Field declared as base class
+
+# Create pet with subclass instance
+pet = Pet(
+    owner="Alice",
+    animal=Dog(name="Buddy", species="Canis lupus", breed="Golden Retriever")  # ← Actual subclass
+)
+
+# Serialize and deserialize
+json_str = kajson.dumps(pet)
+restored_pet = kajson.loads(json_str)
+
+# Subclass type and attributes are perfectly preserved!
+assert isinstance(restored_pet.animal, Dog)  # ✅ Still a Dog, not just Animal
+assert restored_pet.animal.breed == "Golden Retriever"  # ✅ Subclass attributes preserved
+assert restored_pet.animal.is_good_boy is True  # ✅ All fields intact
+```
+
+**Perfect for:**
+- 🎭 **Polymorphic APIs** - Base class endpoints that handle multiple subclasses
+- 🗂️ **Mixed collections** - Lists of base class containing various subclasses  
+- 🏗️ **Plugin architectures** - Runtime-loaded implementations of base interfaces
+- 📊 **Data modeling** - Complex hierarchies with specialized behaviors
+
 
 ## 🔗 Examples
 
@@ -407,6 +450,7 @@ All code examples from this README are available as executable files in the [`ex
 - [`ex_12_readme_mixed_types.py`](examples/ex_12_readme_mixed_types.py) - Mixed types (README example)
 - [`ex_13_readme_error_handling.py`](examples/ex_13_readme_error_handling.py) - Error handling (README example)
 - [`ex_14_dynamic_class_registry.py`](examples/ex_14_dynamic_class_registry.py) - Dynamic class registry for distributed systems and runtime class generation
+- [`ex_15_pydantic_subclass_polymorphism.py`](examples/ex_15_pydantic_subclass_polymorphism.py) - Pydantic subclass polymorphism with perfect type preservation
 
 Run any example with:
 ```bash

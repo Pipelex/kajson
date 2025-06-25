@@ -293,6 +293,168 @@ if __name__ == "__main__":
     main()
 ```
 
+## Pydantic Subclass Polymorphism
+
+**Source:** [`ex_15_pydantic_subclass_polymorphism.py`](https://github.com/PipelexLab/kajson/blob/main/examples/ex_15_pydantic_subclass_polymorphism.py)
+
+Demonstrates Kajson's powerful ability to preserve exact subclass types during serialization, even when fields are declared with base class types. This is perfect for polymorphic APIs, plugin architectures, and complex data modeling.
+
+```python
+from typing import List
+from typing_extensions import override
+from pydantic import BaseModel, Field
+from kajson import kajson, kajson_manager
+
+class Animal(BaseModel):
+    """Base animal class with common attributes."""
+    name: str
+    species: str
+    age: int
+
+    def make_sound(self) -> str:
+        return "Some generic animal sound"
+
+class Dog(Animal):
+    """Dog subclass with breed-specific attributes."""
+    breed: str
+    is_good_boy: bool = True
+    favorite_toy: str = "tennis ball"
+
+    @override
+    def make_sound(self) -> str:
+        return "Woof! Woof!"
+
+class Cat(Animal):
+    """Cat subclass with feline-specific attributes."""
+    lives_remaining: int = 9
+    is_indoor: bool = True
+    favorite_nap_spot: str = "sunny windowsill"
+
+    @override
+    def make_sound(self) -> str:
+        return "Meow~"
+
+class Pet(BaseModel):
+    """Pet registration with owner information."""
+    owner_name: str
+    animal: Animal  # ← Field declared as base class, but can hold subclass instances
+    registration_date: str
+    veterinarian: str
+
+class AnimalShelter(BaseModel):
+    """Animal shelter with mixed animal types."""
+    name: str
+    location: str
+    animals: List[Animal]  # ← List of base class, but can contain subclass instances
+    capacity: int
+
+def main():
+    # Create pets with different animal subclasses
+    pets = [
+        Pet(
+            owner_name="Alice Smith",
+            animal=Dog(name="Buddy", species="Canis lupus", age=3, breed="Golden Retriever"),
+            registration_date="2024-01-15",
+            veterinarian="Dr. Johnson"
+        ),
+        Pet(
+            owner_name="Bob Wilson",
+            animal=Cat(name="Whiskers", species="Felis catus", age=5, lives_remaining=8),
+            registration_date="2024-02-20",
+            veterinarian="Dr. Martinez"
+        )
+    ]
+
+    # Create shelter with mixed types
+    shelter = AnimalShelter(
+        name="Happy Paws Animal Shelter",
+        location="Springfield",
+        capacity=50,
+        animals=[
+            Dog(name="Max", species="Canis lupus", age=4, breed="German Shepherd"),
+            Cat(name="Luna", species="Felis catus", age=2, lives_remaining=9),
+        ]
+    )
+
+    # Serialize everything
+    pets_json = kajson.dumps(pets, indent=2)
+    shelter_json = kajson.dumps(shelter, indent=2)
+
+    # Deserialize and verify subclass types are preserved
+    restored_pets = kajson.loads(pets_json)
+    restored_shelter = kajson.loads(shelter_json)
+
+    # Subclass types and attributes are perfectly preserved!
+    assert isinstance(restored_pets[0].animal, Dog)  # Still a Dog, not just Animal
+    assert restored_pets[0].animal.breed == "Golden Retriever"  # Subclass attributes intact
+    assert restored_pets[0].animal.make_sound() == "Woof! Woof!"  # Subclass methods work
+
+    assert isinstance(restored_pets[1].animal, Cat)  # Still a Cat
+    assert restored_pets[1].animal.lives_remaining == 8  # Cat-specific attributes preserved
+    assert restored_pets[1].animal.make_sound() == "Meow~"  # Cat methods work
+
+    print("🎉 Subclass polymorphism works perfectly!")
+
+if __name__ == "__main__":
+    kajson_manager.KajsonManager()
+    main()
+```
+
+**Key Benefits:**
+- **🎭 Polymorphic APIs** - Base class endpoints that handle multiple subclasses
+- **🗂️ Mixed collections** - Lists of base class containing various subclasses  
+- **🏗️ Plugin architectures** - Runtime-loaded implementations of base interfaces
+- **📊 Data modeling** - Complex hierarchies with specialized behaviors
+
+## Dynamic Class Registry
+
+**Source:** [`ex_14_dynamic_class_registry.py`](https://github.com/PipelexLab/kajson/blob/main/examples/ex_14_dynamic_class_registry.py)
+
+Shows when and how to use the class registry for dynamically created classes that aren't available in standard module paths. Essential for distributed systems and runtime class generation.
+
+```python
+from kajson import kajson, kajson_manager
+from kajson.kajson_manager import KajsonManager
+
+def main():
+    # Simulate dynamic class creation (e.g., from network, workflow definition)
+    remote_class_definition = '''
+from pydantic import BaseModel, Field
+
+class RemoteTask(BaseModel):
+    task_id: str
+    name: str  
+    priority: int = Field(default=1, ge=1, le=10)
+'''
+
+    # Execute and create the class dynamically
+    remote_namespace = {}
+    exec(remote_class_definition, remote_namespace)
+    RemoteTask = remote_namespace["RemoteTask"]
+
+    # Set module to simulate it's not available locally
+    RemoteTask.__module__ = "remote.distributed.system"
+
+    # Create and serialize
+    task = RemoteTask(task_id="TASK_001", name="Process Data", priority=5)
+    json_str = kajson.dumps(task)
+
+    # Clear local definition (simulate distributed scenario)
+    del remote_namespace["RemoteTask"]
+
+    # Register in class registry for deserialization
+    registry = KajsonManager.get_class_registry()
+    registry.register_class(RemoteTask)
+
+    # Now deserialization works via class registry!
+    restored_task = kajson.loads(json_str)
+    assert restored_task.task_id == "TASK_001"
+
+if __name__ == "__main__":
+    kajson_manager.KajsonManager()
+    main()
+```
+
 ## Additional Examples
 
 The [`examples/`](https://github.com/PipelexLab/kajson/tree/main/examples) directory contains additional examples:
