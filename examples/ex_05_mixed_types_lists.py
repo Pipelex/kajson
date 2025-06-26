@@ -3,14 +3,21 @@
 Working with Lists of Mixed Types Example
 
 This example demonstrates how Kajson handles lists containing different types
-including Pydantic models, datetime objects, and plain Python structures.
+including Pydantic models, datetime objects, enums, and plain Python structures.
 """
 
 from datetime import date, datetime, time
+from enum import Enum
 
 from pydantic import BaseModel
 
 from kajson import kajson, kajson_manager
+
+
+class Status(Enum):
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
 
 
 class Task(BaseModel):
@@ -28,6 +35,7 @@ def main():
         {"plain": "dict"},
         ["plain", "list"],
         time(14, 30),
+        Status.IN_PROGRESS,
     ]
 
     print("Original mixed data:")
@@ -48,11 +56,13 @@ def main():
     assert isinstance(restored[0], Task)
     assert isinstance(restored[1], datetime)
     assert isinstance(restored[4], time)
+    assert isinstance(restored[5], Status)
 
     print("\n✅ All types preserved correctly!")
     print(f"✅ Task object: {restored[0].name} due on {restored[0].due_date}")
     print(f"✅ Datetime object: {restored[1]}")
     print(f"✅ Time object: {restored[4]}")
+    print(f"✅ Enum object: {restored[5]} (value: {restored[5].value})")
 
 
 if __name__ == "__main__":

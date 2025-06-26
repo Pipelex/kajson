@@ -27,6 +27,7 @@ import json
 import logging
 import sys
 import warnings
+from enum import Enum
 from typing import Any, Callable, ClassVar, Dict, Type, TypeVar
 
 from pydantic import BaseModel, RootModel, ValidationError
@@ -216,6 +217,24 @@ class UniversalJSONDecoder(json.JSONDecoder):
                 error_msg = (
                     f"Could not post validate pydantic RootModel '{the_class}': {exc}\n\nthe_dict:\n{the_dict}\n\nroot_model_obj:\n{root_model_obj}"
                 )
+                self.log(error_msg)
+                raise KajsonDecoderError(error_msg) from exc
+
+        # Handle Enum classes specially
+        if issubclass(the_class, Enum):
+            self.log(f"Handling enum class '{the_class}'")
+            try:
+                # For enums, we need to reconstruct using the enum name or value
+                if "_name_" in the_dict:
+                    # Reconstruct from enum name
+                    return the_class[the_dict["_name_"]]
+                elif "_value_" in the_dict:
+                    # Reconstruct from enum value
+                    return the_class(the_dict["_value_"])
+                else:
+                    raise KajsonDecoderError(f"Could not reconstruct enum '{class_name}': missing _name_ or _value_")
+            except (KeyError, ValueError) as exc:
+                error_msg = f"Could not reconstruct enum '{class_name}': {exc}\n\nthe_dict:\n{the_dict}"
                 self.log(error_msg)
                 raise KajsonDecoderError(error_msg) from exc
 

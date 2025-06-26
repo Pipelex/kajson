@@ -307,7 +307,7 @@ wheels = [
 
 [[package]]
 name = "kajson"
-version = "0.1.6"
+version = "0.2.2"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },
