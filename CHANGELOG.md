@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.2.3] - 2025-06-26
+
+- Better handle enums including in pydantic BaseModels
+
 ## [v0.2.2] - 2025-06-26
 
 ### 🚀 New Features
