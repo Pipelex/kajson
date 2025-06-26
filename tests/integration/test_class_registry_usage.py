@@ -48,7 +48,7 @@ class DynamicProduct(BaseModel):
         DynamicProduct = dynamic_namespace["DynamicProduct"]
 
         # Set the module to something that doesn't exist to force registry lookup
-        DynamicProduct.__module__ = "dynamic.runtime.generated"
+        DynamicProduct.__module__ = "test.fake.module"
 
         # Rebuild the model to resolve forward references with proper types namespace
         from typing import Optional
@@ -88,22 +88,23 @@ class DynamicProduct(BaseModel):
         registry.register_class(DynamicProduct)
         print("✅ Registered DynamicProduct in class registry")
 
-        # Now deserialization should work via the class registry
-        restored_product = kajson.loads(json_str)
-        print(f"Restored product: {restored_product}")
-        print(f"Restored type: {type(restored_product)}")
+        try:
+            # Now deserialization should work via the class registry
+            restored_product = kajson.loads(json_str)
+            print(f"Restored product: {restored_product}")
+            print(f"Restored type: {type(restored_product)}")
 
-        # Verify the restoration worked correctly
-        assert restored_product.id == 123
-        assert restored_product.name == "Super Widget"
-        assert restored_product.price == 29.99
-        assert restored_product.category == "Electronics"
-        assert isinstance(restored_product, DynamicProduct)
+            # Verify the restoration worked correctly
+            assert restored_product.id == 123
+            assert restored_product.name == "Super Widget"
+            assert restored_product.price == 29.99
+            assert restored_product.category == "Electronics"
+            assert isinstance(restored_product, DynamicProduct)
 
-        print("✅ Class registry enabled successful deserialization of dynamic class!")
-
-        # Clean up registry for other tests
-        registry.teardown()
+            print("✅ Class registry enabled successful deserialization of dynamic class!")
+        finally:
+            # Clean up registry for other tests
+            registry.teardown()
 
     def test_class_registry_with_string_source_code(self):
         """Test class registry with a class defined entirely from string source code."""
@@ -142,7 +143,7 @@ class NetworkMessage(BaseModel):
         NetworkMessage = network_namespace["NetworkMessage"]
 
         # Set the module to something that doesn't exist to force registry lookup
-        NetworkMessage.__module__ = "network.message.dynamic"
+        NetworkMessage.__module__ = "test.fake.module"
 
         # Rebuild the model to resolve forward references with proper types namespace
         from datetime import datetime
@@ -185,22 +186,23 @@ class NetworkMessage(BaseModel):
         registry.register_class(NetworkMessage)
         print("✅ Registered NetworkMessage in class registry")
 
-        # Deserialize using class registry
-        restored_message = kajson.loads(json_str)
-        print(f"Restored message: {restored_message.get_summary()}")
+        try:
+            # Deserialize using class registry
+            restored_message = kajson.loads(json_str)
+            print(f"Restored message: {restored_message.get_summary()}")
 
-        # Verify restoration
-        assert restored_message.message_id == "msg_001"
-        assert restored_message.sender == "alice@example.com"
-        assert len(restored_message.recipients) == 2
-        assert restored_message.subject == "Project Update"
-        assert restored_message.priority == 3
-        assert isinstance(restored_message, NetworkMessage)
+            # Verify restoration
+            assert restored_message.message_id == "msg_001"
+            assert restored_message.sender == "alice@example.com"
+            assert len(restored_message.recipients) == 2
+            assert restored_message.subject == "Project Update"
+            assert restored_message.priority == 3
+            assert isinstance(restored_message, NetworkMessage)
 
-        print("✅ Successfully deserialized complex model via class registry!")
-
-        # Clean up
-        registry.teardown()
+            print("✅ Successfully deserialized complex model via class registry!")
+        finally:
+            # Clean up
+            registry.teardown()
 
     def test_registry_vs_module_import_precedence(self):
         """Test that class registry is checked before attempting module import."""
@@ -210,7 +212,7 @@ class NetworkMessage(BaseModel):
             value: str
 
         # Manually set the module to something that doesn't exist
-        SpecialModel.__module__ = "non.existent.module"
+        SpecialModel.__module__ = "test.fake.module"
 
         instance = SpecialModel(value="test")
         json_str = kajson.dumps(instance)
@@ -218,18 +220,19 @@ class NetworkMessage(BaseModel):
         # Without registry, this should fail with import error
         with pytest.raises(KajsonDecoderError) as excinfo:
             kajson.loads(json_str)
-        assert "Error while trying to import module non.existent.module" in str(excinfo.value)
+        assert "Error while trying to import module test.fake.module" in str(excinfo.value)
 
         # Register in class registry
         registry = KajsonManager.get_class_registry()
         registry.register_class(SpecialModel)
 
-        # Now it should work via registry (bypassing the non-existent module)
-        restored = kajson.loads(json_str)
-        assert restored.value == "test"
-        assert isinstance(restored, SpecialModel)
+        try:
+            # Now it should work via registry (bypassing the non-existent module)
+            restored = kajson.loads(json_str)
+            assert restored.value == "test"
+            assert isinstance(restored, SpecialModel)
 
-        print("✅ Class registry takes precedence over module import!")
-
-        # Clean up
-        registry.teardown()
+            print("✅ Class registry takes precedence over module import!")
+        finally:
+            # Clean up
+            registry.teardown()

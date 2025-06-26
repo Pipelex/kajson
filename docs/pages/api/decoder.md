@@ -111,56 +111,50 @@ Kajson includes built-in decoders for common types:
 ### DateTime Decoder
 
 ```python
-def decode_datetime(data: dict) -> datetime:
-    """Decode datetime objects"""
-    dt = datetime.fromisoformat(data["__datetime__"])
-    if data.get("tzinfo"):
-        # Handle timezone if present
-        pass
+def json_decode_datetime(obj_dict: Dict[str, Any]) -> datetime.datetime:
+    """Decoder for datetimes (from module datetime)."""
+    if datetime_str := obj_dict.get("datetime"):
+        dt = datetime.datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S.%f")
+    else:
+        raise KajsonDecoderError("Could not decode datetime from json: datetime field is required")
+
+    if tzinfo_str := obj_dict.get("tzinfo"):
+        dt = dt.replace(tzinfo=ZoneInfo(tzinfo_str))
     return dt
 ```
 
 ### Date Decoder
 
 ```python
-def decode_date(data: dict) -> date:
-    """Decode date objects"""
-    return date.fromisoformat(data["__date__"])
+def json_decode_date(obj_dict: Dict[str, str]) -> datetime.date:
+    """Decoder for dates (from module datetime)."""
+    # Split date string into parts and convert to integers
+    year, month, day = map(int, obj_dict["date"].split("-"))
+    return datetime.date(year, month, day)
 ```
 
 ### Time Decoder
 
 ```python
-def decode_time(data: dict) -> time:
-    """Decode time objects"""
-    t = time.fromisoformat(data["__time__"])
-    if data.get("tzinfo"):
-        # Handle timezone if present
-        pass
-    return t
+def json_decode_time(d: Dict[str, Any]) -> datetime.time:
+    """Decoder for times (from module datetime)."""
+    # Split time string into parts
+    time_parts = d["time"].split(":")
+    hours = int(time_parts[0])
+    minutes = int(time_parts[1])
+    # Handle seconds and milliseconds
+    seconds_parts = time_parts[2].split(".")
+    seconds = int(seconds_parts[0])
+    milliseconds = int(seconds_parts[1])
+
+    return datetime.time(hours, minutes, seconds, milliseconds, tzinfo=d["tzinfo"])
 ```
 
 ### Timedelta Decoder
 
 ```python
-def decode_timedelta(data: dict) -> timedelta:
-    """Decode timedelta objects"""
-    td_data = data["__timedelta__"]
-    return timedelta(
-        days=td_data["days"],
-        seconds=td_data["seconds"],
-        microseconds=td_data["microseconds"]
-    )
-```
-
-### Timezone Decoder
-
-```python
-def decode_timezone(data: dict) -> timezone:
-    """Decode timezone objects"""
-    tz_data = data["__timezone__"]
-    offset_seconds = tz_data["offset"]
-    return timezone(timedelta(seconds=offset_seconds))
+# Timedelta objects are automatically reconstructed from the "seconds" field
+# No explicit decoder needed - the constructor handles it directly
 ```
 
 ## Custom Decoder Implementation

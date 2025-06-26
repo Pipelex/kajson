@@ -32,6 +32,7 @@ This directory contains runnable Python examples demonstrating all the features 
 ## Development and Testing Examples
 
 - **14_dynamic_class_registry.py** - When and why to use the class registry for dynamic classes
+- **15_pydantic_subclass_polymorphism.py** - Polymorphism with Pydantic models: subclass preservation during serialization
 
 ## Running the Examples
 

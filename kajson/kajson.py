@@ -108,7 +108,18 @@ def load(fp: IO[str], **kwargs: Any) -> Any:
 # other implementation using more recent zoneinfo, without the need for pytz (untested):
 def json_encode_timezone(t: ZoneInfo) -> Dict[str, Any]:
     """Encoder for timezones (using zoneinfo from Python 3.9+)."""
-    return {"zone": t.key, "__class__": "timezone", "__module__": "zoneinfo"}
+    return {"zone": t.key}
+
+
+UniversalJSONEncoder.register(ZoneInfo, json_encode_timezone)
+
+
+def json_decode_timezone(obj_dict: Dict[str, Any]) -> ZoneInfo:
+    """Decoder for timezones (using zoneinfo from Python 3.9+)."""
+    return ZoneInfo(obj_dict["zone"])
+
+
+UniversalJSONDecoder.register(ZoneInfo, json_decode_timezone)
 
 
 #########################################################################################
@@ -135,7 +146,12 @@ UniversalJSONDecoder.register(datetime.date, json_decode_date)
 def json_encode_datetime(datetime_value: datetime.datetime) -> Dict[str, Any]:
     """Encoder for datetimes (from module datetime)."""
     tzinfo = str(datetime_value.tzinfo) if datetime_value.tzinfo else None
-    return {"datetime": datetime_value.strftime("%Y-%m-%d %H:%M:%S.%f"), "tzinfo": tzinfo, "__class__": "datetime", "__module__": "datetime"}
+    # Ensure year is always formatted as 4 digits for cross-platform compatibility
+    datetime_str = (
+        f"{datetime_value.year:04d}-{datetime_value.month:02d}-{datetime_value.day:02d} "
+        f"{datetime_value.hour:02d}:{datetime_value.minute:02d}:{datetime_value.second:02d}.{datetime_value.microsecond:06d}"
+    )
+    return {"datetime": datetime_str, "tzinfo": tzinfo}
 
 
 UniversalJSONEncoder.register(datetime.datetime, json_encode_datetime)

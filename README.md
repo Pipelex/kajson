@@ -147,6 +147,52 @@ assert isinstance(restored_post.comments[0], Comment)
 assert restored_post.comments[0].created_at.year == datetime.now().year
 ```
 
+## 🤝 Compatibility
+
+- **Python**: 3.9+
+- **Pydantic**: v2.x
+- **Dependencies**: Minimal, only standard library + pydantic
+
+## 🔄 Migration from Standard JSON
+
+Migrating is as simple as changing your import:
+
+```python
+# Before
+import json
+data = json.dumps(my_object)  # Often fails with complex objects
+
+# After  
+import kajson as json  # Drop-in replacement!
+data = json.dumps(my_object)  # Works with complex objects
+```
+
+Or use Kajson's convenience functions directly:
+
+```python
+import kajson
+data = kajson.dumps(my_object)
+```
+
+## 🏗️ How It Works
+
+Kajson extends the standard JSON encoder/decoder by:
+
+1. **Type Preservation**: Adds `__class__` and `__module__` metadata to JSON objects
+2. **Smart Decoding**: Automatically reconstructs original Python objects
+3. **Registry System**: Allows registration of custom encoders/decoders
+4. **Pydantic Integration**: Special handling for Pydantic models and validation
+5. **Class Registry**: Maintains a registry of dynamically created classes that aren't available in standard module paths, enabling serialization/deserialization in distributed systems and runtime scenarios
+
+## 📚 Use Cases
+
+- **REST APIs**: Serialize Pydantic models for API responses
+- **Data Persistence**: Save complex objects to JSON files
+- **Message Queues**: Send rich objects through Redis/RabbitMQ
+- **Configuration**: Store config with proper types
+- **Data Science**: Serialize numpy arrays, pandas DataFrames (with custom encoders)
+
+
 ## 🔧 Advanced Features
 
 ### Custom Type Registration
@@ -340,51 +386,53 @@ assert restored_task.task_id == "TASK_001"
 - 🚀 **Microservices** - Exchanging complex object definitions
 - 🏭 **Dynamic generation** - Any runtime class creation scenarios
 
-## 🤝 Compatibility
+### Pydantic Subclass Polymorphism
 
-- **Python**: 3.9+
-- **Pydantic**: v2.x
-- **Dependencies**: Minimal, only standard library + pydantic
+**Full example:** [`ex_15_pydantic_subclass_polymorphism.py`](examples/ex_15_pydantic_subclass_polymorphism.py)
 
-## 🔄 Migration from Standard JSON
-
-Migrating is as simple as changing your import:
+Kajson perfectly handles polymorphism with Pydantic models, preserving exact subclass types during serialization:
 
 ```python
-# Before
-import json
-data = json.dumps(my_object)  # Often fails with complex objects
+from pydantic import BaseModel
 
-# After  
-import kajson as json  # Drop-in replacement!
-data = json.dumps(my_object)  # Works with complex objects
+class Animal(BaseModel):
+    name: str
+    species: str
+
+class Dog(Animal):
+    breed: str
+    is_good_boy: bool = True
+
+class Pet(BaseModel):
+    owner: str
+    animal: Animal  # ← Field declared as base class
+
+# Create pet with subclass instance
+pet = Pet(
+    owner="Alice",
+    animal=Dog(name="Buddy", species="Canis lupus", breed="Golden Retriever")  # ← Actual subclass
+)
+
+# Serialize and deserialize
+json_str = kajson.dumps(pet)
+restored_pet = kajson.loads(json_str)
+
+# Subclass type and attributes are perfectly preserved!
+assert isinstance(restored_pet.animal, Dog)  # ✅ Still a Dog, not just Animal
+assert restored_pet.animal.breed == "Golden Retriever"  # ✅ Subclass attributes preserved
+assert restored_pet.animal.is_good_boy is True  # ✅ All fields intact
 ```
 
-Or use Kajson's convenience functions directly:
+**Perfect for:**
+- 🎭 **Polymorphic APIs** - Base class endpoints that handle multiple subclasses
+- 🗂️ **Mixed collections** - Lists of base class containing various subclasses  
+- 🏗️ **Plugin architectures** - Runtime-loaded implementations of base interfaces
+- 📊 **Data modeling** - Complex hierarchies with specialized behaviors
 
-```python
-import kajson
-data = kajson.dumps(my_object)
-```
-
-## 🏗️ How It Works
-
-Kajson extends the standard JSON encoder/decoder by:
-
-1. **Type Preservation**: Adds `__class__` and `__module__` metadata to JSON objects
-2. **Smart Decoding**: Automatically reconstructs original Python objects
-3. **Registry System**: Allows registration of custom encoders/decoders
-4. **Pydantic Integration**: Special handling for Pydantic models and validation
-
-## 📚 Use Cases
-
-- **REST APIs**: Serialize Pydantic models for API responses
-- **Data Persistence**: Save complex objects to JSON files
-- **Message Queues**: Send rich objects through Redis/RabbitMQ
-- **Configuration**: Store config with proper types
-- **Data Science**: Serialize numpy arrays, pandas DataFrames (with custom encoders)
 
 ## 🔗 Examples
+
+For detailed examples and tutorials, visit: **[https://pipelex.github.io/kajson/pages/examples/](https://pipelex.github.io/kajson/pages/examples/)**
 
 All code examples from this README are available as executable files in the [`examples/`](examples/) directory:
 
@@ -402,6 +450,7 @@ All code examples from this README are available as executable files in the [`ex
 - [`ex_12_readme_mixed_types.py`](examples/ex_12_readme_mixed_types.py) - Mixed types (README example)
 - [`ex_13_readme_error_handling.py`](examples/ex_13_readme_error_handling.py) - Error handling (README example)
 - [`ex_14_dynamic_class_registry.py`](examples/ex_14_dynamic_class_registry.py) - Dynamic class registry for distributed systems and runtime class generation
+- [`ex_15_pydantic_subclass_polymorphism.py`](examples/ex_15_pydantic_subclass_polymorphism.py) - Pydantic subclass polymorphism with perfect type preservation
 
 Run any example with:
 ```bash

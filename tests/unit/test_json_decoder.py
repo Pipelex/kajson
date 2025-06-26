@@ -451,3 +451,90 @@ class TestUniversalJSONDecoder:
         assert isinstance(result, MockModelValid)
         assert result.name == "test"
         assert result.value == 42
+
+    def test_universal_decoder_generic_class_sys_modules(self, setup_decoder: UniversalJSONDecoder) -> None:
+        """Test generic type fallback when module is already imported (sys.modules path)."""
+        # Provide a __class__ with generic parameters; base class is available in sys.modules.
+        test_dict = {
+            "__class__": "MockModelValid[int]",
+            "__module__": "tests.unit.test_json_decoder",
+            "name": "test_generic",
+            "value": 123,
+        }
+
+        result = setup_decoder.universal_decoder(test_dict)
+
+        # The decoder should fall back to the base class ("MockModelValid").
+        assert isinstance(result, MockModelValid)
+        assert result.name == "test_generic"
+        assert result.value == 123
+
+    def test_universal_decoder_generic_class_imported_module(self, setup_decoder: UniversalJSONDecoder, mocker: MockerFixture) -> None:
+        """Test generic type fallback after dynamic module import path."""
+        # Ensure the class registry does not intercept the lookup.
+        mock_registry_instance = mocker.MagicMock()
+        mock_registry_instance.get_class.return_value = None
+        mocker.patch("kajson.kajson_manager.KajsonManager.get_class_registry", return_value=mock_registry_instance)
+
+        # Force the module to be imported during decoding by removing it from sys.modules.
+        datetime_module = sys.modules.pop("datetime", None)
+
+        try:
+            test_dict = {
+                "__class__": "datetime[str]",
+                "__module__": "datetime",
+                "year": 2025,
+                "month": 12,
+                "day": 31,
+            }
+
+            result = setup_decoder.universal_decoder(test_dict)
+
+            import datetime as dt
+
+            # The decoder should succeed by falling back to the base class ("datetime").
+            assert isinstance(result, dt.datetime)
+            assert result.year == 2025
+            assert result.month == 12
+            assert result.day == 31
+        finally:
+            # Restore the original datetime module if it existed.
+            if datetime_module is not None:
+                sys.modules["datetime"] = datetime_module
+
+    def test_universal_decoder_class_not_found_sys_modules(self, setup_decoder: UniversalJSONDecoder) -> None:
+        """Test decoder raises KajsonDecoderError when class is not found in already imported module."""
+        # The module for this test file is already imported in sys.modules.
+        test_dict = {
+            "__class__": "NonExistentClass",
+            "__module__": "tests.unit.test_json_decoder",
+        }
+
+        with pytest.raises(KajsonDecoderError) as excinfo:
+            setup_decoder.universal_decoder(test_dict)
+
+        assert "Class 'NonExistentClass' not found in module 'tests.unit.test_json_decoder'" in str(excinfo.value)
+
+    def test_universal_decoder_class_not_found_after_import(self, setup_decoder: UniversalJSONDecoder, mocker: MockerFixture) -> None:
+        """Test decoder raises KajsonDecoderError when class is not found after importing module."""
+        # Ensure class registry returns None to force module import path.
+        mock_registry_instance = mocker.MagicMock()
+        mock_registry_instance.get_class.return_value = None
+        mocker.patch("kajson.kajson_manager.KajsonManager.get_class_registry", return_value=mock_registry_instance)
+
+        # Remove math module to force import, then request non-existent class.
+        math_module = sys.modules.pop("math", None)
+
+        try:
+            test_dict = {
+                "__class__": "NonExistentClassInMath",
+                "__module__": "math",
+            }
+
+            with pytest.raises(KajsonDecoderError) as excinfo:
+                setup_decoder.universal_decoder(test_dict)
+
+            assert "Class 'NonExistentClassInMath' not found in module 'math'" in str(excinfo.value)
+        finally:
+            if math_module is not None:
+                sys.modules["math"] = math_module
