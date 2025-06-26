@@ -123,10 +123,12 @@ Kajson includes built-in encoders for common types:
 def json_encode_datetime(datetime_value: datetime.datetime) -> Dict[str, Any]:
     """Encoder for datetimes (from module datetime)."""
     tzinfo = str(datetime_value.tzinfo) if datetime_value.tzinfo else None
-    return {
-        "datetime": datetime_value.strftime("%Y-%m-%d %H:%M:%S.%f"), 
-        "tzinfo": tzinfo
-    }
+    # Ensure year is always formatted as 4 digits for cross-platform compatibility
+    datetime_str = (
+        f"{datetime_value.year:04d}-{datetime_value.month:02d}-{datetime_value.day:02d} "
+        f"{datetime_value.hour:02d}:{datetime_value.minute:02d}:{datetime_value.second:02d}.{datetime_value.microsecond:06d}"
+    )
+    return {"datetime": datetime_str, "tzinfo": tzinfo}
 ```
 
 ### Date Encoder
