@@ -168,7 +168,19 @@ class UniversalJSONEncoder(json.JSONEncoder):
         # Trying the default __dict__ attribute:
         if not already_encoded:
             try:
-                the_dict = dict(obj.__dict__)  # type: ignore
+                # Filter out problematic attributes that can't be serialized
+                the_dict = {}
+                for k, v in obj.__dict__.items():
+                    # Skip callable objects that can't be serialized
+                    if callable(v):
+                        continue
+                    # Handle __objclass__ specially to avoid circular references
+                    if k == "__objclass__":
+                        # Store as a string reference instead of the actual class
+                        the_dict[k] = f"{v.__module__}.{v.__qualname__}"
+                        continue
+                    # Keep everything else
+                    the_dict[k] = v
                 already_encoded = True
             except AttributeError:
                 pass

@@ -48,3 +48,7 @@ class TestExamples:
     def test_16_generic_models(self):
         """Test that generic Pydantic models work correctly."""
         import examples.ex_16_generic_models  # noqa: F401
+
+    def test_17_polymorphism_with_enums(self):
+        """Test that polymorphism with enums works correctly."""
+        import examples.ex_17_polymorphism_with_enums  # noqa: F401

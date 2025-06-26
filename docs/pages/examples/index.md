@@ -483,6 +483,91 @@ if __name__ == "__main__":
 - **🎯 Bounded types** - `Calculator[NumericType]` with type constraints
 - **✨ Perfect preservation** - All type information maintained during roundtrip
 
+## Polymorphism with Enums
+
+**Source:** [`ex_17_polymorphism_with_enums.py`](https://github.com/PipelexLab/kajson/blob/main/examples/ex_17_polymorphism_with_enums.py)
+
+Demonstrates how Kajson perfectly handles polymorphism combined with enum fields. Shows that subclass types and enum values are both preserved during serialization, making it ideal for complex data models with categorical attributes.
+
+```python
+from datetime import datetime
+from enum import Enum
+from pydantic import BaseModel
+from typing_extensions import override
+from kajson import kajson, kajson_manager
+
+class Personality(Enum):
+    """Enum representing different cat personalities."""
+    PLAYFUL = "playful"
+    GRUMPY = "grumpy"
+    CUDDLY = "cuddly"
+
+class Animal(BaseModel):
+    """Base animal class with common attributes."""
+    name: str
+
+    def get_description(self) -> str:
+        return f"Animal named {self.name}"
+
+class Dog(Animal):
+    """Dog subclass with breed-specific attributes."""
+    breed: str
+
+    @override
+    def get_description(self) -> str:
+        return f"Dog named {self.name} ({self.breed} breed)"
+
+class Cat(Animal):
+    """Cat subclass with feline-specific attributes including personality enum."""
+    indoor: bool
+    personality: Personality
+
+    @override
+    def get_description(self) -> str:
+        indoor_status = "indoor" if self.indoor else "outdoor"
+        return f"Cat named {self.name} ({indoor_status}, {self.personality.value} personality)"
+
+class Pet(BaseModel):
+    """Pet registration with acquisition date and animal reference."""
+    acquired: datetime
+    animal: Animal  # ← Field declared as base class, but can hold subclass instances
+
+def main():
+    # Create instances with different subclasses
+    fido = Pet(
+        acquired=datetime.now(),
+        animal=Dog(name="Fido", breed="Corgi")
+    )
+    
+    whiskers = Pet(
+        acquired=datetime.now(),
+        animal=Cat(name="Whiskers", indoor=True, personality=Personality.GRUMPY)
+    )
+
+    # Serialize to JSON
+    whiskers_json = kajson.dumps(whiskers, indent=2)
+
+    # Deserialize back
+    whiskers_restored = kajson.loads(whiskers_json)
+
+    # Verify subclass and enum preservation
+    assert isinstance(whiskers_restored.animal, Cat)  # ✅ Still a Cat, not just Animal
+    assert whiskers_restored.animal.personality == Personality.GRUMPY  # ✅ Enum preserved
+    assert whiskers_restored.animal.indoor is True  # ✅ All attributes intact
+
+    print("🎉 SUCCESS: Polymorphism and enum preservation works perfectly!")
+
+if __name__ == "__main__":
+    kajson_manager.KajsonManager()
+    main()
+```
+
+**Key Benefits:**
+- **🎭 Enum preservation** - Enum values and types are perfectly maintained
+- **🔄 Subclass polymorphism** - Base class fields can hold specific subclasses
+- **📊 Complex data models** - Ideal for domain models with categorical attributes
+- **✨ Perfect reconstruction** - All type information and enum values preserved
+
 ## Dynamic Class Registry
 
 **Source:** [`ex_14_dynamic_class_registry.py`](https://github.com/PipelexLab/kajson/blob/main/examples/ex_14_dynamic_class_registry.py)
