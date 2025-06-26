@@ -14,7 +14,7 @@ class TestTimezoneEncoder:
         timezone = ZoneInfo("America/New_York")
         result = kajson.json_encode_timezone(timezone)
 
-        expected = {"zone": "America/New_York", "__class__": "timezone", "__module__": "zoneinfo"}
+        expected = {"zone": "America/New_York"}
         assert result == expected
 
     def test_json_encode_timezone_utc(self) -> None:
@@ -22,5 +22,5 @@ class TestTimezoneEncoder:
         timezone = ZoneInfo("UTC")
         result = kajson.json_encode_timezone(timezone)
 
-        expected = {"zone": "UTC", "__class__": "timezone", "__module__": "zoneinfo"}
+        expected = {"zone": "UTC"}
         assert result == expected

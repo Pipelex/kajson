@@ -107,7 +107,17 @@ class ClassRegistry(RootModel[ClassRegistryDict], ClassRegistryAbstract):
     @override
     def get_class(self, name: str) -> Optional[Type[Any]]:
         """Retrieves a class from the registry by its name. Returns None if not found."""
-        return self.root.get(name)
+        # First try exact match
+        if name in self.root:
+            return self.root[name]
+
+        # If not found and name contains type parameters (generic type), strip them and try again
+        if "[" in name and name.endswith("]"):
+            base_name = name[: name.index("[")]
+            self._log(f"Generic type '{name}' not found, trying base class '{base_name}'")
+            return self.root.get(base_name)
+
+        return None
 
     @override
     def get_required_class(self, name: str) -> Type[Any]:
