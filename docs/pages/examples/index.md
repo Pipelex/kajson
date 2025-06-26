@@ -406,6 +406,83 @@ if __name__ == "__main__":
 - **🏗️ Plugin architectures** - Runtime-loaded implementations of base interfaces
 - **📊 Data modeling** - Complex hierarchies with specialized behaviors
 
+## Generic Pydantic Models
+
+**Source:** [`ex_16_generic_models.py`](https://github.com/PipelexLab/kajson/blob/main/examples/ex_16_generic_models.py)
+
+Demonstrates comprehensive support for generic Pydantic models with type parameters. Perfect for type-safe containers, APIs, and data structures that need parametric polymorphism.
+
+```python
+from typing import Dict, Generic, List, Optional, TypeVar, Union
+from pydantic import BaseModel
+from kajson import kajson, kajson_manager
+
+T = TypeVar("T")
+K = TypeVar("K") 
+V = TypeVar("V")
+
+class Container(BaseModel, Generic[T]):
+    """A generic container that can hold any type safely."""
+    name: str
+    items: List[T]
+    capacity: int
+
+class KeyValueStore(BaseModel, Generic[K, V]):
+    """A generic key-value store with typed keys and values."""
+    name: str
+    data: Dict[K, V]
+    created_by: str
+
+class ApiResponse(BaseModel, Generic[T]):
+    """A generic API response wrapper."""
+    success: bool
+    data: Optional[T] = None
+    error: Optional[str] = None
+    timestamp: str
+
+def main():
+    # Single type parameter
+    string_container = Container[str](
+        name="fruits",
+        items=["apple", "banana", "cherry"],
+        capacity=10
+    )
+    
+    # Multiple type parameters
+    scores = KeyValueStore[str, int](
+        name="user_scores",
+        data={"alice": 95, "bob": 87},
+        created_by="admin"
+    )
+    
+    # Nested generics
+    response = ApiResponse[List[Product]](
+        success=True,
+        data=[Product(name="Widget", price=19.99)],
+        timestamp="2025-01-15T10:30:00Z"
+    )
+    
+    # All serialize and deserialize perfectly!
+    containers_json = kajson.dumps([string_container, scores, response])
+    restored = kajson.loads(containers_json)
+    
+    # Type information is preserved
+    assert isinstance(restored[0], Container)  # Container[str]
+    assert isinstance(restored[1], KeyValueStore)  # KeyValueStore[str, int]
+    assert isinstance(restored[2], ApiResponse)  # ApiResponse[List[Product]]
+
+if __name__ == "__main__":
+    kajson_manager.KajsonManager()
+    main()
+```
+
+**Key Features:**
+- **🏗️ Single type parameters** - `Container[T]` for type-safe collections
+- **⚙️ Multiple parameters** - `KeyValueStore[K, V]` for complex relationships
+- **🔗 Nested generics** - `ApiResponse[List[Product]]` for API patterns
+- **🎯 Bounded types** - `Calculator[NumericType]` with type constraints
+- **✨ Perfect preservation** - All type information maintained during roundtrip
+
 ## Dynamic Class Registry
 
 **Source:** [`ex_14_dynamic_class_registry.py`](https://github.com/PipelexLab/kajson/blob/main/examples/ex_14_dynamic_class_registry.py)

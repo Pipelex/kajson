@@ -40,3 +40,11 @@ class TestExamples:
 
     def test_14_dynamic_class_registry(self):
         import examples.ex_14_dynamic_class_registry  # noqa: F401
+
+    def test_15_pydantic_subclass_polymorphism(self):
+        """Test that Pydantic subclass polymorphism works correctly."""
+        import examples.ex_15_pydantic_subclass_polymorphism  # noqa: F401
+
+    def test_16_generic_models(self):
+        """Test that generic Pydantic models work correctly."""
+        import examples.ex_16_generic_models  # noqa: F401

@@ -137,7 +137,16 @@ class UniversalJSONDecoder(json.JSONDecoder):
 
         # Check if the module is already imported using sys.modules
         if module_name in sys.modules:
-            the_class = getattr(sys.modules[module_name], class_name)
+            try:
+                the_class = getattr(sys.modules[module_name], class_name)
+            except AttributeError:
+                # If class_name contains type parameters (generic type), try base class
+                if "[" in class_name and class_name.endswith("]"):
+                    base_class_name = class_name[: class_name.index("[")]
+                    self.log(f"Generic type '{class_name}' not found in module, trying base class '{base_class_name}'")
+                    the_class = getattr(sys.modules[module_name], base_class_name)
+                else:
+                    raise KajsonDecoderError(f"Class '{class_name}' not found in module '{module_name}'")
         elif registered_class := KajsonManager.get_class_registry().get_class(name=class_name):
             self.log(f"Found class '{class_name}' in registry")
             the_class = registered_class
@@ -150,7 +159,16 @@ class UniversalJSONDecoder(json.JSONDecoder):
                 self.log(error_msg)
                 raise KajsonDecoderError(error_msg) from exc
             self.log(f"Module '{module_name}' imported")
-            the_class = getattr(m, class_name)
+            try:
+                the_class = getattr(m, class_name)
+            except AttributeError:
+                # If class_name contains type parameters (generic type), try base class
+                if "[" in class_name and class_name.endswith("]"):
+                    base_class_name = class_name[: class_name.index("[")]
+                    self.log(f"Generic type '{class_name}' not found in imported module, trying base class '{base_class_name}'")
+                    the_class = getattr(m, base_class_name)
+                else:
+                    raise KajsonDecoderError(f"Class '{class_name}' not found in module '{module_name}'")
 
         # Registered decoder if any:
         if the_class in UniversalJSONDecoder._decoders:
