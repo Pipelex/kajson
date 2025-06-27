@@ -3,7 +3,7 @@ name: Publish Python 🐍 distribution 📦 to PyPI
 on:
   push:
     branches:
-      - main
+      - fix/github-release-notes
 
 jobs:
   build:
@@ -129,9 +129,9 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           if [ -n "$CHANGELOG_NOTES" ]; then
-            gh release create "v$VERSION" \
+            gh release create "fix/github-release-notes" \
               --repo "$GITHUB_REPOSITORY" \
-              --title "v$VERSION" \
+              --title "fix/github-release-notes" \
               --notes "$CHANGELOG_NOTES"
           else
             gh release create "v$VERSION" \
