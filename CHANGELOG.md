@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.2.4] - 2025-06-30
+
+- Automatic changelog in Github Release
+
 ## [v0.2.3] - 2025-06-26
 
 - Better handle enums including in pydantic BaseModels
