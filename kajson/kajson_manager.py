@@ -6,7 +6,7 @@ from kajson.class_registry import ClassRegistry
 from kajson.class_registry_abstract import ClassRegistryAbstract
 from kajson.singleton import MetaSingleton
 
-KAJSON_LOGGER_CHANNEL_NAME = "kajson.decoder"
+KAJSON_LOGGER_CHANNEL_NAME = "kajson"
 
 
 class KajsonManager(metaclass=MetaSingleton):
