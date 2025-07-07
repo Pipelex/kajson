@@ -13,11 +13,8 @@ class KajsonManager(metaclass=MetaSingleton):
     """A singleton class for managing kajson operations."""
 
     def __init__(self, logger_channel_name: Optional[str] = None, class_registry: Optional[ClassRegistryAbstract] = None) -> None:
-        # Only initialize if not already initialized (to avoid re-initialization on subsequent calls)
-        if not hasattr(self, "_initialized"):
-            self.logger_channel_name = logger_channel_name or KAJSON_LOGGER_CHANNEL_NAME
-            self._class_registry = class_registry or ClassRegistry()
-            self._initialized = True
+        self.logger_channel_name = logger_channel_name or KAJSON_LOGGER_CHANNEL_NAME
+        self._class_registry = class_registry or ClassRegistry()
 
     @classmethod
     def get_instance(cls) -> Self:

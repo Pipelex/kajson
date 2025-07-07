@@ -311,12 +311,12 @@ class TestKajsonManager:
         original_registry = manager1._class_registry
 
         # Attempt to create another instance with different values
-        # This should return the same instance without reinitializing
+        # This should return the same instance without calling __init__ again
         manager2 = KajsonManager(logger_channel_name="new.logger", class_registry=ClassRegistry())
 
         # Should be the same instance
         assert manager1 is manager2
 
-        # Values should remain unchanged (no reinitialization)
+        # Values should remain unchanged (no reinitialization occurred)
         assert manager1.logger_channel_name == original_name
         assert manager1._class_registry is original_registry
