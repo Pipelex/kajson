@@ -3,7 +3,6 @@
 
 from typing import Any, Dict, List, Optional, Type
 
-import pytest
 from typing_extensions import override
 
 from kajson.class_registry import ClassRegistry
@@ -20,12 +19,11 @@ class TestKajsonManager:
         # Create first instance
         manager1 = KajsonManager()
 
-        # Attempt to create second instance should raise RuntimeError
-        with pytest.raises(RuntimeError) as excinfo:
-            KajsonManager()
-        assert "KajsonManager is already initialized" in str(excinfo.value)
+        # Second call should return the same instance (not raise RuntimeError)
+        manager2 = KajsonManager()
+        assert manager1 is manager2
 
-        # get_instance should return the first (and only) instance
+        # get_instance should return the same instance
         retrieved_manager = KajsonManager.get_instance()
         assert retrieved_manager is manager1
 
@@ -42,13 +40,17 @@ class TestKajsonManager:
         second_retrieved = KajsonManager.get_instance()
         assert retrieved_manager is second_retrieved
 
-    def test_get_instance_not_initialized(self):
-        """Test get_instance when not initialized raises RuntimeError."""
+    def test_get_instance_creates_if_needed(self):
+        """Test get_instance creates an instance if none exists."""
         KajsonManager.teardown()
 
-        with pytest.raises(RuntimeError) as excinfo:
-            KajsonManager.get_instance()
-        assert "KajsonManager is not initialized" in str(excinfo.value)
+        # get_instance should create a new instance if none exists
+        manager = KajsonManager.get_instance()
+        assert manager is not None
+
+        # Subsequent calls should return the same instance
+        manager2 = KajsonManager.get_instance()
+        assert manager is manager2
 
     def test_initialization_default_values(self):
         """Test initialization with default values."""
@@ -93,9 +95,9 @@ class TestKajsonManager:
 
         KajsonManager.teardown()
 
-        # After teardown, get_instance should fail
-        with pytest.raises(RuntimeError):
-            KajsonManager.get_instance()
+        # After teardown, get_instance should create a new instance
+        new_manager = KajsonManager.get_instance()
+        assert new_manager is not None
 
     def test_get_class_registry_success(self):
         """Test successful get_class_registry call."""
@@ -108,26 +110,26 @@ class TestKajsonManager:
         retrieved_registry = KajsonManager.get_class_registry()
         assert retrieved_registry is custom_registry
 
-    def test_get_class_registry_not_initialized(self):
-        """Test get_class_registry when not initialized raises RuntimeError."""
+    def test_get_class_registry_creates_if_needed(self):
+        """Test get_class_registry creates an instance if none exists."""
         KajsonManager.teardown()
 
-        with pytest.raises(RuntimeError) as excinfo:
-            KajsonManager.get_class_registry()
-        assert "KajsonManager is not initialized" in str(excinfo.value)
+        # get_class_registry should create a new instance if none exists
+        retrieved_registry = KajsonManager.get_class_registry()
+        assert retrieved_registry is not None
+        assert isinstance(retrieved_registry, ClassRegistry)
 
     def test_multiple_initialization_attempts(self):
-        """Test that attempting multiple initializations raises RuntimeError."""
+        """Test that multiple initialization attempts return the same instance."""
         # An instance already exists from conftest.py
-        # Second initialization attempt should raise RuntimeError
-        with pytest.raises(RuntimeError) as excinfo:
-            KajsonManager(logger_channel_name="second.logger")
-        assert "KajsonManager is already initialized" in str(excinfo.value)
+        manager1 = KajsonManager.get_instance()
 
-        # get_instance should still return the original instance
-        retrieved_manager = KajsonManager.get_instance()
-        assert retrieved_manager is not None
-        assert retrieved_manager.logger_channel_name == KAJSON_LOGGER_CHANNEL_NAME
+        # Second initialization attempt should return the same instance
+        manager2 = KajsonManager(logger_channel_name="second.logger")
+        assert manager1 is manager2
+
+        # The original logger channel name should be preserved
+        assert manager1.logger_channel_name == KAJSON_LOGGER_CHANNEL_NAME
 
     def test_class_registry_integration(self):
         """Test integration with ClassRegistry."""
@@ -230,12 +232,8 @@ class TestKajsonManager:
         # Teardown should clear the instance
         KajsonManager.teardown()
 
-        # After teardown, get_instance should fail
-        with pytest.raises(RuntimeError):
-            KajsonManager.get_instance()
-
-        # Should be able to create a new instance after teardown
-        manager2 = KajsonManager()
+        # After teardown, get_instance should create a new instance
+        manager2 = KajsonManager.get_instance()
         assert manager2 is not manager1
 
         # New instance should be available via get_instance
@@ -274,3 +272,51 @@ class TestKajsonManager:
         assert registry1 is custom_registry
         assert registry2 is custom_registry
         assert registry1 is registry2
+
+    def test_singleton_behavior_after_teardown(self):
+        """Test that singleton behavior is maintained after teardown and recreation."""
+        # Start clean
+        KajsonManager.teardown()
+
+        # Create instance with custom values
+        custom_name = "first.logger"
+        manager1 = KajsonManager(logger_channel_name=custom_name)
+
+        # Subsequent calls should return the same instance
+        manager2 = KajsonManager(logger_channel_name="should.be.ignored")
+        assert manager1 is manager2
+        assert manager1.logger_channel_name == custom_name
+
+        # Teardown and recreate
+        KajsonManager.teardown()
+        new_custom_name = "second.logger"
+        manager3 = KajsonManager(logger_channel_name=new_custom_name)
+
+        # Should be a different instance with new values
+        assert manager3 is not manager1
+        assert manager3.logger_channel_name == new_custom_name
+
+    def test_metaclass_singleton_prevents_reinitialization(self):
+        """Test that the metaclass prevents reinitialization of the singleton."""
+        # Start clean
+        KajsonManager.teardown()
+
+        # Create instance with custom values
+        custom_name = "original.logger"
+        custom_registry = ClassRegistry()
+        manager1 = KajsonManager(logger_channel_name=custom_name, class_registry=custom_registry)
+
+        # Get the original values
+        original_name = manager1.logger_channel_name
+        original_registry = manager1._class_registry
+
+        # Attempt to create another instance with different values
+        # This should return the same instance without calling __init__ again
+        manager2 = KajsonManager(logger_channel_name="new.logger", class_registry=ClassRegistry())
+
+        # Should be the same instance
+        assert manager1 is manager2
+
+        # Values should remain unchanged (no reinitialization occurred)
+        assert manager1.logger_channel_name == original_name
+        assert manager1._class_registry is original_registry
