@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.3.0] - 2025-07-09
+
+- Making `KajsonManager` a proper Singleton using `MetaSingleton`
+
 ## [v0.2.4] - 2025-06-30
 
 - Automatic changelog in Github Release
