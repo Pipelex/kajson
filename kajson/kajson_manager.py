@@ -1,32 +1,31 @@
-from typing import ClassVar, Optional
+from typing import Optional
 
 from typing_extensions import Self
 
 from kajson.class_registry import ClassRegistry
 from kajson.class_registry_abstract import ClassRegistryAbstract
+from kajson.singleton import MetaSingleton
 
-KAJSON_LOGGER_CHANNEL_NAME = "kajson.decoder"
+KAJSON_LOGGER_CHANNEL_NAME = "kajson"
 
 
-class KajsonManager:
-    _instance: ClassVar[Optional[Self]] = None
+class KajsonManager(metaclass=MetaSingleton):
+    """A singleton class for managing kajson operations."""
+
+    def __init__(self, logger_channel_name: Optional[str] = None, class_registry: Optional[ClassRegistryAbstract] = None) -> None:
+        self.logger_channel_name = logger_channel_name or KAJSON_LOGGER_CHANNEL_NAME
+        self._class_registry = class_registry or ClassRegistry()
 
     @classmethod
     def get_instance(cls) -> Self:
-        if cls._instance is None:
-            raise RuntimeError("KajsonManager is not initialized")
-        return cls._instance
-
-    def __init__(self, logger_channel_name: Optional[str] = None, class_registry: Optional[ClassRegistryAbstract] = None) -> None:
-        if self.__class__._instance is not None:
-            raise RuntimeError("KajsonManager is already initialized")
-        self.logger_channel_name = logger_channel_name or KAJSON_LOGGER_CHANNEL_NAME
-        self._class_registry = class_registry or ClassRegistry()
-        self.__class__._instance = self
+        """Get the singleton instance. This will create one if it doesn't exist."""
+        return cls()
 
     @classmethod
     def teardown(cls) -> None:
-        cls._instance = None
+        """Destroy the singleton instance."""
+        if cls in MetaSingleton.instances:
+            del MetaSingleton.instances[cls]
 
     @classmethod
     def get_class_registry(cls) -> ClassRegistryAbstract:
