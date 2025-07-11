@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.3.1] - 2025-07-10
+
+- Fix documentation URL in `pyproject.toml`
+- Add GHA for doc deploy
+
 ## [v0.3.0] - 2025-07-09
 
 - Making `KajsonManager` a proper Singleton using `MetaSingleton`
