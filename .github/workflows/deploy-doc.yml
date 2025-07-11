@@ -1,0 +1,36 @@
+name: Preview MkDocs on GitHub Pages
+
+on:
+  push:
+    branches: main
+
+permissions:
+  contents: write
+  pages: write
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    env:
+      VIRTUAL_ENV: ${{ github.workspace }}/.venv
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Check UV installation
+        run: make check-uv
+
+      - name: Verify UV installation
+        run: uv --version
+
+      - name: Install dependencies
+        run: make install
+
+      - name: Install docs dependencies
+        run: uv pip install -e ".[docs]"
+
+      - name: Deploy documentation
+        run: make doc-deploy
