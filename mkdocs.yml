@@ -1,5 +1,5 @@
 site_name: Kajson Documentation
-site_url: https://kajson.readthedocs.io/
+site_url: https://pipelex.github.io/kajson/
 site_description: "Universal JSON encoder/decoder for Python with native support for Pydantic v2, datetime objects, and custom types."
 docs_dir: docs
 repo_url: "https://github.com/Pipelex/kajson"
