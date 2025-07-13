@@ -1,0 +1,56 @@
+name: "✨ Feature request"
+description: "Suggest an idea or improvement for the library"
+type: Feature
+labels:
+  - status:needs-triage
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Thanks for contributing an idea!**
+        Please fill in the sections below so we can understand and prioritise your request.
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: "Before submitting"
+      options:
+        - label: "I've searched [open issues](issues?q=is%3Aissue%20state%3Aopen%20type%3AFeature) and found no similar request"
+          required: true
+        - label: "I'm willing to start a discussion or contribute code"
+          required: false
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: "Problem / motivation"
+      placeholder: "What problem does this feature solve? Who is affected and why?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: "Proposed solution"
+      placeholder: "Describe the feature you'd like to see."
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "Alternatives considered"
+      placeholder: "Any work-arounds you've tried or other approaches you considered."
+    validations:
+      required: false
+
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Would you like to help implement this feature?
+      options:
+        - "Not at this time"
+        - "Yes, I'd like to contribute"
+    validations:
+      required: false
