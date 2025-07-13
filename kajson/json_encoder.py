@@ -32,7 +32,6 @@ from typing_extensions import override
 
 from kajson.exceptions import UnijsonEncoderError
 
-ENCODER_LOGGER_CHANNEL_NAME = "kajson.encoder"
 IS_ENCODER_FALLBACK_ENABLED = False
 FALLBACK_MESSAGE = " Trying something else."
 
@@ -64,13 +63,6 @@ class UniversalJSONEncoder(json.JSONEncoder):
                         OR
         `kajson.dumps(obj)`
     """
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self.logger = logging.getLogger(ENCODER_LOGGER_CHANNEL_NAME)
-
-    def log(self, message: str) -> None:
-        self.logger.debug(message)
 
     # The registered encoding functions:
     _encoders: ClassVar[Dict[Type[Any], Callable[[Any], Dict[str, Any]]]] = {}
