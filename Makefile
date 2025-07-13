@@ -286,15 +286,15 @@ fix-unused-imports: env
 	$(call PRINT_TITLE,"Fixing unused imports")
 	@$(VENV_RUFF) check --select=F401 --fix -v .
 
-doc: env
+docs: env
 	$(call PRINT_TITLE,"Serving documentation with mkdocs")
 	$(VENV_MKDOCS) serve
 
-doc-check: env
+docs-check: env
 	$(call PRINT_TITLE,"Checking documentation build with mkdocs")
 	$(VENV_MKDOCS) build --strict
 
-doc-deploy: env
+docs-deploy: env
 	$(call PRINT_TITLE,"Deploying documentation with mkdocs")
 	$(VENV_MKDOCS) gh-deploy --force --clean
 	
