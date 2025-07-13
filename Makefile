@@ -62,16 +62,19 @@ make cov                      - Run tests with coverage stats (use PKG=module.na
 make cov-missing              - Run tests with coverage and missing lines (use PKG=module.name to scope coverage)
 make cm                       - Shorthand -> cov-missing
 
-make check                    - Shorthand -> format lint mypy
-make c                        - Shorthand -> check
-make cc                       - Shorthand -> cleanderived check
-make li                       - Shorthand -> lock install
 make check-unused-imports     - Check for unused imports without fixing
 make fix-unused-imports       - Fix unused imports with ruff
+make fui                      - Shorthand -> fix-unused-imports
+make check-TODOs              - Check for TODOs
 
 make docs                     - Serve documentation with mkdocs
 make docs-check               - Check documentation build with mkdocs
 make docs-deploy              - Deploy documentation with mkdocs
+
+make check                    - Shorthand -> format lint mypy
+make c                        - Shorthand -> check
+make cc                       - Shorthand -> cleanderived check
+make li                       - Shorthand -> lock install
 
 endef
 export HELP
@@ -82,7 +85,7 @@ export HELP
 	cleanderived cleanenv cleanall \
 	test test-with-prints tp cov cov-missing cm \
 	check c cc li \
-	check-unused-imports fix-unused-imports \
+	check-unused-imports fix-unused-imports fui \
 	check-uv check-TODOs \
 	docs docs-check docs-deploy
 
@@ -264,32 +267,27 @@ merge-check-mypy: env
 	$(VENV_MYPY) --config-file pyproject.toml
 
 ##########################################################################################
-### SHORTHANDS
+### MISCELLANEOUS
 ##########################################################################################
 
 check-unused-imports: env
 	$(call PRINT_TITLE,"Checking for unused imports without fixing")
-	@$(VENV_RUFF) check --select=F401 --no-fix .
+	$(VENV_RUFF) check --select=F401 --no-fix .
 
-c: format lint pyright mypy
-	@echo "> done: c = check"
+fix-unused-imports: env
+	$(call PRINT_TITLE,"Fixing unused imports")
+	$(VENV_RUFF) check --select=F401 --fix .
 
-cc: cleanderived c
-	@echo "> done: cc = cleanderived check"
-
-check: cleanderived check-unused-imports c
-	@echo "> done: check"
-
-li: lock install
-	@echo "> done: lock install"
+fui: fix-unused-imports
+	@echo "> done: fui = fix-unused-imports"
 
 check-TODOs: env
 	$(call PRINT_TITLE,"Checking for TODOs")
 	@$(VENV_RUFF) check --select=TD -v .
 
-fix-unused-imports: env
-	$(call PRINT_TITLE,"Fixing unused imports")
-	@$(VENV_RUFF) check --select=F401 --fix -v .
+##########################################################################################
+### DOCUMENTATION
+##########################################################################################
 
 docs: env
 	$(call PRINT_TITLE,"Serving documentation with mkdocs")
@@ -303,3 +301,18 @@ docs-deploy: env
 	$(call PRINT_TITLE,"Deploying documentation with mkdocs")
 	$(VENV_MKDOCS) gh-deploy --force --clean
 	
+##########################################################################################
+### SHORTHANDS
+##########################################################################################
+
+c: format lint pyright mypy
+	@echo "> done: c = check"
+
+cc: cleanderived c
+	@echo "> done: cc = cleanderived check"
+
+check: cleanderived check-unused-imports c
+	@echo "> done: check"
+
+li: lock install
+	@echo "> done: lock install"
