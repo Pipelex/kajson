@@ -69,6 +69,10 @@ make li                       - Shorthand -> lock install
 make check-unused-imports     - Check for unused imports without fixing
 make fix-unused-imports       - Fix unused imports with ruff
 
+make docs                     - Serve documentation with mkdocs
+make docs-check               - Check documentation build with mkdocs
+make docs-deploy              - Deploy documentation with mkdocs
+
 endef
 export HELP
 
@@ -79,7 +83,8 @@ export HELP
 	test test-with-prints tp cov cov-missing cm \
 	check c cc li \
 	check-unused-imports fix-unused-imports \
-	check-uv check-TODOs
+	check-uv check-TODOs \
+	docs docs-check docs-deploy
 
 all help:
 	@echo "$$HELP"
