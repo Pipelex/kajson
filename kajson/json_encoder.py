@@ -222,6 +222,11 @@ def _get_object_module(obj: Any) -> str:
     # Remark 2: inspect.getmodule(obj) should work but it doesn't.
 
 
+# Expressions used to find module names (compiled once at import time):
+__class_expression = re.compile(r"^<class '([a-zA-Z0-9._]*)'>")
+__type_expression = re.compile(r"^<type '([a-zA-Z0-9._]*)'>")
+
+
 def _get_type_module(the_type: Type[Any]) -> str:
     """
     Get the name of the module containing the given type.
@@ -233,9 +238,6 @@ def _get_type_module(the_type: Type[Any]) -> str:
     # 1) Extract the name of the module from str(type).
     # 2) Get the chain of submodules separated by dots.
     # 3) Join them together while getting rid of the last one.
-    # Expressions used to find module names:
-    __class_expression = re.compile(r"^<class '([a-zA-Z0-9._]*)'>")
-    __type_expression = re.compile(r"^<type '([a-zA-Z0-9._]*)'>")
     the_type_str = str(the_type)
     if search_result := __class_expression.search(the_type_str):
         return ".".join(search_result.group(1).split(".")[:-1])
