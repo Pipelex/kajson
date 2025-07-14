@@ -74,9 +74,10 @@ class UniversalJSONEncoder(json.JSONEncoder):
 
     # The registered encoding functions:
     _encoders: ClassVar[Dict[Type[Any], Callable[[Any], Dict[str, Any]]]] = {}
+    _multi_encoders: ClassVar[Dict[Type[Any], Callable[[Any], Dict[str, Any]]]] = {}
 
     @staticmethod
-    def register(obj_type: Type[T], encoding_function: Callable[[T], Dict[str, Any]]) -> None:
+    def register(obj_type: Type[T], encoding_function: Callable[[T], Dict[str, Any]], include_subclasses: bool = False) -> None:
         """
         Register a function as an encoder for the provided type/class. The provided
         encoder should take a single argument (the object to serialise) and return
@@ -88,28 +89,42 @@ class UniversalJSONEncoder(json.JSONEncoder):
                 easily obtained by simply providing a class directly.
             encoding_function (function): The function to use as an encoder for the
                 provided type. Takes a single argument, a returns a dictionnary.
+            include_subclasses (bool): Whether subclasses should also be encoded.
         """
         if not isinstance(obj_type, type):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("Expected a type/class, a %s was passed instead." % type(obj_type))
         if not callable(encoding_function):
             raise ValueError("Expected a function, a %s was passed instead." % type(encoding_function))
-
-        UniversalJSONEncoder._encoders[obj_type] = encoding_function
+        if include_subclasses:
+            UniversalJSONEncoder._multi_encoders[obj_type] = encoding_function
+        else:
+            UniversalJSONEncoder._encoders[obj_type] = encoding_function
 
     @classmethod
     def clear_encoders(cls) -> None:
         """Clear all registered encoders. Primarily for testing purposes."""
         cls._encoders.clear()
+        cls._multi_encoders.clear()
 
     @classmethod
     def is_encoder_registered(cls, obj_type: Type[Any]) -> bool:
-        """Check if an encoder is registered for the given type. Primarily for testing purposes."""
-        return obj_type in cls._encoders
+        """Check if an encoder is registered for the given type."""
+        if obj_type in cls._encoders:
+            return True
+        for obj_subtype in obj_type.mro():
+            if obj_subtype in cls._multi_encoders:
+                return True
+        return False
 
     @classmethod
     def get_registered_encoder(cls, obj_type: Type[Any]) -> Callable[[Any], Dict[str, Any]] | None:
-        """Get the registered encoder for the given type. Primarily for testing purposes."""
-        return cls._encoders.get(obj_type)
+        """Get the registered encoder for the given type."""
+        if obj_type in cls._encoders:
+            return cls._encoders[obj_type]
+        for obj_subtype in obj_type.mro():
+            if obj_subtype in cls._multi_encoders:
+                return cls._multi_encoders[obj_subtype]
+        return None
 
     # argument must be named "o" to override the default method
     @override
@@ -129,6 +144,7 @@ class UniversalJSONEncoder(json.JSONEncoder):
             TypeError - If none of the methods worked.
         """
         obj: Any = o
+        obj_class = cast(Type[Any], type(obj))
         # Default JSON encoder:
         try:
             return cast(Dict[str, Any], json.JSONEncoder.default(self, obj))
@@ -139,13 +155,13 @@ class UniversalJSONEncoder(json.JSONEncoder):
         the_dict: Dict[str, Any] = {}
 
         # Use a registered encoding function:
-        if type(obj) in UniversalJSONEncoder._encoders:
+        if (func := self.get_registered_encoder(obj_class)) is not None:
             try:
-                the_dict = UniversalJSONEncoder._encoders[type(obj)](obj)
+                the_dict = func(obj)
                 already_encoded = True
             except Exception as exc:
-                func_name = UniversalJSONEncoder._encoders[type(obj)].__name__
-                error_msg = f"Encoding function {func_name} used for type '{type(obj)}' raised an exception: {exc}."
+                func_name = func.__name__
+                error_msg = f"Encoding function {func_name} used for type '{obj_class}' raised an exception: {exc}."
                 if IS_ENCODER_FALLBACK_ENABLED:
                     warnings.warn(error_msg + FALLBACK_MESSAGE)
                 else:
@@ -159,7 +175,7 @@ class UniversalJSONEncoder(json.JSONEncoder):
             except AttributeError:  # No method __json_encode__() found
                 pass
             except Exception as exc:
-                error_msg = f"Method __json_encode__() used for type '{type(obj)}' raised an exception."
+                error_msg = f"Method __json_encode__() used for type '{obj_class}' raised an exception."
                 if IS_ENCODER_FALLBACK_ENABLED:
                     warnings.warn(error_msg + FALLBACK_MESSAGE)
                 else:
@@ -187,7 +203,7 @@ class UniversalJSONEncoder(json.JSONEncoder):
 
         # If nothing worked, raise an exception like the default JSON encoder would:
         if not already_encoded:
-            raise TypeError(f"Type {type(obj)} is not JSON serializable. Value: {obj}")
+            raise TypeError(f"Type {obj_class} is not JSON serializable. Value: {obj}")
 
         # Add the metadata used to reconstruct the object (if necessary):
         if "__class__" not in the_dict:
