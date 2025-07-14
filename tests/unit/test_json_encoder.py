@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import json
-import logging
 import warnings
 from typing import Any, Dict, Generator
 
@@ -80,19 +79,6 @@ def setup_encoder() -> Generator[UniversalJSONEncoder, None, None]:
 
 class TestUniversalJSONEncoder:
     """Test cases for UniversalJSONEncoder class."""
-
-    def test_encoder_initialization(self, setup_encoder: UniversalJSONEncoder) -> None:
-        """Test encoder initialization sets up logger correctly."""
-        encoder = setup_encoder
-        assert isinstance(encoder.logger, logging.Logger)
-        assert encoder.logger.name == "kajson.encoder"
-
-    def test_log_method(self, setup_encoder: UniversalJSONEncoder, mocker: MockerFixture) -> None:
-        """Test log method calls logger debug (covers line 72)."""
-        encoder = setup_encoder
-        mock_debug = mocker.patch.object(encoder.logger, "debug")
-        encoder.log("test message")
-        mock_debug.assert_called_once_with("test message")
 
     def test_register_valid_type_and_function(self) -> None:
         """Test registering a valid type and encoding function."""

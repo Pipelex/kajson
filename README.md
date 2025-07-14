@@ -184,6 +184,17 @@ Kajson extends the standard JSON encoder/decoder by:
 4. **Pydantic Integration**: Special handling for Pydantic models and validation
 5. **Class Registry**: Maintains a registry of dynamically created classes that aren't available in standard module paths, enabling serialization/deserialization in distributed systems and runtime scenarios
 
+## ⚠️ Security Considerations
+
+**Warning**: Instantiating classes using `__class__` and `__module__` attributes poses a security threat when deserializing untrusted JSON data. Malicious JSON could potentially instantiate arbitrary classes and execute code.
+
+Only use Kajson to deserialize JSON from trusted sources. For untrusted data, consider:
+- Validating JSON structure before deserialization
+- Using a whitelist of allowed classes
+- Sanitizing input data
+
+For more discussion on this topic, see [this discussion thread](https://github.com/Pipelex/kajson/discussions/44).
+
 ## 📚 Use Cases
 
 - **REST APIs**: Serialize Pydantic models for API responses
