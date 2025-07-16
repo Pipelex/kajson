@@ -29,7 +29,7 @@ import logging
 import sys
 import warnings
 from enum import Enum
-from typing import Any, Callable, ClassVar, Dict, Type, TypeVar, cast
+from typing import Any, Callable, ClassVar, Dict, Type, TypeVar, Union, cast
 
 from pydantic import BaseModel, RootModel, ValidationError
 
@@ -42,7 +42,7 @@ FALLBACK_MESSAGE = " Trying something else."
 
 
 T = TypeVar("T")
-Decoder = Callable[[Dict[str, Any]], Any] | Callable[[Dict[str, Any], Type[Any]], Any]
+Decoder = Union[Callable[[Dict[str, Any]], Any], Callable[[Dict[str, Any], Type[Any]], Any]]
 
 
 class UniversalJSONDecoder(json.JSONDecoder):
