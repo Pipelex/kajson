@@ -89,7 +89,8 @@ class UniversalJSONEncoder(json.JSONEncoder):
                 easily obtained by simply providing a class directly.
             encoding_function (function): The function to use as an encoder for the
                 provided type. Takes a single argument, a returns a dictionnary.
-            include_subclasses (bool): Whether subclasses should also be encoded.
+            include_subclasses (bool): If set to `True`, then all the subclasses of the provided type will be registered
+                with the same encoder (defaults to `False`).
         """
         if not isinstance(obj_type, type):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("Expected a type/class, a %s was passed instead." % type(obj_type))

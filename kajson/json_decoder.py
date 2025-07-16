@@ -85,7 +85,8 @@ class UniversalJSONDecoder(json.JSONDecoder):
             decoding_function (function): The function to use as a decoder for the
                 provided type. Takes a single argument, a returns an object; or can
                 also take second argument of class being decoded.
-            include_subclasses (bool): Whether subclasses should also be decoded.
+            include_subclasses (bool): If set to `True`, then all the subclasses of the provided type will be registered
+                with the same decoder (defaults to `False`).
         """
         if not isinstance(obj_type, type):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise TypeError("Expected a type/class, a %s was passed instead." % type(obj_type))
