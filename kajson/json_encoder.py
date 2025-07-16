@@ -73,9 +73,9 @@ class UniversalJSONEncoder(json.JSONEncoder):
         self.logger.debug(message)
 
     # The registered encoding functions:
-    _encoders: ClassVar[Dict[Type[Any], Callable[[Any], Dict[str, Any]]]] = {}
-    _multi_encoders: ClassVar[Dict[Type[Any], Callable[[Any], Dict[str, Any]]]] = {}
-    _cached_encoders: ClassVar[Dict[Type[Any], Callable[[Any], Dict[str, Any]]]] = {}
+    _encoders: ClassVar[Dict[Type[Any], Callable[[Any], Dict[str, Any]] | None]] = {}
+    _multi_encoders: ClassVar[Dict[Type[Any], Callable[[Any], Dict[str, Any]] | None]] = {}
+    _cached_encoders: ClassVar[Dict[Type[Any], Callable[[Any], Dict[str, Any]] | None]] = {}
 
     @staticmethod
     def register(obj_type: Type[T], encoding_function: Callable[[T], Dict[str, Any]], include_subclasses: bool = False) -> None:
@@ -114,11 +114,12 @@ class UniversalJSONEncoder(json.JSONEncoder):
     def is_encoder_registered(cls, obj_type: Type[Any]) -> bool:
         """Check if an encoder is registered for the given type."""
         if obj_type in cls._cached_encoders:
-            return True
+            return cls._cached_encoders[obj_type] is not None
         for obj_subtype in obj_type.mro():
             if obj_subtype in cls._multi_encoders:
                 cls._cached_encoders[obj_type] = cls._multi_encoders[obj_subtype]
                 return True
+        cls._cached_encoders[obj_type] = None
         return False
 
     @classmethod
@@ -130,6 +131,7 @@ class UniversalJSONEncoder(json.JSONEncoder):
             if obj_subtype in cls._multi_encoders:
                 cls._cached_encoders[obj_type] = cls._multi_encoders[obj_subtype]
                 return cls._cached_encoders[obj_type]
+        cls._cached_encoders[obj_type] = None
         return None
 
     # argument must be named "o" to override the default method

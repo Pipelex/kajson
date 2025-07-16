@@ -63,9 +63,9 @@ class UniversalJSONDecoder(json.JSONDecoder):
     """
 
     # The registered decoding functions:
-    _decoders: ClassVar[Dict[Type[Any], Decoder]] = {}
-    _multi_decoders: ClassVar[Dict[Type[Any], Decoder]] = {}
-    _cached_decoders: ClassVar[Dict[Type[Any], Decoder]] = {}
+    _decoders: ClassVar[Dict[Type[Any], Decoder | None]] = {}
+    _multi_decoders: ClassVar[Dict[Type[Any], Decoder | None]] = {}
+    _cached_decoders: ClassVar[Dict[Type[Any], Decoder | None]] = {}
 
     @staticmethod
     def register(
@@ -110,11 +110,12 @@ class UniversalJSONDecoder(json.JSONDecoder):
     def is_decoder_registered(cls, obj_type: Type[Any]) -> bool:
         """Check if a decoder is registered for the given type."""
         if obj_type in cls._cached_decoders:
-            return True
+            return cls._cached_decoders[obj_type] is not None
         for obj_subtype in obj_type.mro():
             if obj_subtype in cls._multi_decoders:
                 cls._cached_decoders[obj_type] = cls._multi_decoders[obj_subtype]
                 return True
+        cls._cached_decoders[obj_type] = None
         return False
 
     @classmethod
@@ -126,6 +127,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
             if obj_subtype in cls._multi_decoders:
                 cls._cached_decoders[obj_type] = cls._multi_decoders[obj_subtype]
                 return cls._cached_decoders[obj_type]
+        cls._cached_decoders[obj_type] = None
         return None
 
     # Required to redirect the hook for decoding.
