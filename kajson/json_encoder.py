@@ -75,6 +75,7 @@ class UniversalJSONEncoder(json.JSONEncoder):
     # The registered encoding functions:
     _encoders: ClassVar[Dict[Type[Any], Callable[[Any], Dict[str, Any]]]] = {}
     _multi_encoders: ClassVar[Dict[Type[Any], Callable[[Any], Dict[str, Any]]]] = {}
+    _cached_encoders: ClassVar[Dict[Type[Any], Callable[[Any], Dict[str, Any]]]] = {}
 
     @staticmethod
     def register(obj_type: Type[T], encoding_function: Callable[[T], Dict[str, Any]], include_subclasses: bool = False) -> None:
@@ -98,33 +99,37 @@ class UniversalJSONEncoder(json.JSONEncoder):
             raise ValueError("Expected a function, a %s was passed instead." % type(encoding_function))
         if include_subclasses:
             UniversalJSONEncoder._multi_encoders[obj_type] = encoding_function
+            UniversalJSONEncoder._cached_encoders = UniversalJSONEncoder._encoders.copy()
         else:
-            UniversalJSONEncoder._encoders[obj_type] = encoding_function
+            UniversalJSONEncoder._encoders[obj_type] = UniversalJSONEncoder._cached_encoders[obj_type] = encoding_function
 
     @classmethod
     def clear_encoders(cls) -> None:
         """Clear all registered encoders. Primarily for testing purposes."""
         cls._encoders.clear()
         cls._multi_encoders.clear()
+        cls._cached_encoders.clear()
 
     @classmethod
     def is_encoder_registered(cls, obj_type: Type[Any]) -> bool:
         """Check if an encoder is registered for the given type."""
-        if obj_type in cls._encoders:
+        if obj_type in cls._cached_encoders:
             return True
         for obj_subtype in obj_type.mro():
             if obj_subtype in cls._multi_encoders:
+                cls._cached_encoders[obj_type] = cls._multi_encoders[obj_subtype]
                 return True
         return False
 
     @classmethod
     def get_registered_encoder(cls, obj_type: Type[Any]) -> Callable[[Any], Dict[str, Any]] | None:
         """Get the registered encoder for the given type."""
-        if obj_type in cls._encoders:
-            return cls._encoders[obj_type]
+        if obj_type in cls._cached_encoders:
+            return cls._cached_encoders[obj_type]
         for obj_subtype in obj_type.mro():
             if obj_subtype in cls._multi_encoders:
-                return cls._multi_encoders[obj_subtype]
+                cls._cached_encoders[obj_type] = cls._multi_encoders[obj_subtype]
+                return cls._cached_encoders[obj_type]
         return None
 
     # argument must be named "o" to override the default method

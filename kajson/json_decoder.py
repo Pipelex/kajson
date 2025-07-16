@@ -65,6 +65,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
     # The registered decoding functions:
     _decoders: ClassVar[Dict[Type[Any], Decoder]] = {}
     _multi_decoders: ClassVar[Dict[Type[Any], Decoder]] = {}
+    _cached_decoders: ClassVar[Dict[Type[Any], Decoder]] = {}
 
     @staticmethod
     def register(
@@ -94,33 +95,37 @@ class UniversalJSONDecoder(json.JSONDecoder):
             raise TypeError("Expected a function, a %s was passed instead." % type(decoding_function))
         if include_subclasses:
             UniversalJSONDecoder._multi_decoders[obj_type] = decoding_function
+            UniversalJSONDecoder._cached_decoders = UniversalJSONDecoder._decoders.copy()
         else:
-            UniversalJSONDecoder._decoders[obj_type] = decoding_function
+            UniversalJSONDecoder._decoders[obj_type] = UniversalJSONDecoder._cached_decoders[obj_type] = decoding_function
 
     @classmethod
     def clear_decoders(cls) -> None:
         """Clear all registered decoders. Primarily for testing purposes."""
         cls._decoders.clear()
         cls._multi_decoders.clear()
+        cls._cached_decoders.clear()
 
     @classmethod
     def is_decoder_registered(cls, obj_type: Type[Any]) -> bool:
         """Check if a decoder is registered for the given type."""
-        if obj_type in cls._decoders:
+        if obj_type in cls._cached_decoders:
             return True
         for obj_subtype in obj_type.mro():
             if obj_subtype in cls._multi_decoders:
+                cls._cached_decoders[obj_type] = cls._multi_decoders[obj_subtype]
                 return True
         return False
 
     @classmethod
     def get_registered_decoder(cls, obj_type: Type[Any]) -> Decoder | None:
         """Get the registered decoder for the given type."""
-        if obj_type in cls._decoders:
-            return cls._decoders[obj_type]
+        if obj_type in cls._cached_decoders:
+            return cls._cached_decoders[obj_type]
         for obj_subtype in obj_type.mro():
             if obj_subtype in cls._multi_decoders:
-                return cls._multi_decoders[obj_subtype]
+                cls._cached_decoders[obj_type] = cls._multi_decoders[obj_subtype]
+                return cls._cached_decoders[obj_type]
         return None
 
     # Required to redirect the hook for decoding.
