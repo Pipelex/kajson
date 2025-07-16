@@ -43,6 +43,7 @@ class TestCustomEncoderRegistration:
         obj_type: type[Any],
         encoder: Callable[[Any], Dict[str, Any]],
         decoder: Callable[[Dict[str, Any]], Any] | None = None,
+        include_subclasses: bool = False,
     ) -> None:
         """Register encoder/decoder and ensure no previously registered pair is lost.
 
@@ -52,9 +53,9 @@ class TestCustomEncoderRegistration:
         TestCustomEncoderRegistration._PREVIOUS_ENCODERS[obj_type] = UniversalJSONEncoder.get_registered_encoder(obj_type)  # type: ignore[index]
         TestCustomEncoderRegistration._PREVIOUS_DECODERS[obj_type] = UniversalJSONDecoder.get_registered_decoder(obj_type)  # type: ignore[index]
 
-        UniversalJSONEncoder.register(obj_type, encoder)
+        UniversalJSONEncoder.register(obj_type, encoder, include_subclasses=include_subclasses)
         if decoder is not None:
-            UniversalJSONDecoder.register(obj_type, decoder)
+            UniversalJSONDecoder.register(obj_type, decoder, include_subclasses=include_subclasses)
 
     @staticmethod
     def _restore_pair(obj_type: type[Any]) -> None:
@@ -187,11 +188,8 @@ class TestCustomEncoderRegistration:
         def decode_path(dct: Dict[str, str]) -> Path:
             return Path(dct["path"])
 
-        self._register_pair(Path, encode_path, decode_path)
+        self._register_pair(Path, encode_path, decode_path, include_subclasses=True)
         # Also register for the concrete Path type (PosixPath/WindowsPath)
-        concrete_path_type = type(Path())
-        if concrete_path_type != Path:
-            self._register_pair(concrete_path_type, encode_path, decode_path)
         try:
             original = Path("/tmp/my/test/file.txt")
             json_str = kajson.dumps(original)

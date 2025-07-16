@@ -66,6 +66,25 @@ class MockClassWithoutModule:
         self.data = data
 
 
+class MockBaseClass:
+    """Mock class base class for subclass testing"""
+
+    def __init__(self, data: str):
+        self.data = data
+
+
+class MockFirstSubClass(MockBaseClass):
+    """Mock child subclass"""
+
+    pass
+
+
+class MockSecondSubClass(MockFirstSubClass):
+    """Mock grandchild subclass"""
+
+    pass
+
+
 @pytest.fixture(autouse=True)
 def setup_encoder() -> Generator[UniversalJSONEncoder, None, None]:
     """Set up test fixtures for each test."""
@@ -358,3 +377,91 @@ class TestUniversalJSONEncoder:
 
         mocker.patch("kajson.json_encoder.str", side_effect=mock_str)
         assert _get_type_module(MockClassWithDict) == "builtins"
+
+    def test_subclass_registration(self, setup_encoder: UniversalJSONEncoder):
+        encoder = setup_encoder
+
+        def test_encoder(obj: MockBaseClass) -> Dict[str, Any]:
+            return {"data": obj.data, "extra_data": len(obj.data)}
+
+        UniversalJSONEncoder.register(MockBaseClass, test_encoder, include_subclasses=True)
+
+        assert UniversalJSONEncoder.is_encoder_registered(MockSecondSubClass)
+        assert UniversalJSONEncoder.get_registered_encoder(MockSecondSubClass) == test_encoder
+
+        test_obj = MockSecondSubClass("test_data")
+        result = encoder.default(test_obj)
+
+        expected = {
+            "data": "test_data",
+            "extra_data": 9,
+            "__class__": "MockSecondSubClass",
+            "__module__": "tests.unit.test_json_encoder",
+        }
+        assert result == expected
+
+    def test_subclass_registration_with_explicit_registration(self, setup_encoder: UniversalJSONEncoder):
+        encoder = setup_encoder
+
+        def test_encoder(obj: MockBaseClass) -> Dict[str, Any]:
+            return {"data": obj.data, "extra_data": len(obj.data)}
+
+        def test_encoder_2(obj: MockBaseClass) -> Dict[str, Any]:
+            return {"data": obj.data, "extra_data": len(obj.data) * 2}
+
+        UniversalJSONEncoder.register(MockBaseClass, test_encoder, include_subclasses=True)
+        UniversalJSONEncoder.register(MockFirstSubClass, test_encoder_2)
+
+        assert UniversalJSONEncoder.is_encoder_registered(MockFirstSubClass)
+        assert UniversalJSONEncoder.get_registered_encoder(MockFirstSubClass) == test_encoder_2
+
+        assert UniversalJSONEncoder.is_encoder_registered(MockSecondSubClass)
+        assert UniversalJSONEncoder.get_registered_encoder(MockSecondSubClass) == test_encoder
+
+        test_obj = MockFirstSubClass("test_data_1")
+        result = encoder.default(test_obj)
+
+        expected = {
+            "data": "test_data_1",
+            "extra_data": 22,
+            "__class__": "MockFirstSubClass",
+            "__module__": "tests.unit.test_json_encoder",
+        }
+        assert result == expected
+
+        test_obj = MockSecondSubClass("test_data_2")
+        result = encoder.default(test_obj)
+
+        expected = {
+            "data": "test_data_2",
+            "extra_data": 11,
+            "__class__": "MockSecondSubClass",
+            "__module__": "tests.unit.test_json_encoder",
+        }
+        assert result == expected
+
+    def test_subclass_registration_with_child_registration(self, setup_encoder: UniversalJSONEncoder):
+        encoder = setup_encoder
+
+        def test_encoder(obj: MockBaseClass) -> Dict[str, Any]:
+            return {"data": obj.data, "extra_data": len(obj.data)}
+
+        def test_encoder_2(obj: MockBaseClass) -> Dict[str, Any]:
+            return {"data": obj.data, "extra_data": len(obj.data) * 2}
+
+        UniversalJSONEncoder.register(MockBaseClass, test_encoder, include_subclasses=True)
+        UniversalJSONEncoder.register(MockFirstSubClass, test_encoder_2, include_subclasses=True)
+
+        assert UniversalJSONEncoder.is_encoder_registered(MockSecondSubClass)
+        assert UniversalJSONEncoder.get_registered_encoder(MockSecondSubClass) == test_encoder_2
+
+        test_obj = MockSecondSubClass("test_data")
+        result = encoder.default(test_obj)
+
+        expected = {
+            "data": "test_data",
+            "extra_data": 18,
+            "__class__": "MockSecondSubClass",
+            "__module__": "tests.unit.test_json_encoder",
+        }
+        assert result == expected
