@@ -69,9 +69,9 @@ make cov                # Run tests with coverage
 make cm                 # Run tests with coverage and missing lines
 
 # Documentation
-make doc                # Serve documentation locally with mkdocs
-make doc-check          # Check documentation build
-make doc-deploy         # Deploy documentation to GitHub Pages
+make dosc               # Serve documentation locally with mkdocs
+make docs-check         # Check documentation build
+make docs-deploy        # Deploy documentation to GitHub Pages
 
 # Cleanup
 make cleanall           # Remove all derived files and virtual env
