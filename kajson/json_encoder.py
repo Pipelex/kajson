@@ -23,7 +23,6 @@ All additions and modifications are Copyright (c) 2025 Evotis S.A.S.
 from __future__ import annotations
 
 import json
-import logging
 import re
 import warnings
 from typing import Any, Callable, ClassVar, Dict, Type, TypeVar, cast
@@ -32,7 +31,6 @@ from typing_extensions import override
 
 from kajson.exceptions import UnijsonEncoderError
 
-ENCODER_LOGGER_CHANNEL_NAME = "kajson.encoder"
 IS_ENCODER_FALLBACK_ENABLED = False
 FALLBACK_MESSAGE = " Trying something else."
 
@@ -64,13 +62,6 @@ class UniversalJSONEncoder(json.JSONEncoder):
                         OR
         `kajson.dumps(obj)`
     """
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self.logger = logging.getLogger(ENCODER_LOGGER_CHANNEL_NAME)
-
-    def log(self, message: str) -> None:
-        self.logger.debug(message)
 
     # The registered encoding functions:
     _encoders: ClassVar[Dict[Type[Any], Callable[[Any], Dict[str, Any]]]] = {}
@@ -222,6 +213,11 @@ def _get_object_module(obj: Any) -> str:
     # Remark 2: inspect.getmodule(obj) should work but it doesn't.
 
 
+# Expressions used to find module names (compiled once at import time):
+__class_expression = re.compile(r"^<class '([a-zA-Z0-9._]*)'>")
+__type_expression = re.compile(r"^<type '([a-zA-Z0-9._]*)'>")
+
+
 def _get_type_module(the_type: Type[Any]) -> str:
     """
     Get the name of the module containing the given type.
@@ -233,9 +229,6 @@ def _get_type_module(the_type: Type[Any]) -> str:
     # 1) Extract the name of the module from str(type).
     # 2) Get the chain of submodules separated by dots.
     # 3) Join them together while getting rid of the last one.
-    # Expressions used to find module names:
-    __class_expression = re.compile(r"^<class '([a-zA-Z0-9._]*)'>")
-    __type_expression = re.compile(r"^<type '([a-zA-Z0-9._]*)'>")
     the_type_str = str(the_type)
     if search_result := __class_expression.search(the_type_str):
         return ".".join(search_result.group(1).split(".")[:-1])

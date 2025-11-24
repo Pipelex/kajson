@@ -86,6 +86,7 @@ nav:
     - kajson module: pages/api/kajson.md
     - Encoder: pages/api/encoder.md
     - Decoder: pages/api/decoder.md
+    - Manager: pages/api/manager.md
   - Contributing:
     - Guidelines: contributing.md
     - Code of Conduct: CODE_OF_CONDUCT.md

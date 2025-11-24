@@ -1,0 +1,99 @@
+name: "🐞 Bug report"
+description: "Report a reproducible problem with the library"
+type: Bug
+labels:
+  - status:needs-triage
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Thanks for taking the time to file a bug!**
+        Please complete **all required sections**—incomplete reports will be sent back for more information.
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: "Before submitting"
+      options:
+        - label: "I'm using the **latest released** version of the library"
+          required: true
+        - label: "I've searched [open issues](issues?q=is%3Aissue%20state%3Aopen%20type%3ABug) and found no duplicate"
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Describe the bug, tell us what went wrong"
+      placeholder: "A clear and concise description of what went wrong. What did you expect to happen vs. what actually happened."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: "Reproduction snippet"
+      description: "How can we reproduce the bug?"
+      placeholder: |
+        Provide the cli command that reproduces the bug:
+        ```bash
+        # paste command here
+        ```
+        or the smallest possible script that reproduces the bug:
+        ```python
+        # paste code here
+        ```
+    validations:
+      required: false
+
+  - type: input
+    id: lib_version
+    attributes:
+      label: "Library version"
+      placeholder: "e.g. 1.4.2"
+    validations:
+      required: true
+
+  - type: input
+    id: python_version
+    attributes:
+      label: "Python version"
+      placeholder: "e.g. 3.12.0"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: "Operating system"
+      placeholder: "e.g. Ubuntu 22.04 LTS / MacOS 14.3"
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Stack trace / error output"
+      description: "Paste any relevant logs here."
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: "Additional context & screenshots"
+      placeholder: "Anything else that might help us debug."
+    validations:
+      required: false
+
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Would you like to help fix this issue?
+      description: We welcome contributions and can provide guidance for first-time contributors!
+      options:
+        - "Not at this time"
+        - "Yes, I'd like to contribute"
+    validations:
+      required: true

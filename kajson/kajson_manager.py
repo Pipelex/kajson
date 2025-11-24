@@ -12,7 +12,11 @@ KAJSON_LOGGER_CHANNEL_NAME = "kajson"
 class KajsonManager(metaclass=MetaSingleton):
     """A singleton class for managing kajson operations."""
 
-    def __init__(self, logger_channel_name: Optional[str] = None, class_registry: Optional[ClassRegistryAbstract] = None) -> None:
+    def __init__(
+        self,
+        logger_channel_name: Optional[str] = None,
+        class_registry: Optional[ClassRegistryAbstract] = None,
+    ) -> None:
         self.logger_channel_name = logger_channel_name or KAJSON_LOGGER_CHANNEL_NAME
         self._class_registry = class_registry or ClassRegistry()
 

@@ -1,5 +1,22 @@
 # Changelog
 
+## [v0.3.2] - 2025-10-04
+
+### 🚀 New Features
+
+- **GitHub Issue Templates**: Added bug report, feature request, and general issue templates to GitHub repository for better issue management
+- **API Documentation**: Added KajsonManager API reference documentation (Issue #26)
+
+### 📝 Changes
+
+- **Makefile Updates**: Renamed 'doc' targets to 'docs', including 'docs-check' and 'docs-deploy' for better consistency
+- **UniversalJSONEncoder Cleanup**: Removed unused logger from UniversalJSONEncoder class (Issue #27)
+- **Performance Fix**: In json_encoder.py, in _get_type_module(), the regex compilation should be at the module level (#28)
+
+### 🔒 Security
+
+- **Documentation**: Added security considerations section to README regarding deserializing untrusted JSON data
+
 ## [v0.3.1] - 2025-07-10
 
 - Fix documentation URL in `pyproject.toml`
