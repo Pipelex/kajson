@@ -8,7 +8,7 @@ for types like Decimal and Path using the registration system.
 
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Type
 
 import kajson
 from kajson import kajson_manager
@@ -48,17 +48,13 @@ def main():
     def encode_path(p: Path) -> Dict[str, Any]:
         return {"path": str(p)}
 
-    def decode_path(data: Dict[str, Any]) -> Path:
-        return Path(data["path"])
+    # Second argument if defined will receive base class or subclass type
+    def decode_path(data: Dict[str, Any], cls: Type[Path] = Path) -> Path:
+        return cls(data["path"])
 
-    kajson.UniversalJSONEncoder.register(Path, encode_path)
-    kajson.UniversalJSONDecoder.register(Path, decode_path)
-
-    # Also register for the concrete Path type (PosixPath/WindowsPath)
-    concrete_path_type = type(Path())
-    if concrete_path_type != Path:
-        kajson.UniversalJSONEncoder.register(concrete_path_type, encode_path)
-        kajson.UniversalJSONDecoder.register(concrete_path_type, decode_path)
+    # The concrete Path type (PosixPath/WindowsPath) is also registed as subclasses of Path
+    kajson.UniversalJSONEncoder.register(Path, encode_path, include_subclasses=True)
+    kajson.UniversalJSONDecoder.register(Path, decode_path, include_subclasses=True)
 
     print("\n✅ Registered Path encoder/decoder")
 

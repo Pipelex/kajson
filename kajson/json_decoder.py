@@ -23,12 +23,13 @@ All additions and modifications are Copyright (c) 2025 Evotis S.A.S.
 from __future__ import annotations
 
 import importlib
+import inspect
 import json
 import logging
 import sys
 import warnings
 from enum import Enum
-from typing import Any, Callable, ClassVar, Dict, Type, TypeVar
+from typing import Any, Callable, ClassVar, Dict, Type, TypeVar, Union, cast
 
 from pydantic import BaseModel, RootModel, ValidationError
 
@@ -41,6 +42,7 @@ FALLBACK_MESSAGE = " Trying something else."
 
 
 T = TypeVar("T")
+Decoder = Union[Callable[[Dict[str, Any]], Any], Callable[[Dict[str, Any], Type[Any]], Any]]
 
 
 class UniversalJSONDecoder(json.JSONDecoder):
@@ -61,43 +63,72 @@ class UniversalJSONDecoder(json.JSONDecoder):
     """
 
     # The registered decoding functions:
-    _decoders: ClassVar[Dict[Type[Any], Callable[[Dict[str, Any]], Any]]] = {}
+    _decoders: ClassVar[Dict[Type[Any], Decoder | None]] = {}
+    _multi_decoders: ClassVar[Dict[Type[Any], Decoder | None]] = {}
+    _cached_decoders: ClassVar[Dict[Type[Any], Decoder | None]] = {}
 
     @staticmethod
-    def register(obj_type: Type[T], decoding_function: Callable[[Dict[str, Any]], T]) -> None:
+    def register(
+        obj_type: Type[T],
+        decoding_function: Callable[[Dict[str, Any]], T] | Callable[[Dict[str, Any], Type[T]], T],
+        include_subclasses: bool = False,
+    ) -> None:
         """
         Register a function as a decoder for the provided type/class. The provided
-        decoder should take a single argument (the raw dict to deserialise) and return
-        an instance of that object.
+        decoder can take a single argument (the raw dict to deserialise), and if
+        defined, a second arguemnt(type being decoded), and return an instance of
+        that object.
         Passing a new decoding function to a type already registered will overwrite
         the previously registered decoding function.
         Args:
             type (obj_type): The type to be decoded by the provided decoder. Can be
                 easily obtained by simply providing a class directly.
             decoding_function (function): The function to use as a decoder for the
-                provided type. Takes a single argument, a returns an object.
+                provided type. Takes a single argument, a returns an object; or can
+                also take second argument of class being decoded.
+            include_subclasses (bool): If set to `True`, then all the subclasses of the provided type will be registered
+                with the same decoder (defaults to `False`).
         """
         if not isinstance(obj_type, type):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise TypeError("Expected a type/class, a %s was passed instead." % type(obj_type))
         if not callable(decoding_function):
             raise TypeError("Expected a function, a %s was passed instead." % type(decoding_function))
-
-        UniversalJSONDecoder._decoders[obj_type] = decoding_function
+        if include_subclasses:
+            UniversalJSONDecoder._multi_decoders[obj_type] = decoding_function
+            UniversalJSONDecoder._cached_decoders = UniversalJSONDecoder._decoders.copy()
+        else:
+            UniversalJSONDecoder._decoders[obj_type] = UniversalJSONDecoder._cached_decoders[obj_type] = decoding_function
 
     @classmethod
     def clear_decoders(cls) -> None:
         """Clear all registered decoders. Primarily for testing purposes."""
         cls._decoders.clear()
+        cls._multi_decoders.clear()
+        cls._cached_decoders.clear()
 
     @classmethod
     def is_decoder_registered(cls, obj_type: Type[Any]) -> bool:
-        """Check if a decoder is registered for the given type. Primarily for testing purposes."""
-        return obj_type in cls._decoders
+        """Check if a decoder is registered for the given type."""
+        if obj_type in cls._cached_decoders:
+            return cls._cached_decoders[obj_type] is not None
+        for obj_subtype in obj_type.mro():
+            if obj_subtype in cls._multi_decoders:
+                cls._cached_decoders[obj_type] = cls._multi_decoders[obj_subtype]
+                return True
+        cls._cached_decoders[obj_type] = None
+        return False
 
     @classmethod
-    def get_registered_decoder(cls, obj_type: Type[Any]) -> Callable[[Dict[str, Any]], Any] | None:
-        """Get the registered decoder for the given type. Primarily for testing purposes."""
-        return cls._decoders.get(obj_type)
+    def get_registered_decoder(cls, obj_type: Type[Any]) -> Decoder | None:
+        """Get the registered decoder for the given type."""
+        if obj_type in cls._cached_decoders:
+            return cls._cached_decoders[obj_type]
+        for obj_subtype in obj_type.mro():
+            if obj_subtype in cls._multi_decoders:
+                cls._cached_decoders[obj_type] = cls._multi_decoders[obj_subtype]
+                return cls._cached_decoders[obj_type]
+        cls._cached_decoders[obj_type] = None
+        return None
 
     # Required to redirect the hook for decoding.
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -172,11 +203,16 @@ class UniversalJSONDecoder(json.JSONDecoder):
                     raise KajsonDecoderError(f"Class '{class_name}' not found in module '{module_name}'")
 
         # Registered decoder if any:
-        if the_class in UniversalJSONDecoder._decoders:
+        if (func := self.get_registered_decoder(the_class)) is not None:
             try:
-                return UniversalJSONDecoder._decoders[the_class](the_dict)
+                if len(inspect.signature(func).parameters) == 1:
+                    func = cast(Callable[[Dict[str, Any]], Any], func)
+                    return func(the_dict)
+                else:
+                    func = cast(Callable[[Dict[str, Any], Type[Any]], Any], func)
+                    return func(the_dict, the_class)
             except Exception as exc:
-                func_name = UniversalJSONDecoder._decoders[the_class].__name__
+                func_name = func.__name__
                 error_msg = f"Could not decode '{class_name}' from json because function '{func_name}' failed: '{exc}'."
                 if IS_DECODER_FALLBACK_ENABLED:
                     warnings.warn(error_msg + FALLBACK_MESSAGE)

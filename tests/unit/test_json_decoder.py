@@ -5,7 +5,7 @@ import json
 import logging
 import sys
 import warnings
-from typing import Any, Dict, Generator
+from typing import Any, Dict, Generator, Type, TypeVar
 
 import pytest
 from pydantic import BaseModel, Field, RootModel, ValidationError
@@ -95,6 +95,25 @@ class MockClassWithFailingConstructor:
 
     def __init__(self, **kwargs: Any) -> None:
         raise ValueError("Constructor always fails")
+
+
+class MockBaseClass:
+    """Mock class base class for subclass testing"""
+
+    def __init__(self, data: str):
+        self.data = data
+
+
+class MockFirstSubClass(MockBaseClass):
+    """Mock child subclass"""
+
+    pass
+
+
+class MockSecondSubClass(MockFirstSubClass):
+    """Mock grandchild subclass"""
+
+    pass
 
 
 @pytest.fixture(autouse=True)
@@ -538,3 +557,95 @@ class TestUniversalJSONDecoder:
         finally:
             if math_module is not None:
                 sys.modules["math"] = math_module
+
+    def test_subclass_registration(self, setup_decoder: UniversalJSONDecoder):
+        decoder = setup_decoder
+
+        def test_decoder(data: Dict[str, Any], cls: Type[MockBaseClass]) -> MockBaseClass:
+            return cls(data["data"])
+
+        UniversalJSONDecoder.register(MockBaseClass, test_decoder, include_subclasses=True)
+
+        assert UniversalJSONDecoder.is_decoder_registered(MockSecondSubClass)
+        assert UniversalJSONDecoder.get_registered_decoder(MockSecondSubClass) == test_decoder
+
+        test_dict = {
+            "data": "test_data",
+            "extra_data": 9,
+            "__class__": "MockSecondSubClass",
+            "__module__": "tests.unit.test_json_decoder",
+        }
+        result = decoder.universal_decoder(test_dict)
+
+        assert isinstance(result, MockBaseClass)
+        assert isinstance(result, MockFirstSubClass)
+        assert isinstance(result, MockSecondSubClass)
+        assert result.data == "test_data"
+
+    def test_subclass_registration_with_explicit_registration(self, setup_decoder: UniversalJSONDecoder):
+        decoder = setup_decoder
+
+        T = TypeVar("T", bound=MockBaseClass)
+
+        def test_decoder(data: Dict[str, Any], cls: Type[T]) -> T:
+            return cls(f"{data['data']}_1")
+
+        def test_decoder_2(data: Dict[str, Any]) -> MockFirstSubClass:
+            return MockFirstSubClass(f"{data['data']}_2")
+
+        UniversalJSONDecoder.register(MockBaseClass, test_decoder, include_subclasses=True)
+        UniversalJSONDecoder.register(MockFirstSubClass, test_decoder_2)
+
+        assert UniversalJSONDecoder.is_decoder_registered(MockFirstSubClass)
+        assert UniversalJSONDecoder.get_registered_decoder(MockFirstSubClass) == test_decoder_2
+
+        assert UniversalJSONDecoder.is_decoder_registered(MockSecondSubClass)
+        assert UniversalJSONDecoder.get_registered_decoder(MockSecondSubClass) == test_decoder
+
+        test_dict = {
+            "data": "test_data",
+            "__class__": "MockFirstSubClass",
+            "__module__": "tests.unit.test_json_decoder",
+        }
+        result = decoder.universal_decoder(test_dict)
+
+        assert isinstance(result, MockFirstSubClass)
+        assert not isinstance(result, MockSecondSubClass)
+        assert result.data == "test_data_2"
+
+        test_dict = {
+            "data": "test_data",
+            "__class__": "MockSecondSubClass",
+            "__module__": "tests.unit.test_json_decoder",
+        }
+        result = decoder.universal_decoder(test_dict)
+
+        assert isinstance(result, MockSecondSubClass)
+        assert result.data == "test_data_1"
+
+    def test_subclass_registration_with_child_registration(self, setup_decoder: UniversalJSONDecoder):
+        decoder = setup_decoder
+
+        T = TypeVar("T", bound=MockBaseClass)
+
+        def test_decoder(data: Dict[str, Any], cls: Type[T]) -> T:
+            return cls(f"{data['data']}_1")
+
+        def test_decoder_2(data: Dict[str, Any], cls: Type[T]) -> T:
+            return cls(f"{data['data']}_2")
+
+        UniversalJSONDecoder.register(MockBaseClass, test_decoder, include_subclasses=True)
+        UniversalJSONDecoder.register(MockFirstSubClass, test_decoder_2, include_subclasses=True)
+
+        assert UniversalJSONDecoder.is_decoder_registered(MockSecondSubClass)
+        assert UniversalJSONDecoder.get_registered_decoder(MockSecondSubClass) == test_decoder_2
+
+        test_dict = {
+            "data": "test_data",
+            "__class__": "MockSecondSubClass",
+            "__module__": "tests.unit.test_json_decoder",
+        }
+        result = decoder.universal_decoder(test_dict)
+
+        assert isinstance(result, MockSecondSubClass)
+        assert result.data == "test_data_2"
