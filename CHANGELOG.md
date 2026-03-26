@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Added
+ - **Class Registry Support:** Added an optional `class_registry` parameter to `kajson.loads()` and `kajson.load()`, enabling resolution of dynamically generated classes by checking a provided registry before falling back to `sys.modules`.
+ - **Python 3.14 Support:** Added official support, CI testing, and package classifiers for Python 3.14 (including prereleases).
+ - **CI/Agent Makefile Targets:** Added `agent-check` and `agent-test` targets to the `Makefile` to streamline CI pipeline execution.
+
+### Changed
+ - **Python Version Support:** The minimum required Python version has been increased from 3.9 to **3.10**. Python 3.9 support, CI testing, and classifiers have been removed. All documentation, examples, and package metadata have been updated accordingly.
+ - **CI Pipeline Updates:** Updated GitHub Actions workflows to use `actions/setup-python@v5`, adjusted the testing matrix to cover Python 3.10–3.14, and simplified the CLA workflow to use a direct Personal Access Token instead of dynamically generating a GitHub App token.
+ - **Decoder Refactoring:** Extracted `_apply_decoder_strategies` method in `UniversalJSONDecoder` for cleaner, more maintainable decoding logic.
+ - **Copyright Updates:** Updated copyright notices across the codebase to 2025–2026.
+
+### Fixed
+ - **Dynamic Class Decoding:** Fixed decoding of dynamically generated classes (which often default to `__module__ = 'builtins'`) by prioritizing the explicit `class_registry` over the `sys.modules` fallback.
+ - **Type Checking:** Added a missing type cast for `RootModel` instantiation in `UniversalJSONDecoder` to satisfy strict type checkers.
+
+## [v0.3.2] - 2025-11-24
+
 ### 🚀 New Features
 
 - **GitHub Issue Templates**: Added bug report, feature request, and general issue templates to GitHub repository for better issue management

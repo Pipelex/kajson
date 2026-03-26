@@ -138,7 +138,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
 
         the_class: Type[Any]
 
-        # Step 0: Check explicit registry first (handles dynamic classes from workflow-scoped registries)
+        # Step 0: Check explicit registry first (takes priority over sys.modules and dynamic import)
         if self._class_registry is not None:
             explicit_class = self._class_registry.get_class(name=class_name)
             if explicit_class is not None:

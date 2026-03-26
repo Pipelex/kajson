@@ -149,7 +149,7 @@ assert restored_post.comments[0].created_at.year == datetime.now().year
 
 ## 🤝 Compatibility
 
-- **Python**: 3.10+
+- **Python**: 3.10 – 3.14 (3.9 was dropped in the latest release)
 - **Pydantic**: v2.x
 - **Dependencies**: Minimal, only standard library + pydantic
 
