@@ -475,4 +475,4 @@ This project is heavily based on the excellent work from [unijson](https://githu
 
 ## License
 
-© 2025 Evotis S.A.S. - Licensed under [Apache 2.0](LICENSE)
+© 2025-2026 Evotis S.A.S. - Licensed under [Apache 2.0](LICENSE)
