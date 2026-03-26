@@ -62,7 +62,7 @@ class TestCompositeClassRegistry:
 
         composite.teardown()
 
-        assert not composite._local.has_class(name="LocalModel")
+        assert not composite.has_class(name="LocalModel")
         assert parent.has_class(name="ParentModel")
         # Parent classes still accessible via composite
         assert composite.has_class(name="ParentModel")
@@ -86,7 +86,7 @@ class TestCompositeClassRegistry:
         composite.register_class(LocalModel)
 
         composite.unregister_class(LocalModel)
-        assert not composite._local.has_class(name="LocalModel")
+        assert not composite.has_class(name="LocalModel")
         assert parent.has_class(name="ParentModel")
 
     def test_get_required_base_model_delegation(self) -> None:

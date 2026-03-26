@@ -9,9 +9,7 @@ from kajson.singleton import MetaSingleton
 
 KAJSON_LOGGER_CHANNEL_NAME = "kajson"
 
-_scoped_class_registry: ContextVar[ClassRegistryAbstract | None] = ContextVar(
-    "_scoped_class_registry", default=None
-)
+_scoped_class_registry: ContextVar[ClassRegistryAbstract | None] = ContextVar("_scoped_class_registry", default=None)
 
 
 class KajsonManager(metaclass=MetaSingleton):

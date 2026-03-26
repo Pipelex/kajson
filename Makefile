@@ -67,6 +67,9 @@ make fix-unused-imports       - Fix unused imports with ruff
 make fui                      - Shorthand -> fix-unused-imports
 make check-TODOs              - Check for TODOs
 
+make agent-check              - Run all checks (for CI/agents: fix-unused-imports format lint pyright mypy)
+make agent-test               - Run tests quietly, only showing output on failure
+
 make docs                     - Serve documentation with mkdocs
 make docs-check               - Check documentation build with mkdocs
 make docs-deploy              - Deploy documentation with mkdocs
@@ -87,7 +90,8 @@ export HELP
 	check c cc li \
 	check-unused-imports fix-unused-imports fui \
 	check-uv check-TODOs \
-	docs docs-check docs-deploy
+	docs docs-check docs-deploy \
+	agent-check agent-test
 
 all help:
 	@echo "$$HELP"
@@ -225,6 +229,16 @@ cov-missing: env
 cm: cov-missing
 	@echo "> done: cm = cov-missing"
 
+agent-test: env
+	@echo "• Running unit tests..."
+	@tmpfile=$$(mktemp); \
+	$(VENV_PYTEST) -o log_level=WARNING --tb=short -q > "$$tmpfile" 2>&1; \
+	exit_code=$$?; \
+	if [ $$exit_code -ne 0 ]; then grep -vE '\[\s*[0-9]+%\]\s*$$' "$$tmpfile"; fi; \
+	rm -f "$$tmpfile"; \
+	if [ $$exit_code -eq 0 ]; then echo "• All tests passed."; fi; \
+	exit $$exit_code
+
 ############################################################################################
 ############################               Linting              ############################
 ############################################################################################
@@ -313,6 +327,9 @@ cc: cleanderived c
 
 check: cleanderived check-unused-imports c
 	@echo "> done: check"
+
+agent-check: fix-unused-imports format lint pyright mypy
+	@echo "> done: agent-check"
 
 li: lock install
 	@echo "> done: lock install"
