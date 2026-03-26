@@ -1,0 +1,29 @@
+kajson/json_decoder.py
+  21b58abc5cbf2ceb 35,106,141-149,185-188
+kajson/kajson_manager.py
+  21b58abc5cbf2ceb 36
+tests/unit/test_explicit_class_registry.py
+  21b58abc5cbf2ceb 1-5,7-45,47-67
+kajson/kajson.py
+  21b58abc5cbf2ceb 28,69,76-78,84-85,89,96-98,104-105
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.19",
+  "base_commit_sha": "f688840d8bac5d32ddfd30f676a2097a9f755559",
+  "prompts": {
+    "21b58abc5cbf2ceb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "133fb1b9-cbb3-45a4-9b60-cbe2957fdd68",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel <lchoquel@users.noreply.github.com>",
+      "messages": [],
+      "total_additions": 100,
+      "total_deletions": 12,
+      "accepted_lines": 94,
+      "overriden_lines": 1
+    }
+  }
+}
