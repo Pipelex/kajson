@@ -33,4 +33,5 @@ class KajsonManager(metaclass=MetaSingleton):
 
     @classmethod
     def get_class_registry(cls) -> ClassRegistryAbstract:
+        """Return the global class registry."""
         return cls.get_instance()._class_registry

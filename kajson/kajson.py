@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: © 2018 Bastien Pietropaoli
-# SPDX-FileCopyrightText: © 2025 Evotis S.A.S.
+# SPDX-FileCopyrightText: © 2025-2026 Evotis S.A.S.
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -25,6 +25,7 @@ import json
 from typing import IO, Any, Dict, Union
 from zoneinfo import ZoneInfo
 
+from kajson.class_registry_abstract import ClassRegistryAbstract
 from kajson.exceptions import KajsonDecoderError
 from kajson.json_decoder import UniversalJSONDecoder
 from kajson.json_encoder import UniversalJSONEncoder
@@ -65,33 +66,43 @@ def dump(obj: Any, fp: IO[str], **kwargs: Any) -> None:
     json.dump(obj, fp, cls=UniversalJSONEncoder, **kwargs)
 
 
-def loads(json_string: Union[str, bytes], **kwargs: Any) -> Any:
+def loads(json_string: Union[str, bytes], class_registry: ClassRegistryAbstract | None = None, **kwargs: Any) -> Any:
     """
     Deserialise a given JSON formatted str into a Python object using the
     `UniversalJSONDecoder`. Takes the same keyword arguments as `json.loads()`
     except for `cls` that is used to pass our custom decoder.
     Args:
         json_string (str): The JSON formatted string to decode.
+        class_registry: Optional explicit class registry for resolving classes.
+            When provided, the decoder checks this registry first before falling
+            back to sys.modules and dynamic import.
         kwargs (**): Keyword arguments normally passed to `json.loads()` except
             for `cls`. Unpredictable behaviour might occur if `cls` is passed.
     Return:
         object - A Python object corresponding to the provided JSON formatted string.
     """
+    if class_registry is not None:
+        kwargs["class_registry"] = class_registry
     return json.loads(json_string, cls=UniversalJSONDecoder, **kwargs)
 
 
-def load(fp: IO[str], **kwargs: Any) -> Any:
+def load(fp: IO[str], class_registry: ClassRegistryAbstract | None = None, **kwargs: Any) -> Any:
     """
     Deserialise a given JSON formatted stream / file into a Python object using
     the `UniversalJSONDecoder`. Takes the same keyword arguments as `json.load()`
     except for `cls` that is used to pass our custom decoder.
     Args:
         fp (file-like object): A .write()-supporting file-like object.
+        class_registry: Optional explicit class registry for resolving classes.
+            When provided, the decoder checks this registry first before falling
+            back to sys.modules and dynamic import.
         kwargs (**): Keyword arguments normally passed to `json.load()` except
             for `cls`. Unpredictable behaviour might occur if `cls` is passed.
     Return:
         object - A Python object corresponding to the provided JSON formatted stream / file.
     """
+    if class_registry is not None:
+        kwargs["class_registry"] = class_registry
     return json.load(fp, cls=UniversalJSONDecoder, **kwargs)
 
 

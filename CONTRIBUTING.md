@@ -34,7 +34,7 @@ Since Kajson is a mature library, most contributions will likely be:
 
 ## Requirements
 
-- Python ≥ 3.9
+- Python ≥ 3.10
 - uv ≥ 0.7.2
 
 ## Development Setup
