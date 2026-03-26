@@ -1,0 +1,23 @@
+kajson/json_decoder.py
+  7b69abbef4e4bcd1 31,204
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.19",
+  "base_commit_sha": "1dad73f875bdd357339ee9a13dec2699708bda40",
+  "prompts": {
+    "7b69abbef4e4bcd1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ed6dbcdc-8515-41da-b1a9-afb741c078b4",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel <lchoquel@users.noreply.github.com>",
+      "messages": [],
+      "total_additions": 2,
+      "total_deletions": 2,
+      "accepted_lines": 2,
+      "overriden_lines": 0
+    }
+  }
+}
