@@ -1,3 +1,4 @@
+from contextvars import ContextVar
 from typing import Optional
 
 from typing_extensions import Self
@@ -7,6 +8,10 @@ from kajson.class_registry_abstract import ClassRegistryAbstract
 from kajson.singleton import MetaSingleton
 
 KAJSON_LOGGER_CHANNEL_NAME = "kajson"
+
+_scoped_class_registry: ContextVar[ClassRegistryAbstract | None] = ContextVar(
+    "_scoped_class_registry", default=None
+)
 
 
 class KajsonManager(metaclass=MetaSingleton):
@@ -33,4 +38,11 @@ class KajsonManager(metaclass=MetaSingleton):
 
     @classmethod
     def get_class_registry(cls) -> ClassRegistryAbstract:
+        scoped = _scoped_class_registry.get()
+        if scoped is not None:
+            return scoped
         return cls.get_instance()._class_registry
+
+    @classmethod
+    def set_scoped_class_registry(cls, registry: ClassRegistryAbstract | None) -> None:
+        _scoped_class_registry.set(registry)
