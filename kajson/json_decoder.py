@@ -32,6 +32,7 @@ from typing import Any, Callable, ClassVar, Dict, Type, TypeVar, cast
 
 from pydantic import BaseModel, RootModel, ValidationError
 
+from kajson.class_registry_abstract import ClassRegistryAbstract
 from kajson.exceptions import KajsonDecoderError
 from kajson.kajson_manager import KajsonManager
 
@@ -102,6 +103,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
     # Required to redirect the hook for decoding.
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Constructor redirecting the hook for decoding JSON objects."""
+        self._class_registry: ClassRegistryAbstract | None = kwargs.pop("class_registry", None)
         json.JSONDecoder.__init__(self, object_hook=self.universal_decoder, *args, **kwargs)
         self.logger = logging.getLogger(DECODER_LOGGER_CHANNEL_NAME)
 
@@ -135,6 +137,15 @@ class UniversalJSONDecoder(json.JSONDecoder):
         module_name = the_dict.pop("__module__")
 
         the_class: Type[Any]
+
+        # Step 0: Check explicit registry first (handles dynamic classes from workflow-scoped registries)
+        if self._class_registry is not None:
+            explicit_class = self._class_registry.get_class(name=class_name)
+            if explicit_class is not None:
+                self.log(f"Found class '{class_name}' in explicit registry")
+                the_class = explicit_class
+                # Skip to decoder strategies
+                return self._apply_decoder_strategies(the_class, class_name, the_dict)
 
         # Check if the module is already imported using sys.modules
         if module_name in sys.modules:
@@ -171,6 +182,10 @@ class UniversalJSONDecoder(json.JSONDecoder):
                 else:
                     raise KajsonDecoderError(f"Class '{class_name}' not found in module '{module_name}'")
 
+        return self._apply_decoder_strategies(the_class, class_name, the_dict)
+
+    def _apply_decoder_strategies(self, the_class: Type[Any], class_name: str, the_dict: Dict[str, Any]) -> Any:
+        """Apply decoding strategies to reconstruct a Python object from the resolved class and dict."""
         # Registered decoder if any:
         if the_class in UniversalJSONDecoder._decoders:
             try:
