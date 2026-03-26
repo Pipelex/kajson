@@ -28,7 +28,7 @@ import logging
 import sys
 import warnings
 from enum import Enum
-from typing import Any, Callable, ClassVar, Dict, Type, TypeVar
+from typing import Any, Callable, ClassVar, Dict, Type, TypeVar, cast
 
 from pydantic import BaseModel, RootModel, ValidationError
 
@@ -201,7 +201,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
             # as it builds another layer around the root: {"root": {"root": {}}
             try:
                 self.log(f"Creating root model '{the_class}'...")
-                root_model_obj: RootModel[Any] = the_class(**the_dict)
+                root_model_obj = cast(RootModel[Any], the_class(**the_dict))
                 self.log(f"Root model '{the_class}' created: {root_model_obj}")
             except ValidationError as exc:
                 error_msg = f"Could not decode '{class_name}' pydantic RootModel from json: {exc}\n\nthe_dict:\n{the_dict}"
