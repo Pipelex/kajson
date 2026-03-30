@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [v0.4.0] - 2026-03-30
 
 ### Added
  - **Class Registry Support:** Added an optional `class_registry` parameter to `kajson.loads()` and `kajson.load()`, enabling resolution of dynamically generated classes by checking a provided registry before falling back to `sys.modules`.
