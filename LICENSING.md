@@ -8,4 +8,4 @@ This project incorporates portions of [unijson](https://github.com/bpietropaoli/
 
 ---
 
-© 2025 Evotis S.A.S.
+© 2025-2026 Evotis S.A.S.

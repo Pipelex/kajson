@@ -1,10 +1,10 @@
 # Installation
 
-Kajson requires Python 3.9 or higher and can be installed using your favorite package manager.
+Kajson requires Python 3.10 or higher and can be installed using your favorite package manager.
 
 ## Requirements
 
-- Python ≥ 3.9
+- Python ≥ 3.10
 - Pydantic v2 (installed automatically)
 
 ## Installation Methods

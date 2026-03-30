@@ -58,7 +58,7 @@ Each example includes:
 ## Requirements
 
 All examples require:
-- Python 3.9+
+- Python 3.10+
 - kajson (installed in development mode)
 - pydantic (for BaseModel examples)
 
