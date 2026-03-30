@@ -1,6 +1,6 @@
 [project]
 name = "kajson"
-version = "0.3.2"
+version = "0.4.0"
 description = "Powerful universal JSON encoder/decoder for Python objects with support for pydantic v2."
 authors = [{ name = "Evotis S.A.S.", email = "evotis@pipelex.com" }]
 maintainers = [{ name = "Pipelex staff", email = "oss@pipelex.com" }]
@@ -8,14 +8,14 @@ license = "Apache-2.0"
 readme = "README.md"
 requires-python = ">=3.10"
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.14",
-    "Operating System :: OS Independent",
-    "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Operating System :: OS Independent",
+  "License :: OSI Approved :: Apache Software License",
 ]
 
 dependencies = ["pydantic>=2.10.6"]
@@ -27,19 +27,19 @@ Documentation = "https://pipelex.github.io/kajson/"
 
 [project.optional-dependencies]
 docs = [
-    "mkdocs==1.6.1",
-    "mkdocs-glightbox==0.4.0",
-    "mkdocs-material==9.6.14",
-    "mkdocs-meta-manager==1.1.0",
+  "mkdocs==1.6.1",
+  "mkdocs-glightbox==0.4.0",
+  "mkdocs-material==9.6.14",
+  "mkdocs-meta-manager==1.1.0",
 ]
 dev = [
-    "mypy>=1.11.2",
-    "pyright==1.1.398",
-    "pytest>=8.3.3",
-    "pytest-cov>=6.1.1",
-    "pytest-mock>=3.14.0",
-    "pytest-sugar>=1.0.0",
-    "ruff>=0.6.8",
+  "mypy>=1.11.2",
+  "pyright==1.1.398",
+  "pytest>=8.3.3",
+  "pytest-cov>=6.1.1",
+  "pytest-mock>=3.14.0",
+  "pytest-sugar>=1.0.0",
+  "ruff>=0.6.8",
 ]
 
 [build-system]
@@ -163,28 +163,28 @@ source = ["kajson"]
 
 [tool.coverage.report]
 exclude_lines = [
-    # Have to re-enable the standard pragma
-    "pragma: no cover",
+  # Have to re-enable the standard pragma
+  "pragma: no cover",
 
-    # Don't complain about missing debug-only code:
-    "def __repr__",
-    "if self\\.debug",
+  # Don't complain about missing debug-only code:
+  "def __repr__",
+  "if self\\.debug",
 
-    # Don't complain if tests don't hit defensive assertion code:
-    "raise AssertionError",
-    "raise NotImplementedError",
+  # Don't complain if tests don't hit defensive assertion code:
+  "raise AssertionError",
+  "raise NotImplementedError",
 
-    # Don't complain if non-runnable code isn't run:
-    "if 0:",
-    "if __name__ == .__main__.:",
+  # Don't complain if non-runnable code isn't run:
+  "if 0:",
+  "if __name__ == .__main__.:",
 
-    # Don't complain about abstract methods, they aren't run:
-    "@(abc\\.)?abstractmethod",
-    "^\\s*pass\\s*$",
-    "^\\s*\\.\\.\\.$",
+  # Don't complain about abstract methods, they aren't run:
+  "@(abc\\.)?abstractmethod",
+  "^\\s*pass\\s*$",
+  "^\\s*\\.\\.\\.$",
 
-    # Don't complain about abstract classes that can't be instantiated
-    "^\\s*raise NotImplementedError\\(\\)$",
+  # Don't complain about abstract classes that can't be instantiated
+  "^\\s*raise NotImplementedError\\(\\)$",
 ]
 
 ignore_errors = true
@@ -201,20 +201,20 @@ target-version = "py311"
 ignore = ["F401"]
 external = ["F401"]
 select = [
-    "E4",
-    "E7",
-    "E9",
-    "F",
-    "A001",
-    "A002",
-    "A003",
-    "RUF008",
-    "RUF009",
-    "RUF012",
-    "RUF013",
-    "RUF100",
-    "E501",
-    "I",
+  "E4",
+  "E7",
+  "E9",
+  "F",
+  "A001",
+  "A002",
+  "A003",
+  "RUF008",
+  "RUF009",
+  "RUF012",
+  "RUF013",
+  "RUF100",
+  "E501",
+  "I",
 ]
 
 [tool.uv]

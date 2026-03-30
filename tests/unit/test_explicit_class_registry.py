@@ -57,6 +57,19 @@ class TestExplicitClassRegistry:
         assert isinstance(result, DynamicModel)
         assert result.greeting == "Hello"
 
+    def test_load_with_explicit_registry_resolves_dynamic_class(self) -> None:
+        """kajson.load() with explicit class_registry works the same as loads()."""
+        import io
+
+        registry = ClassRegistry()
+        registry.register_class(DynamicModel)
+
+        json_str = '{"__class__": "DynamicModel", "__module__": "builtins", "greeting": "Hello"}'
+
+        result = kajson.load(io.StringIO(json_str), class_registry=registry)
+        assert isinstance(result, DynamicModel)
+        assert result.greeting == "Hello"
+
     def test_loads_with_explicit_registry_falls_through_on_miss(self) -> None:
         """If explicit registry doesn't have the class, decoder falls through to sys.modules."""
         empty_registry = ClassRegistry()
