@@ -158,7 +158,16 @@ class UniversalJSONDecoder(json.JSONDecoder):
                     self.log(f"Generic type '{class_name}' not found in module, trying base class '{base_class_name}'")
                     the_class = getattr(sys.modules[module_name], base_class_name)
                 else:
-                    raise KajsonDecoderError(f"Class '{class_name}' not found in module '{module_name}'")
+                    # Module is loaded but class is not in it — fall through to global registry
+                    # before raising. This handles dynamic classes with __module__='builtins'
+                    # that were registered in the global ClassRegistry via exec().
+                    self.log(f"Class '{class_name}' not found in module '{module_name}', checking global registry")
+                    registered_class = KajsonManager.get_class_registry().get_class(name=class_name)
+                    if registered_class is not None:
+                        the_class = registered_class
+                    else:
+                        error_msg = f"Class '{class_name}' not found in module '{module_name}' or global registry"
+                        raise KajsonDecoderError(error_msg)
         elif registered_class := KajsonManager.get_class_registry().get_class(name=class_name):
             self.log(f"Found class '{class_name}' in registry")
             the_class = registered_class
