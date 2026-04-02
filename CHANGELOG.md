@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.4.1] - 2026-04-02
+
+### Added
+ - **Class Source Code Support:** Added a `class_source_code` parameter to `kajson.loads()` and `kajson.load()`, enabling deserialization of BaseModel subclasses defined in raw Python source code. The source is exec'd and discovered classes are registered automatically. When combined with an explicit `class_registry`, the registry takes priority.
+
 ## [v0.4.0] - 2026-03-30
 
 ### Added
