@@ -116,6 +116,19 @@ class TestClassSourceCode:
         assert result.__class__.__name__ == "Greeting"
         assert result.message == "Hi"
 
+    def test_caller_registry_not_mutated_by_source_code(self) -> None:
+        """Caller's registry must not be polluted with source-derived classes."""
+        registry = ClassRegistry()
+        registry.register_class(ModuleLevelModel, name="ModuleLevelModel")
+
+        json_str = '{"__class__": "Greeting", "__module__": "builtins", "message": "Hi", "count": 1}'
+        kajson.loads(json_str, class_registry=registry, class_source_code=SIMPLE_MODEL_SOURCE)
+
+        # Registry should still only contain the originally registered class
+        assert registry.has_class("ModuleLevelModel")
+        assert not registry.has_class("Greeting")
+        assert not registry.has_class("count")
+
     def test_list_with_class_source_code(self) -> None:
         """class_source_code works for deserializing lists of BaseModel."""
         json_str = (

@@ -37,6 +37,9 @@ from kajson.json_encoder import UniversalJSONEncoder
 def _build_registry_from_source(source_code: str) -> ClassRegistry:
     """Build a ClassRegistry from Python source code by exec'ing it and discovering BaseModel subclasses.
 
+    WARNING: The source is executed via exec() and can run arbitrary Python code.
+    Only pass trusted source code.
+
     Args:
         source_code: Python source code that defines one or more BaseModel subclasses.
 
@@ -107,6 +110,8 @@ def loads(
             When provided, the source is exec'd and all discovered BaseModel subclasses
             are registered in a ClassRegistry used during deserialization. If an explicit
             class_registry is also provided, its entries take priority over source-derived ones.
+            WARNING: The source is executed via exec() and can run arbitrary Python code.
+            Only pass trusted source code.
         kwargs (**): Keyword arguments normally passed to `json.loads()` except
             for `cls`. Unpredictable behaviour might occur if `cls` is passed.
     Return:
@@ -115,10 +120,20 @@ def loads(
     if class_source_code is not None:
         source_registry = _build_registry_from_source(class_source_code)
         if class_registry is not None:
-            # Merge: source-derived classes fill gaps, explicit registry takes priority
-            for name, cls in source_registry.root.items():
-                if not class_registry.has_class(name):
-                    class_registry.register_class(cls, name=name, should_warn_if_already_registered=False)
+            if isinstance(class_registry, ClassRegistry):
+                # Build a temporary merged registry to avoid mutating the caller's registry.
+                # Source-derived classes go in first, then explicit registry overwrites.
+                merged = ClassRegistry()
+                for name, cls in source_registry.root.items():
+                    merged.register_class(cls, name=name, should_warn_if_already_registered=False)
+                for name, cls in class_registry.root.items():
+                    merged.register_class(cls, name=name, should_warn_if_already_registered=False)
+                class_registry = merged
+            else:
+                # Abstract registry with no iteration API — merge into it as best-effort
+                for name, cls in source_registry.root.items():
+                    if not class_registry.has_class(name):
+                        class_registry.register_class(cls, name=name, should_warn_if_already_registered=False)
         else:
             class_registry = source_registry
     if class_registry is not None:
@@ -143,7 +158,10 @@ def load(
             back to sys.modules and dynamic import.
         class_source_code: Optional Python source code defining BaseModel classes.
             When provided, the source is exec'd and all discovered BaseModel subclasses
-            are registered in a ClassRegistry used during deserialization.
+            are registered in a ClassRegistry used during deserialization. If an explicit
+            class_registry is also provided, its entries take priority over source-derived ones.
+            WARNING: The source is executed via exec() and can run arbitrary Python code.
+            Only pass trusted source code.
         kwargs (**): Keyword arguments normally passed to `json.load()` except
             for `cls`. Unpredictable behaviour might occur if `cls` is passed.
     Return:
@@ -152,9 +170,17 @@ def load(
     if class_source_code is not None:
         source_registry = _build_registry_from_source(class_source_code)
         if class_registry is not None:
-            for name, cls in source_registry.root.items():
-                if not class_registry.has_class(name):
-                    class_registry.register_class(cls, name=name, should_warn_if_already_registered=False)
+            if isinstance(class_registry, ClassRegistry):
+                merged = ClassRegistry()
+                for name, cls in source_registry.root.items():
+                    merged.register_class(cls, name=name, should_warn_if_already_registered=False)
+                for name, cls in class_registry.root.items():
+                    merged.register_class(cls, name=name, should_warn_if_already_registered=False)
+                class_registry = merged
+            else:
+                for name, cls in source_registry.root.items():
+                    if not class_registry.has_class(name):
+                        class_registry.register_class(cls, name=name, should_warn_if_already_registered=False)
         else:
             class_registry = source_registry
     if class_registry is not None:
