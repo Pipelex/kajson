@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.4.2] - 2026-04-02
+
+### Fixed
+- **Global Registry Fallback:** When a class's `__module__` points to a loaded module (e.g. `builtins`) but the class isn't found in it, the decoder now falls through to the global `KajsonManager` registry before raising an error. Previously this raised immediately, causing deserialization failures for `exec()`-generated classes registered only in the global registry.
+
 ## [v0.4.1] - 2026-04-02
 
 ### Added
