@@ -21,6 +21,7 @@ All additions and modifications are Copyright (c) 2025 Evotis S.A.S.
 """
 
 import datetime
+import enum
 import json
 from typing import IO, Any, Dict, Union
 from zoneinfo import ZoneInfo
@@ -35,22 +36,42 @@ from kajson.json_encoder import UniversalJSONEncoder
 
 
 def _build_registry_from_source(source_code: str) -> ClassRegistry:
-    """Build a ClassRegistry from Python source code by exec'ing it and discovering BaseModel subclasses.
+    """Build a ClassRegistry from Python source code by exec'ing it and discovering classes.
+
+    Registers both BaseModel subclasses and Enum subclasses so that dynamically
+    generated types (e.g. enum classes for choices/constrained fields) can be
+    resolved during deserialization.
 
     WARNING: The source is executed via exec() and can run arbitrary Python code.
     Only pass trusted source code.
 
     Args:
-        source_code: Python source code that defines one or more BaseModel subclasses.
+        source_code: Python source code that defines one or more BaseModel subclasses
+            and optionally Enum subclasses.
 
     Returns:
-        A ClassRegistry containing all discovered BaseModel subclasses.
+        A ClassRegistry containing all discovered BaseModel and Enum subclasses.
     """
     namespace: dict[str, Any] = {}
     exec(compile(source_code, "<kajson_class_source>", "exec"), namespace)
-    registry = ClassRegistry()
-    for name, obj in namespace.items():
+
+    # Collect all user-defined types for forward reference resolution
+    all_types: dict[str, Any] = {name: obj for name, obj in namespace.items() if isinstance(obj, type) and not name.startswith("_")}
+
+    # Rebuild models so forward references (from `from __future__ import annotations`)
+    # resolve against all generated types including Enum classes
+    for name, obj in all_types.items():
         if isinstance(obj, type) and issubclass(obj, BaseModel) and obj is not BaseModel:
+            try:
+                obj.model_rebuild(_types_namespace=all_types)
+            except Exception:
+                pass  # Best-effort: some models may not need rebuilding
+
+    registry = ClassRegistry()
+    for name, obj in all_types.items():
+        if isinstance(obj, type) and issubclass(obj, BaseModel) and obj is not BaseModel:
+            registry.register_class(obj, name=name, should_warn_if_already_registered=False)
+        elif isinstance(obj, type) and issubclass(obj, enum.Enum) and obj is not enum.Enum:
             registry.register_class(obj, name=name, should_warn_if_already_registered=False)
     return registry
 
