@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- **Enum class support in `_build_registry_from_source`:** Source code reconstruction now registers `Enum` subclasses alongside `BaseModel` subclasses in the class registry. Previously, dynamically generated enum classes (e.g. from `choices` fields) were invisible to the decoder, causing deserialization failures across process boundaries.
+- **Forward reference resolution in source-reconstructed models:** `_build_registry_from_source` now calls `model_rebuild(_types_namespace=all_types)` on all generated BaseModel classes after exec, so forward references to Enum and other types resolve correctly when `from __future__ import annotations` is present.
+
 ## [v0.4.2] - 2026-04-02
 
 ### Fixed
