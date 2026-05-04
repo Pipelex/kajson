@@ -47,6 +47,7 @@ class TestClassRegistryAbstract:
             "get_required_base_model",
             "has_class",
             "has_subclass",
+            "get_classes_dict",
         }
 
         assert abstract_methods == expected_methods
@@ -185,6 +186,10 @@ class TestClassRegistryAbstract:
             @override
             def has_subclass(self, name: str, base_class: Type[Any]) -> bool:
                 return False
+
+            @override
+            def get_classes_dict(self) -> Dict[str, Type[Any]]:
+                return {}
 
         # Should not raise an exception
         registry = CompleteRegistry()

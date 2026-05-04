@@ -207,6 +207,10 @@ class TestKajsonManager:
             def has_subclass(self, name: str, base_class: Type[Any]) -> bool:
                 return name in self.classes
 
+            @override
+            def get_classes_dict(self) -> Dict[str, Type[Any]]:
+                return dict(self.classes)
+
         mock_registry = MockClassRegistry()
 
         # Teardown the existing instance first
