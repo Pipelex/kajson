@@ -64,3 +64,12 @@ class ClassRegistryAbstract(ABC):
     @abstractmethod
     def has_subclass(self, name: str, base_class: Type[Any]) -> bool:
         pass
+
+    @abstractmethod
+    def get_classes_dict(self) -> Dict[str, Type[Any]]:
+        """Returns a snapshot dict of all registered classes by name.
+
+        The returned dict is a copy — mutating it does not affect the registry.
+        Useful for pre-seeding a scoped registry from another one.
+        """
+        pass

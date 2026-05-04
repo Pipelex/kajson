@@ -186,6 +186,10 @@ class TestClassRegistryAbstract:
             def has_subclass(self, name: str, base_class: Type[Any]) -> bool:
                 return False
 
+            @override
+            def get_classes_dict(self) -> Dict[str, Type[Any]]:
+                return {}
+
         # Should not raise an exception
         registry = CompleteRegistry()
         assert isinstance(registry, ClassRegistryAbstract)
