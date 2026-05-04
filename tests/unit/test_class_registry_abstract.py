@@ -47,6 +47,7 @@ class TestClassRegistryAbstract:
             "get_required_base_model",
             "has_class",
             "has_subclass",
+            "get_classes_dict",
         }
 
         assert abstract_methods == expected_methods
