@@ -152,3 +152,8 @@ class ClassRegistry(RootModel[ClassRegistryDict], ClassRegistryAbstract):
         if not issubclass(self.root[name], base_class):
             return False
         return True
+
+    @override
+    def get_classes_dict(self) -> Dict[str, Type[Any]]:
+        """Returns a snapshot dict of all registered classes by name."""
+        return dict(self.root)

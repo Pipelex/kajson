@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.5.0] - 2026-05-04
+
+### Added
+- **`ClassRegistryAbstract.get_classes_dict()`:** New abstract method (with implementation in `ClassRegistry`) that returns a snapshot dict of all registered classes by name. The returned dict is a copy, so mutations do not affect the registry. Useful for pre-seeding a scoped registry from another one.
+
+### Changed
+- **Breaking:** Subclasses of `ClassRegistryAbstract` must now implement `get_classes_dict()`.
+
 ## [v0.4.2] - 2026-04-02
 
 ### Fixed
