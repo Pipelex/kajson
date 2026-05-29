@@ -31,6 +31,7 @@ from enum import Enum
 from typing import Any, Callable, ClassVar, Dict, Type, TypeVar, cast
 
 from pydantic import BaseModel, RootModel, ValidationError
+from pydantic.dataclasses import is_pydantic_dataclass
 
 from kajson.class_registry_abstract import ClassRegistryAbstract
 from kajson.exceptions import KajsonDecoderError
@@ -287,6 +288,16 @@ class UniversalJSONDecoder(json.JSONDecoder):
                     )
                     self.log(error_msg)
                     raise KajsonDecoderError(error_msg) from exc
+
+        if is_pydantic_dataclass(the_class):
+            self.log(f"Using pydantic dataclass validator for class '{the_class}'")
+            try:
+                # Calling the dataclass runs its pydantic validator (validates + coerces).
+                return the_class(**the_dict)
+            except ValidationError as exc:
+                error_msg = f"Could not decode pydantic dataclass '{the_class}': {exc}\n\nthe_dict:\n{the_dict}"
+                self.log(error_msg)
+                raise KajsonDecoderError(error_msg) from exc
 
         # Try the constructor with the dictionary as arguments:
         try:

@@ -99,14 +99,18 @@ class MockClassWithFailingConstructor:
 
 @pytest.fixture(autouse=True)
 def setup_decoder() -> Generator[UniversalJSONDecoder, None, None]:
-    """Set up test fixtures for each test."""
-    # Clear any existing decoders
+    """Set up test fixtures for each test.
+
+    The decoder registry is a process-global ClassVar and kajson registers its default codecs
+    (date/datetime/time/ZoneInfo) once at import time. Snapshot it before clearing and restore it
+    after, so these tests don't leak an empty registry into later test modules.
+    """
+    saved_decoders = dict(UniversalJSONDecoder._decoders)  # pyright: ignore[reportPrivateUsage]
     UniversalJSONDecoder.clear_decoders()
-    # Create decoder instance
     decoder = UniversalJSONDecoder()
     yield decoder
-    # Clean up after each test
     UniversalJSONDecoder.clear_decoders()
+    UniversalJSONDecoder._decoders.update(saved_decoders)  # pyright: ignore[reportPrivateUsage]
 
 
 class TestUniversalJSONDecoder:
