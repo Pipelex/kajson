@@ -65,6 +65,17 @@ class Dog(Animal):
     breed: str
 
 
+@pydantic_dataclass
+class WithPostInitGuard:
+    value: int
+
+    def __post_init__(self) -> None:
+        # RuntimeError (unlike ValueError) is NOT wrapped into pydantic's ValidationError,
+        # so it exercises the non-ValidationError escape route from the decoder branch.
+        if self.value < 0:
+            raise RuntimeError("value must be non-negative")
+
+
 class TestPydanticDataclassRoundTrip:
     def test_nested_base_model_field(self) -> None:
         obj = WithNestedModel(title="t", nested=NestedModel(label="L", number=3))
@@ -109,5 +120,13 @@ class TestPydanticDataclassRoundTrip:
     def test_bad_payload_raises_decoder_error(self) -> None:
         good = kajson.dumps(ListItem(index=5, value="ok"))
         bad = good.replace('"index": 5', '"index": "not-coercible-zzz"')
+        with pytest.raises(KajsonDecoderError):
+            kajson.loads(bad)
+
+    def test_non_validation_error_in_post_init_raises_decoder_error(self) -> None:
+        # A __post_init__ raising a non-ValidationError (here RuntimeError) must still be
+        # reported as KajsonDecoderError, not leak the raw exception out of kajson.loads().
+        good = kajson.dumps(WithPostInitGuard(value=5))
+        bad = good.replace('"value": 5', '"value": -1')
         with pytest.raises(KajsonDecoderError):
             kajson.loads(bad)

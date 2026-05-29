@@ -294,7 +294,10 @@ class UniversalJSONDecoder(json.JSONDecoder):
             try:
                 # Calling the dataclass runs its pydantic validator (validates + coerces).
                 return the_class(**the_dict)
-            except ValidationError as exc:
+            except Exception as exc:
+                # Broad by design: the constructor runs user-defined validation and an optional
+                # __post_init__, whose exception surface is unbounded (pydantic only wraps
+                # ValueError/AssertionError into ValidationError; RuntimeError/TypeError/etc. escape raw).
                 error_msg = f"Could not decode pydantic dataclass '{the_class}': {exc}\n\nthe_dict:\n{the_dict}"
                 self.log(error_msg)
                 raise KajsonDecoderError(error_msg) from exc
