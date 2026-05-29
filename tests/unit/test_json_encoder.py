@@ -67,14 +67,18 @@ class MockClassWithoutModule:
 
 @pytest.fixture(autouse=True)
 def setup_encoder() -> Generator[UniversalJSONEncoder, None, None]:
-    """Set up test fixtures for each test."""
-    # Clear any existing encoders
+    """Set up test fixtures for each test.
+
+    The encoder registry is a process-global ClassVar and kajson registers its default codecs
+    (date/datetime/time/timedelta/ZoneInfo) once at import time. Snapshot it before clearing and
+    restore it after, so these tests don't leak an empty registry into later test modules.
+    """
+    saved_encoders = dict(UniversalJSONEncoder._encoders)  # pyright: ignore[reportPrivateUsage]
     UniversalJSONEncoder.clear_encoders()
-    # Create encoder instance
     encoder = UniversalJSONEncoder()
     yield encoder
-    # Clean up after each test
     UniversalJSONEncoder.clear_encoders()
+    UniversalJSONEncoder._encoders.update(saved_encoders)  # pyright: ignore[reportPrivateUsage]
 
 
 class TestUniversalJSONEncoder:

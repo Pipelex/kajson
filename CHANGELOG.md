@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.6.0] - 2026-05-29
+
+### Added
+- **Pydantic dataclass decoding:** `UniversalJSONDecoder` now reconstructs pydantic dataclasses through their pydantic validator. Previously a pydantic dataclass only survived deserialization via the untested generic constructor catch-all, and a malformed payload silently fell through to a raw `dict`. The decoder now has an explicit pydantic-dataclass branch (after the `Enum` / `BaseModel` branches) that validates the payload and raises `KajsonDecoderError` loudly on any validation or construction failure (including exceptions raised by a dataclass `__post_init__`, which pydantic does not wrap into a `ValidationError`). Nested `BaseModel` fields, `Optional` fields, lists of pydantic dataclasses, `timedelta` fields, and subclass type preservation all round-trip correctly. Known limitation: a `field(init=False)` attribute set imperatively to a value that diverges from its default is not preserved across a round-trip, because decoding reconstructs through the constructor and pydantic silently ignores `init=False` kwargs.
+
 ## [v0.5.0] - 2026-05-04
 
 ### Added
