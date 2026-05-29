@@ -7,14 +7,21 @@ kajson must treat a pydantic dataclass as a first-class, type-preserving citizen
 encode via its ``__dict__`` (with ``__class__`` / ``__module__`` metadata) and
 decode via its pydantic validator. A bad payload must raise ``KajsonDecoderError``
 loudly rather than silently falling through to a raw dict.
+
+Known limitation: a ``field(init=False)`` attribute set imperatively to a value
+that diverges from its default (or its ``__post_init__`` result) is NOT preserved
+across a round-trip. Decoding reconstructs through the constructor, and pydantic
+silently ignores ``init=False`` kwargs, so the field falls back to its default.
+See ``test_init_false_field_not_preserved``.
 """
 
 import json
+from dataclasses import field
 from datetime import timedelta
 from typing import List, Optional, cast
 
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 import kajson
@@ -76,6 +83,37 @@ class WithPostInitGuard:
             raise RuntimeError("value must be non-negative")
 
 
+@pydantic_dataclass
+class WithFieldValidator:
+    amount: int
+
+    @field_validator("amount")
+    @classmethod
+    def _amount_non_negative(cls, value: int) -> int:
+        # A @field_validator raising ValueError IS wrapped into pydantic's ValidationError,
+        # exercising the validation-rejection path of the decoder branch (distinct from
+        # built-in coercion failures and from __post_init__ raising a raw RuntimeError).
+        if value < 0:
+            raise ValueError("amount must be non-negative")
+        return value
+
+
+class OuterModelWithDataclassField(BaseModel):
+    tag: str
+    item: ListItem
+
+
+@pydantic_dataclass
+class EmptyDataclass:
+    pass
+
+
+@pydantic_dataclass
+class WithInitFalseField:
+    name: str
+    cached: int = field(init=False, default=0)
+
+
 class TestPydanticDataclassRoundTrip:
     def test_nested_base_model_field(self) -> None:
         obj = WithNestedModel(title="t", nested=NestedModel(label="L", number=3))
@@ -130,3 +168,33 @@ class TestPydanticDataclassRoundTrip:
         bad = good.replace('"value": 5', '"value": -1')
         with pytest.raises(KajsonDecoderError):
             kajson.loads(bad)
+
+    def test_field_validator_rejection_raises_decoder_error(self) -> None:
+        good = kajson.dumps(WithFieldValidator(amount=5))
+        bad = good.replace('"amount": 5', '"amount": -1')
+        with pytest.raises(KajsonDecoderError):
+            kajson.loads(bad)
+
+    def test_pydantic_dataclass_as_base_model_field(self) -> None:
+        obj = OuterModelWithDataclassField(tag="t", item=ListItem(index=1, value="v"))
+        restored = cast(OuterModelWithDataclassField, kajson.loads(kajson.dumps(obj)))
+        assert isinstance(restored, OuterModelWithDataclassField)
+        assert isinstance(restored.item, ListItem)
+        assert restored == obj
+
+    def test_empty_dataclass_round_trip(self) -> None:
+        obj = EmptyDataclass()
+        restored = kajson.loads(kajson.dumps(obj))
+        assert isinstance(restored, EmptyDataclass)
+
+    def test_init_false_field_not_preserved(self) -> None:
+        # Locks the documented known limitation (see module docstring): an init=False field
+        # set imperatively to a value that diverges from its default is lost on round-trip.
+        # The decoder reconstructs through the constructor, and pydantic silently ignores
+        # init=False kwargs, so the field falls back to its default rather than 7.
+        obj = WithInitFalseField(name="x")
+        obj.cached = 7
+        restored = cast(WithInitFalseField, kajson.loads(kajson.dumps(obj)))
+        assert isinstance(restored, WithInitFalseField)
+        assert restored.name == "x"
+        assert restored.cached == 0
