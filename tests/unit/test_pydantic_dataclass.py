@@ -4,15 +4,23 @@
 """Round-trip tests for pydantic dataclasses through kajson.
 
 kajson must treat a pydantic dataclass as a first-class, type-preserving citizen:
-encode via its ``__dict__`` (with ``__class__`` / ``__module__`` metadata) and
-decode via its pydantic validator. A bad payload must raise ``KajsonDecoderError``
-loudly rather than silently falling through to a raw dict.
+encode via its field map (with ``__class__`` / ``__module__`` metadata) and decode
+via its pydantic validator. A bad payload must raise ``KajsonDecoderError`` loudly
+rather than silently falling through to a raw dict. Validation error messages must
+NOT include the raw payload — fields may carry secrets.
 
-Known limitation: a ``field(init=False)`` attribute set imperatively to a value
-that diverges from its default (or its ``__post_init__`` result) is NOT preserved
-across a round-trip. Decoding reconstructs through the constructor, and pydantic
-silently ignores ``init=False`` kwargs, so the field falls back to its default.
-See ``test_init_false_field_not_preserved``.
+Known limitations:
+
+* ``field(init=False)``: an attribute set imperatively to a value that diverges from
+  its default (or its ``__post_init__`` result) is NOT preserved across a round-trip.
+  Decoding reconstructs through the constructor, and pydantic silently ignores
+  ``init=False`` kwargs, so the field falls back to its default.
+  See ``test_init_false_field_not_preserved``.
+* ``Field(alias=...)``: a pydantic dataclass with an aliased field cannot round-trip.
+  The encoder writes the Python field name from the instance state, but the constructor
+  expects the alias key unless ``populate_by_name=True``. The same gap exists for
+  ``BaseModel`` instances and will be fixed in a future release that aligns both paths.
+  See ``test_alias_field_round_trip_known_limitation``.
 """
 
 import json
@@ -21,7 +29,7 @@ from datetime import timedelta
 from typing import List, Optional, cast
 
 import pytest
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 import kajson
@@ -114,6 +122,21 @@ class WithInitFalseField:
     cached: int = field(init=False, default=0)
 
 
+@pydantic_dataclass(slots=True)
+class WithSlots:
+    # slots=True removes __dict__ from instances — the encoder must fall back to
+    # dataclasses.fields() to serialize these.
+    name: str
+    count: int
+
+
+@pydantic_dataclass
+class WithAlias:
+    # Field-level alias: the constructor expects the alias kwarg by default (no
+    # populate_by_name), but the encoder writes the Python field name.
+    full_name: str = Field(alias="fullName")
+
+
 class TestPydanticDataclassRoundTrip:
     def test_nested_base_model_field(self) -> None:
         obj = WithNestedModel(title="t", nested=NestedModel(label="L", number=3))
@@ -156,24 +179,50 @@ class TestPydanticDataclassRoundTrip:
         assert encoded == {"index": 7, "value": "z", "__class__": "ListItem", "__module__": __name__}
 
     def test_bad_payload_raises_decoder_error(self) -> None:
-        good = kajson.dumps(ListItem(index=5, value="ok"))
+        # The companion "value" field carries a sentinel string that must NOT leak into the
+        # raised error message — payloads can contain secrets (passwords, API keys, tokens).
+        good = kajson.dumps(ListItem(index=5, value="kajson-secret-sentinel"))
         bad = good.replace('"index": 5', '"index": "not-coercible-zzz"')
-        with pytest.raises(KajsonDecoderError):
+        with pytest.raises(KajsonDecoderError) as excinfo:
             kajson.loads(bad)
+        assert "kajson-secret-sentinel" not in str(excinfo.value)
 
     def test_non_validation_error_in_post_init_raises_decoder_error(self) -> None:
         # A __post_init__ raising a non-ValidationError (here RuntimeError) must still be
         # reported as KajsonDecoderError, not leak the raw exception out of kajson.loads().
         good = kajson.dumps(WithPostInitGuard(value=5))
         bad = good.replace('"value": 5', '"value": -1')
-        with pytest.raises(KajsonDecoderError):
+        with pytest.raises(KajsonDecoderError) as excinfo:
             kajson.loads(bad)
+        # The raised message must not contain the dict-dump leak header — only the chained
+        # exception (accessible via __cause__) carries the full payload.
+        assert "the_dict:" not in str(excinfo.value)
 
     def test_field_validator_rejection_raises_decoder_error(self) -> None:
         good = kajson.dumps(WithFieldValidator(amount=5))
         bad = good.replace('"amount": 5', '"amount": -1')
-        with pytest.raises(KajsonDecoderError):
+        with pytest.raises(KajsonDecoderError) as excinfo:
             kajson.loads(bad)
+        assert "the_dict:" not in str(excinfo.value)
+
+    def test_slots_dataclass_round_trip(self) -> None:
+        # Pydantic dataclasses declared with slots=True have no __dict__ — the encoder
+        # must fall back to dataclasses.fields() to serialize them.
+        obj = WithSlots(name="x", count=3)
+        restored = cast(WithSlots, kajson.loads(kajson.dumps(obj)))
+        assert isinstance(restored, WithSlots)
+        assert restored == obj
+
+    @pytest.mark.xfail(reason="Aliased pydantic dataclass round-trip not yet supported; see module docstring.", strict=True)
+    def test_alias_field_round_trip_known_limitation(self) -> None:
+        # Pins the documented limitation: the encoder writes the Python field name from
+        # the instance state, while a pydantic dataclass with Field(alias="...") expects
+        # the alias key in its constructor. Flipping this from xfail to pass will require
+        # an aligned fix across the BaseModel and dataclass encode/decode paths.
+        obj = WithAlias(fullName="Bastien")  # type: ignore[call-arg]
+        restored = cast(WithAlias, kajson.loads(kajson.dumps(obj)))
+        assert isinstance(restored, WithAlias)
+        assert restored == obj
 
     def test_pydantic_dataclass_as_base_model_field(self) -> None:
         obj = OuterModelWithDataclassField(tag="t", item=ListItem(index=1, value="v"))

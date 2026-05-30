@@ -22,6 +22,7 @@ All additions and modifications are Copyright (c) 2025 Evotis S.A.S.
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import re
 import warnings
@@ -176,6 +177,13 @@ class UniversalJSONEncoder(json.JSONEncoder):
             except AttributeError:
                 pass
 
+        # Fallback for dataclass instances without a __dict__ (e.g. slots=True).
+        # Detection via hasattr (not dataclasses.is_dataclass) and field walking via a
+        # helper keep pyright's TypeGuard narrowing from leaking into the metadata block.
+        if not already_encoded and hasattr(obj, "__dataclass_fields__"):
+            the_dict = _encode_dataclass_fields(obj)
+            already_encoded = True
+
         # If nothing worked, raise an exception like the default JSON encoder would:
         if not already_encoded:
             raise TypeError(f"Type {type(obj)} is not JSON serializable. Value: {obj}")
@@ -192,6 +200,22 @@ class UniversalJSONEncoder(json.JSONEncoder):
 #########################################################################################
 #########################################################################################
 #########################################################################################
+
+
+def _encode_dataclass_fields(obj: Any) -> Dict[str, Any]:
+    """Build a kajson-compatible field dict from a dataclass instance.
+
+    Uses ``dataclasses.fields()`` so slots=True instances (which have no ``__dict__``)
+    serialize the same as regular dataclasses. Isolating this in a helper keeps
+    pyright's TypeGuard narrowing of ``obj`` from leaking back into the caller.
+    """
+    result: Dict[str, Any] = {}
+    for the_field in dataclasses.fields(obj):
+        field_value = getattr(obj, the_field.name)
+        if callable(field_value):
+            continue
+        result[the_field.name] = field_value
+    return result
 
 
 def _get_object_module(obj: Any) -> str:
