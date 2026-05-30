@@ -1,5 +1,14 @@
 # Changelog
 
+## [v0.6.0] - 2026-05-29
+
+### Added
+- **Pydantic dataclass decoding:** `UniversalJSONDecoder` now reconstructs pydantic dataclasses through their pydantic validator. Previously a pydantic dataclass only survived deserialization via the untested generic constructor catch-all, and a malformed payload silently fell through to a raw `dict`. The decoder now has an explicit pydantic-dataclass branch (after the `Enum` / `BaseModel` branches) that validates the payload and raises `KajsonDecoderError` loudly on any validation or construction failure (including exceptions raised by a dataclass `__post_init__`, which pydantic does not wrap into a `ValidationError`). Nested `BaseModel` fields, `Optional` fields, lists of pydantic dataclasses, `timedelta` fields, `@pydantic_dataclass(slots=True)` instances, and subclass type preservation all round-trip correctly. Known limitations: (1) a `field(init=False)` attribute set imperatively to a value that diverges from its default is not preserved across a round-trip, because decoding reconstructs through the constructor and pydantic silently ignores `init=False` kwargs; (2) a field declared with `Field(alias=...)` does not round-trip — the encoder writes the Python field name while the constructor expects the alias unless `populate_by_name=True`; the same gap exists for `BaseModel` instances and will be addressed by a future release that aligns the encoder and decoder for both paths.
+- **`dataclasses.fields()` encoder fallback:** The universal encoder now falls back to `dataclasses.fields()` when an object exposes no `__dict__` (e.g. slots dataclasses), so slotted dataclasses serialize via their declared fields instead of failing as "not JSON serializable".
+
+### Security
+- **Decoder error messages no longer include the raw payload.** Validation failures for `BaseModel`, `RootModel`, `Enum`, and pydantic dataclasses previously embedded the full `the_dict` (and the constructed `base_model_obj` / `root_model_obj`) in both the raised `KajsonDecoderError` and the debug log, which could leak secret-bearing sibling fields (passwords, tokens, API keys) when a single field failed validation. The chained pydantic `ValidationError` (accessible via `__cause__`) still carries the specific offending value for debugging.
+
 ## [v0.5.0] - 2026-05-04
 
 ### Added

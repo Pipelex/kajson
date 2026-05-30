@@ -31,6 +31,7 @@ from enum import Enum
 from typing import Any, Callable, ClassVar, Dict, Type, TypeVar, cast
 
 from pydantic import BaseModel, RootModel, ValidationError
+from pydantic.dataclasses import is_pydantic_dataclass
 
 from kajson.class_registry_abstract import ClassRegistryAbstract
 from kajson.exceptions import KajsonDecoderError
@@ -228,19 +229,20 @@ class UniversalJSONDecoder(json.JSONDecoder):
                 root_model_obj = cast(RootModel[Any], the_class(**the_dict))
                 self.log(f"Root model '{the_class}' created: {root_model_obj}")
             except ValidationError as exc:
-                error_msg = f"Could not decode '{class_name}' pydantic RootModel from json: {exc}\n\nthe_dict:\n{the_dict}"
+                # Do NOT include the_dict in the message: payloads may carry secrets
+                # (passwords, API keys). The chained exception (from exc) still carries
+                # the offending value via pydantic's ValidationError for debugging.
+                error_msg = f"Could not decode '{class_name}' pydantic RootModel from json: {exc}"
                 self.log(error_msg)
                 raise KajsonDecoderError(error_msg) from exc
 
             try:
-                self.log(f"Trying to validate root model '{the_class}' with object '{root_model_obj}'...")
+                self.log(f"Trying to validate root model '{the_class}'...")
                 the_class.model_validate(obj=root_model_obj)
                 self.log(f"Root model '{the_class}' validated")
                 return root_model_obj
             except ValidationError as exc:
-                error_msg = (
-                    f"Could not post validate pydantic RootModel '{the_class}': {exc}\n\nthe_dict:\n{the_dict}\n\nroot_model_obj:\n{root_model_obj}"
-                )
+                error_msg = f"Could not post validate pydantic RootModel '{the_class}': {exc}"
                 self.log(error_msg)
                 raise KajsonDecoderError(error_msg) from exc
 
@@ -258,7 +260,8 @@ class UniversalJSONDecoder(json.JSONDecoder):
                 else:
                     raise KajsonDecoderError(f"Could not reconstruct enum '{class_name}': missing _name_ or _value_")
             except (KeyError, ValueError) as exc:
-                error_msg = f"Could not reconstruct enum '{class_name}': {exc}\n\nthe_dict:\n{the_dict}"
+                # Do NOT include the_dict in the message: payloads may carry secrets.
+                error_msg = f"Could not reconstruct enum '{class_name}': {exc}"
                 self.log(error_msg)
                 raise KajsonDecoderError(error_msg) from exc
 
@@ -267,26 +270,40 @@ class UniversalJSONDecoder(json.JSONDecoder):
             try:
                 return the_class.model_validate(the_dict)
             except ValidationError as exc:
-                error_msg = f"Could not model_validate pydantic BaseModel '{the_class}': {exc}\n\nthe_dict:\n{the_dict}"
+                # Do NOT include the_dict or base_model_obj in messages: payloads may carry
+                # secrets (passwords, API keys). The chained exception (from exc) still
+                # carries the offending value via pydantic's ValidationError for debugging.
+                error_msg = f"Could not model_validate pydantic BaseModel '{the_class}': {exc}"
                 self.log(error_msg)
                 try:
                     base_model_obj = the_class(**the_dict)
                 except ValidationError as exc:
-                    error_msg = f"Could not instantiate pydantic BaseModel '{the_class}' using kwargs: {exc}\n\nthe_dict:\n{the_dict}"
+                    error_msg = f"Could not instantiate pydantic BaseModel '{the_class}' using kwargs: {exc}"
                     self.log(error_msg)
                     raise KajsonDecoderError(error_msg) from exc
                 try:
-                    self.log(f"Trying to validate base model '{the_class}' with object '{base_model_obj}'")
+                    self.log(f"Trying to validate base model '{the_class}'")
                     the_class.model_validate(obj=base_model_obj)
                     self.log(f"Base model '{the_class}' validated")
                     return base_model_obj
                 except ValidationError as exc:
-                    error_msg = (
-                        f"Could not post validate pydantic BaseModel '{the_class}': "
-                        f"{exc}\n\nthe_dict:\n{the_dict}\n\nbase_model_obj:\n{base_model_obj}"
-                    )
+                    error_msg = f"Could not post validate pydantic BaseModel '{the_class}': {exc}"
                     self.log(error_msg)
                     raise KajsonDecoderError(error_msg) from exc
+
+        if is_pydantic_dataclass(the_class):
+            self.log(f"Using pydantic dataclass validator for class '{the_class}'")
+            try:
+                # Calling the dataclass runs its pydantic validator (validates + coerces).
+                return the_class(**the_dict)
+            except Exception as exc:
+                # Broad by design: the constructor runs user-defined validation and an optional
+                # __post_init__, whose exception surface is unbounded (pydantic only wraps
+                # ValueError/AssertionError into ValidationError; RuntimeError/TypeError/etc. escape raw).
+                # Do NOT include the_dict in the message: payloads may carry secrets.
+                error_msg = f"Could not decode pydantic dataclass '{the_class}': {exc}"
+                self.log(error_msg)
+                raise KajsonDecoderError(error_msg) from exc
 
         # Try the constructor with the dictionary as arguments:
         try:
