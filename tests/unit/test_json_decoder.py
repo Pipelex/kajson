@@ -317,10 +317,12 @@ class TestUniversalJSONDecoder:
 
     def test_universal_decoder_base_model_all_validation_failures(self, setup_decoder: UniversalJSONDecoder) -> None:
         """Test decoder with BaseModel where all validation methods fail."""
+        # The "name" carries a sentinel string that must NOT leak into the raised
+        # error — payloads can contain secrets (passwords, API keys, tokens).
         test_dict = {
             "__class__": "MockModelInvalid",
             "__module__": "tests.unit.test_json_decoder",
-            "name": "test",
+            "name": "kajson-secret-sentinel",
             "value": 50,  # Too small, will fail validation
         }
 
@@ -328,6 +330,7 @@ class TestUniversalJSONDecoder:
             setup_decoder.universal_decoder(test_dict)
 
         assert "Could not instantiate pydantic BaseModel" in str(excinfo.value)
+        assert "kajson-secret-sentinel" not in str(excinfo.value)
 
     def test_universal_decoder_base_model_constructor_success_validation_failure(
         self, setup_decoder: UniversalJSONDecoder, mocker: MockerFixture
