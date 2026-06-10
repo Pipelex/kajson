@@ -82,6 +82,7 @@ nav:
     - Custom Types: pages/guide/custom-types.md
     - Class Registry: pages/guide/class-registry.md
     - Error Handling: pages/guide/error-handling.md
+    - Known Limitations: pages/guide/known-limitations.md
   - API Reference:
     - kajson module: pages/api/kajson.md
     - Encoder: pages/api/encoder.md

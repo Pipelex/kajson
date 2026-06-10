@@ -128,8 +128,10 @@ def json_encode_datetime(datetime_value: datetime.datetime) -> Dict[str, Any]:
         f"{datetime_value.year:04d}-{datetime_value.month:02d}-{datetime_value.day:02d} "
         f"{datetime_value.hour:02d}:{datetime_value.minute:02d}:{datetime_value.second:02d}.{datetime_value.microsecond:06d}"
     )
-    return {"datetime": datetime_str, "tzinfo": tzinfo}
+    return {"datetime": datetime_str, "tzinfo": tzinfo, "utcoffset": _offset_to_seconds(datetime_value.utcoffset())}
 ```
+
+The `utcoffset` field (seconds) makes the wire format self-sufficient: the decoder prefers resolving the tzinfo name through `ZoneInfo` (preserving DST semantics), special-cases `"UTC"` to `datetime.timezone.utc`, and falls back to a fixed-offset `datetime.timezone` when the name cannot be resolved — so aware datetimes decode even on hosts without a timezone database.
 
 ### Date Encoder
 
@@ -144,8 +146,11 @@ def json_encode_date(d: datetime.date) -> Dict[str, str]:
 ```python
 def json_encode_time(t: datetime.time) -> Dict[str, Any]:
     """Encoder for times (from module datetime)."""
-    return {"time": t.strftime("%H:%M:%S.%f"), "tzinfo": t.tzinfo}
+    tzinfo = str(t.tzinfo) if t.tzinfo else None
+    return {"time": t.strftime("%H:%M:%S.%f"), "tzinfo": tzinfo, "utcoffset": _offset_to_seconds(t.utcoffset())}
 ```
+
+Note: a `time` with a named zone (`ZoneInfo`) has no defined UTC offset without a date, so its payload carries only the zone name — decoding it requires a timezone database (always available since kajson depends on `tzdata`).
 
 ### Timedelta Encoder
 
@@ -155,12 +160,17 @@ def json_encode_timedelta(t: datetime.timedelta) -> Dict[str, float]:
     return {"seconds": t.total_seconds()}
 ```
 
-### Timezone Encoder
+### Timezone Encoders
 
 ```python
 def json_encode_timezone(t: ZoneInfo) -> Dict[str, Any]:
     """Encoder for timezones (using zoneinfo from Python 3.9+)."""
     return {"zone": t.key}
+
+
+def json_encode_fixed_timezone(t: datetime.timezone) -> Dict[str, Any]:
+    """Encoder for fixed-offset timezones (datetime.timezone, including timezone.utc)."""
+    return {"name": str(t), "utcoffset": _offset_to_seconds(t.utcoffset(None))}
 ```
 
 ## Automatic Metadata Handling

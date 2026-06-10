@@ -1,6 +1,6 @@
 [project]
 name = "kajson"
-version = "0.6.0"
+version = "0.7.0"
 description = "Powerful universal JSON encoder/decoder for Python objects with support for pydantic v2."
 authors = [{ name = "Evotis S.A.S.", email = "evotis@pipelex.com" }]
 maintainers = [{ name = "Pipelex staff", email = "oss@pipelex.com" }]
@@ -18,7 +18,7 @@ classifiers = [
   "License :: OSI Approved :: Apache Software License",
 ]
 
-dependencies = ["pydantic>=2.10.6"]
+dependencies = ["pydantic>=2.10.6", "tzdata>=2024.1"]
 
 [project.urls]
 Homepage = "https://github.com/pipelex/kajson"
