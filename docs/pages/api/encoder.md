@@ -150,6 +150,8 @@ def json_encode_time(t: datetime.time) -> Dict[str, Any]:
     return {"time": t.strftime("%H:%M:%S.%f"), "tzinfo": tzinfo, "utcoffset": _offset_to_seconds(t.utcoffset())}
 ```
 
+Note: a `time` with a named zone (`ZoneInfo`) has no defined UTC offset without a date, so its payload carries only the zone name — decoding it requires a timezone database (always available since kajson depends on `tzdata`).
+
 ### Timedelta Encoder
 
 ```python

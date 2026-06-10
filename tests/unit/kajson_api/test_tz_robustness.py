@@ -43,6 +43,9 @@ class TestTzRobustness:
         decoded = kajson.loads(kajson.dumps(original))
         assert decoded == original  # same instant
         assert decoded.utcoffset() == original.utcoffset()
+        # The zone name rides along on the fixed-offset fallback, so re-encoding
+        # keeps the zone identity for a later decode on a host with a tz database.
+        assert decoded.tzname() == "Europe/Paris"
 
     @pytest.mark.usefixtures("no_tz_database")
     def test_legacy_named_zone_payload_without_tz_database_raises_helpful_error(self) -> None:
@@ -70,11 +73,12 @@ class TestTzRobustness:
         assert decoded.utcoffset() == datetime.timedelta(hours=-5, minutes=-30)
 
     def test_custom_named_fixed_offset_datetime_round_trip(self) -> None:
-        """timezone(td, 'CEST') stringifies to 'CEST'; the instant must survive anyway."""
+        """timezone(td, 'CEST') stringifies to 'CEST'; both the instant and the name must survive."""
         original = datetime.datetime(2026, 6, 10, 12, 0, tzinfo=datetime.timezone(datetime.timedelta(hours=2), "CEST"))
         decoded = kajson.loads(kajson.dumps(original))
         assert decoded == original
         assert decoded.utcoffset() == datetime.timedelta(hours=2)
+        assert decoded.tzname() == "CEST"
 
     def test_utc_named_nonzero_offset_round_trip(self) -> None:
         """A custom tzinfo name colliding with 'UTC' must not silently decode to UTC+0: the offset wins."""
@@ -111,6 +115,13 @@ class TestTzRobustness:
         original = datetime.time(14, 30, 45, 123456, tzinfo=datetime.timezone(datetime.timedelta(hours=2)))
         decoded = kajson.loads(kajson.dumps(original))
         assert decoded == original
+
+    def test_time_with_custom_named_fixed_offset_round_trip(self) -> None:
+        """A custom name on a time's fixed-offset tzinfo must survive the round trip."""
+        original = datetime.time(14, 30, 45, 123456, tzinfo=datetime.timezone(datetime.timedelta(hours=2), "CEST"))
+        decoded = kajson.loads(kajson.dumps(original))
+        assert decoded == original
+        assert decoded.tzname() == "CEST"
 
     def test_time_with_zoneinfo_round_trip(self) -> None:
         original = datetime.time(14, 30, 45, 123456, tzinfo=PARIS)

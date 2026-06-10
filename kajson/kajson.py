@@ -223,6 +223,7 @@ def _decode_tzinfo(tzinfo_value: Any, utcoffset_seconds: Union[int, float, None]
     3. IANA lookup via ZoneInfo(name) -- preserves DST semantics when a tz database is available.
     4. Fixed offset built from the "utcoffset" field -- graceful degradation on hosts
        without a tz database, and the only correct path for datetime.timezone instances.
+       The original name is preserved when it isn't the default offset label.
     5. Legacy fixed-offset names like "UTC+02:00" written by kajson <= 0.6.0.
 
     Raises:
@@ -247,7 +248,13 @@ def _decode_tzinfo(tzinfo_value: Any, utcoffset_seconds: Union[int, float, None]
         except (ZoneInfoNotFoundError, ValueError, KeyError):
             pass
     if utcoffset_seconds is not None:
-        return datetime.timezone(datetime.timedelta(seconds=utcoffset_seconds))
+        offset = datetime.timedelta(seconds=utcoffset_seconds)
+        if tzinfo_name and tzinfo_name != str(datetime.timezone(offset)):
+            # Preserve the original name: a custom label passed to the timezone
+            # constructor, or an unresolvable IANA key (so re-encoding keeps the
+            # zone identity and a later decode on a tzdata host can recover it).
+            return datetime.timezone(offset, tzinfo_name)
+        return datetime.timezone(offset)
     if tzinfo_name and (offset_match := _FIXED_OFFSET_NAME_PATTERN.match(tzinfo_name)):
         sign = 1 if offset_match.group(1) == "+" else -1
         offset = datetime.timedelta(
