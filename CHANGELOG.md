@@ -17,6 +17,9 @@
 - **`tzdata` is now a runtime dependency.** Consumers that added `tzdata` themselves to work around the decode failure (e.g. pipelex) can drop it once they bump their kajson pin.
 - **`"UTC"` decodes to `datetime.timezone.utc`** instead of `ZoneInfo("UTC")`. The instant and offset are identical; only the tzinfo object type changes.
 
+### Security
+- **Refreshed dev/docs lockfile pins to clear all open Dependabot alerts** (urllib3, idna, pymdown-extensions, pytest, Pygments). None of these affected kajson's runtime surface — the package's only runtime dependencies are `pydantic` and `tzdata`; the flagged packages come in through the `dev` and `docs` extras.
+
 ## [v0.6.0] - 2026-05-29
 
 ### Added
