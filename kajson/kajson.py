@@ -200,9 +200,10 @@ def load(
 
 
 # Matches the str() of a fixed-offset datetime.timezone, e.g. "UTC+02:00",
-# "UTC-05:30" or "UTC+01:02:03". Used to decode legacy payloads (kajson <= 0.6.0
-# stored only str(tzinfo)) that carry no separate "utcoffset" field.
-_FIXED_OFFSET_NAME_PATTERN = re.compile(r"^UTC([+-])(\d{2}):(\d{2})(?::(\d{2}))?$")
+# "UTC-05:30", "UTC+01:02:03" or "UTC+00:00:01.500000". Used to decode legacy
+# payloads (kajson <= 0.6.0 stored only str(tzinfo)) that carry no separate
+# "utcoffset" field.
+_FIXED_OFFSET_NAME_PATTERN = re.compile(r"^UTC([+-])(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,6}))?)?$")
 
 
 def _offset_to_seconds(offset: Optional[datetime.timedelta]) -> Union[int, float, None]:
@@ -229,8 +230,16 @@ def _decode_tzinfo(tzinfo_value: Any, utcoffset_seconds: Union[int, float, None]
     """
     if isinstance(tzinfo_value, datetime.tzinfo):
         return tzinfo_value
+    if tzinfo_value is not None and not isinstance(tzinfo_value, str):
+        raise KajsonDecoderError(f"Could not decode tzinfo: expected a string name or a tzinfo object, got {type(tzinfo_value).__name__}")
     tzinfo_name: Optional[str] = tzinfo_value
-    if tzinfo_name == "UTC" or (tzinfo_name is None and utcoffset_seconds == 0):
+    if tzinfo_name == "UTC":
+        if not utcoffset_seconds:
+            return datetime.timezone.utc
+        # A custom tzinfo name colliding with "UTC" but carrying a different offset:
+        # the offset is authoritative, the name was a label.
+        return datetime.timezone(datetime.timedelta(seconds=utcoffset_seconds), tzinfo_name)
+    if tzinfo_name is None and utcoffset_seconds == 0:
         return datetime.timezone.utc
     if tzinfo_name:
         try:
@@ -245,6 +254,7 @@ def _decode_tzinfo(tzinfo_value: Any, utcoffset_seconds: Union[int, float, None]
             hours=int(offset_match.group(2)),
             minutes=int(offset_match.group(3)),
             seconds=int(offset_match.group(4) or 0),
+            microseconds=int((offset_match.group(5) or "").ljust(6, "0")),
         )
         return datetime.timezone(sign * offset)
     raise KajsonDecoderError(
@@ -377,8 +387,11 @@ UniversalJSONEncoder.register(datetime.time, json_encode_time)
 
 def json_decode_time(d: Dict[str, Any]) -> datetime.time:
     """Decoder for times (from module datetime)."""
+    time_str = d.get("time")
+    if not time_str:
+        raise KajsonDecoderError("Could not decode time from json: time field is required")
     # Split time string into parts
-    time_parts = d["time"].split(":")
+    time_parts = time_str.split(":")
     hours = int(time_parts[0])
     minutes = int(time_parts[1])
     # Handle seconds and microseconds

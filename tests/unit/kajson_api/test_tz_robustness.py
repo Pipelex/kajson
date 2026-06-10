@@ -76,6 +76,13 @@ class TestTzRobustness:
         assert decoded == original
         assert decoded.utcoffset() == datetime.timedelta(hours=2)
 
+    def test_utc_named_nonzero_offset_round_trip(self) -> None:
+        """A custom tzinfo name colliding with 'UTC' must not silently decode to UTC+0: the offset wins."""
+        original = datetime.datetime(2026, 6, 10, 12, 0, tzinfo=datetime.timezone(datetime.timedelta(hours=2), "UTC"))
+        decoded = kajson.loads(kajson.dumps(original))
+        assert decoded == original
+        assert decoded.utcoffset() == datetime.timedelta(hours=2)
+
     def test_named_zone_datetime_round_trip_preserves_zoneinfo(self) -> None:
         """Regression guard: with a tz database present, named zones stay named (DST-aware)."""
         original = datetime.datetime(2023, 6, 15, 10, 30, 45, 123456, tzinfo=PARIS)
@@ -150,6 +157,21 @@ class TestTzRobustness:
         legacy_payload = '{"datetime": "2026-06-10 12:00:00.000000", "tzinfo": "UTC+02:00", "__class__": "datetime", "__module__": "datetime"}'
         decoded = kajson.loads(legacy_payload)
         assert decoded == datetime.datetime(2026, 6, 10, 12, 0, tzinfo=datetime.timezone(datetime.timedelta(hours=2)))
+
+    def test_legacy_datetime_payload_fractional_second_offset_decodes(self) -> None:
+        """Legacy names with sub-second offsets (str() of timezone(timedelta(seconds=1.5))) parse too."""
+        legacy_payload = (
+            '{"datetime": "2026-06-10 12:00:00.000000", "tzinfo": "UTC+00:00:01.500000", "__class__": "datetime", "__module__": "datetime"}'
+        )
+        decoded = kajson.loads(legacy_payload)
+        assert decoded.utcoffset() == datetime.timedelta(seconds=1, microseconds=500000)
+
+    def test_malformed_tzinfo_value_raises_clear_error(self) -> None:
+        """A tzinfo value that is neither a string nor a tzinfo object must fail with a clear message."""
+        malformed_payload = '{"datetime": "2026-06-10 12:00:00.000000", "tzinfo": {"weird": 1}, "__class__": "datetime", "__module__": "datetime"}'
+        with pytest.raises(KajsonDecoderError) as excinfo:
+            kajson.loads(malformed_payload)
+        assert "expected a string name or a tzinfo object" in str(excinfo.value)
 
     def test_legacy_time_payload_nested_zoneinfo(self) -> None:
         legacy_payload = (

@@ -4,7 +4,10 @@
 import datetime
 from zoneinfo import ZoneInfo
 
+import pytest
+
 from kajson import kajson
+from kajson.exceptions import KajsonDecoderError
 
 
 class TestTimeEncoderDecoder:
@@ -63,6 +66,15 @@ class TestTimeEncoderDecoder:
 
         expected = datetime.time(9, 15, 30, 1)
         assert result == expected
+
+    def test_json_decode_time_missing_time_field(self) -> None:
+        """Test json_decode_time with missing time field."""
+        test_dict = {"tzinfo": None}
+
+        with pytest.raises(KajsonDecoderError) as excinfo:
+            kajson.json_decode_time(test_dict)
+
+        assert "Could not decode time from json: time field is required" in str(excinfo.value)
 
     def test_time_roundtrip_serialization(self) -> None:
         """Test complete time serialization roundtrip."""
