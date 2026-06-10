@@ -18,7 +18,7 @@ class TestDatetimeEncoderDecoder:
         test_datetime = datetime.datetime(2023, 12, 25, 14, 30, 45, 123456)
         result = kajson.json_encode_datetime(test_datetime)
 
-        expected = {"datetime": "2023-12-25 14:30:45.123456", "tzinfo": None}
+        expected = {"datetime": "2023-12-25 14:30:45.123456", "tzinfo": None, "utcoffset": None}
         assert result == expected
 
     def test_json_encode_datetime_with_timezone(self) -> None:
@@ -27,7 +27,8 @@ class TestDatetimeEncoderDecoder:
         test_datetime = datetime.datetime(2023, 12, 25, 14, 30, 45, 123456, tzinfo=timezone)
         result = kajson.json_encode_datetime(test_datetime)
 
-        expected = {"datetime": "2023-12-25 14:30:45.123456", "tzinfo": "America/New_York"}
+        # 2023-12-25 in New York is EST: UTC-05:00
+        expected = {"datetime": "2023-12-25 14:30:45.123456", "tzinfo": "America/New_York", "utcoffset": -18000}
         assert result == expected
 
     def test_json_decode_datetime_naive(self) -> None:

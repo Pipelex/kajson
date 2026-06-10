@@ -118,10 +118,15 @@ def json_decode_datetime(obj_dict: Dict[str, Any]) -> datetime.datetime:
     else:
         raise KajsonDecoderError("Could not decode datetime from json: datetime field is required")
 
-    if tzinfo_str := obj_dict.get("tzinfo"):
-        dt = dt.replace(tzinfo=ZoneInfo(tzinfo_str))
-    return dt
+    tzinfo_value = obj_dict.get("tzinfo")
+    utcoffset_seconds = obj_dict.get("utcoffset")
+    if tzinfo_value is None and utcoffset_seconds is None:
+        return dt
+    dt = dt.replace(tzinfo=_decode_tzinfo(tzinfo_value, utcoffset_seconds))
+    # ... offset reconciliation: see below
 ```
+
+The tzinfo name is resolved through `_decode_tzinfo`: an IANA lookup via `ZoneInfo` (preserving DST semantics) with graceful degradation to a fixed-offset `datetime.timezone` built from the `utcoffset` field when the name cannot be resolved. The wire offset is then authoritative for the instant: when the resolved zone disagrees with it at the decoded wall time, the decoder restores `fold=1` for ambiguous DST fall-back times, and otherwise falls back to a fixed offset (a mislabeled name such as `timezone(timedelta(hours=1), "CET")`, or tz rules that changed since encoding) — the instant never silently shifts.
 
 ### Date Decoder
 
@@ -138,16 +143,41 @@ def json_decode_date(obj_dict: Dict[str, str]) -> datetime.date:
 ```python
 def json_decode_time(d: Dict[str, Any]) -> datetime.time:
     """Decoder for times (from module datetime)."""
+    time_str = d.get("time")
+    if not time_str:
+        raise KajsonDecoderError("Could not decode time from json: time field is required")
     # Split time string into parts
-    time_parts = d["time"].split(":")
+    time_parts = time_str.split(":")
     hours = int(time_parts[0])
     minutes = int(time_parts[1])
-    # Handle seconds and milliseconds
+    # Handle seconds and microseconds
     seconds_parts = time_parts[2].split(".")
     seconds = int(seconds_parts[0])
-    milliseconds = int(seconds_parts[1])
+    microseconds = int(seconds_parts[1])
 
-    return datetime.time(hours, minutes, seconds, milliseconds, tzinfo=d["tzinfo"])
+    tzinfo_value = d.get("tzinfo")
+    utcoffset_seconds = d.get("utcoffset")
+    tzinfo: Optional[datetime.tzinfo] = None
+    if tzinfo_value is not None or utcoffset_seconds is not None:
+        tzinfo = _decode_tzinfo(tzinfo_value, utcoffset_seconds, prefer_fixed_offset=True)
+
+    return datetime.time(hours, minutes, seconds, microseconds, tzinfo=tzinfo)
+```
+
+For time payloads, a non-null `utcoffset` proves the original tzinfo was a fixed offset (a named zone on a bare time has no offset to encode), so the decoder builds the fixed offset directly instead of resolving the name through `ZoneInfo` — which would destroy the offset, since `time.utcoffset()` is `None` under a `ZoneInfo`.
+
+### Timezone Decoders
+
+```python
+def json_decode_timezone(obj_dict: Dict[str, Any]) -> ZoneInfo:
+    """Decoder for IANA named timezones (zoneinfo.ZoneInfo)."""
+    # Raises KajsonDecoderError (pointing at tzdata) when no timezone database provides the key.
+
+
+def json_decode_fixed_timezone(obj_dict: Dict[str, Any]) -> datetime.timezone:
+    """Decoder for fixed-offset timezones (datetime.timezone, including timezone.utc)."""
+    offset = datetime.timedelta(seconds=_validate_utcoffset_seconds(obj_dict["utcoffset"]))
+    return _fixed_offset_timezone(offset, obj_dict.get("name"))
 ```
 
 ### Timedelta Decoder

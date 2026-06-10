@@ -4,7 +4,10 @@
 import datetime
 from zoneinfo import ZoneInfo
 
+import pytest
+
 from kajson import kajson
+from kajson.exceptions import KajsonDecoderError
 
 
 class TestTimeEncoderDecoder:
@@ -15,7 +18,7 @@ class TestTimeEncoderDecoder:
         test_time = datetime.time(14, 30, 45, 123456)
         result = kajson.json_encode_time(test_time)
 
-        expected = {"time": "14:30:45.123456", "tzinfo": None}
+        expected = {"time": "14:30:45.123456", "tzinfo": None, "utcoffset": None}
         assert result == expected
 
     def test_json_encode_time_with_timezone(self) -> None:
@@ -24,7 +27,8 @@ class TestTimeEncoderDecoder:
         test_time = datetime.time(14, 30, 45, 123456, tzinfo=timezone)
         result = kajson.json_encode_time(test_time)
 
-        expected = {"time": "14:30:45.123456", "tzinfo": timezone}
+        # A named zone on a bare time has no resolvable offset (no date), so only the name is stored
+        expected = {"time": "14:30:45.123456", "tzinfo": "America/New_York", "utcoffset": None}
         assert result == expected
 
     def test_json_decode_time_naive(self) -> None:
@@ -62,6 +66,15 @@ class TestTimeEncoderDecoder:
 
         expected = datetime.time(9, 15, 30, 1)
         assert result == expected
+
+    def test_json_decode_time_missing_time_field(self) -> None:
+        """Test json_decode_time with missing time field."""
+        test_dict = {"tzinfo": None}
+
+        with pytest.raises(KajsonDecoderError) as excinfo:
+            kajson.json_decode_time(test_dict)
+
+        assert "Could not decode time from json: time field is required" in str(excinfo.value)
 
     def test_time_roundtrip_serialization(self) -> None:
         """Test complete time serialization roundtrip."""

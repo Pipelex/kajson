@@ -87,12 +87,14 @@ obj_pydantic_tricky_types_json_str4 = """{
     "created_at": {
         "datetime": "2023-01-01 12:00:00.000000",
         "tzinfo": null,
+        "utcoffset": null,
         "__class__": "datetime",
         "__module__": "datetime"
     },
     "updated_at": {
         "datetime": "2023-01-02 12:13:25.000000",
         "tzinfo": null,
+        "utcoffset": null,
         "__class__": "datetime",
         "__module__": "datetime"
     },
@@ -120,12 +122,14 @@ obj_pydantic_tricky_types_json_str4_with_validation_error = """{
     "created_at": {
         "datetime": "2023-01-01 12:00:00.000000",
         "tzinfo": null,
+        "utcoffset": null,
         "__class__": "datetime",
         "__module__": "datetime"
     },
     "updated_at": {
         "datetime": "2023-01-02 12:13:25.000000",
         "tzinfo": null,
+        "utcoffset": null,
         "__class__": "datetime",
         "__module__": "datetime"
     },

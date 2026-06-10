@@ -131,6 +131,27 @@ assert isinstance(restored["created_at"], datetime)
 assert isinstance(restored["duration"], timedelta)
 ```
 
+### Timezone-Aware Datetimes
+
+Aware datetimes round-trip for every tzinfo flavor — IANA zones (`ZoneInfo`), fixed offsets (`datetime.timezone`), and plain UTC:
+
+```python
+import kajson
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+
+data = {
+    "utc": datetime.now(timezone.utc),
+    "paris": datetime(2026, 6, 10, 12, 0, tzinfo=ZoneInfo("Europe/Paris")),
+    "fixed_offset": datetime.fromisoformat("2026-06-10T12:00:00+02:00"),
+}
+
+restored = kajson.loads(kajson.dumps(data))
+assert restored == data
+```
+
+The wire format stores both the tzinfo name and the UTC offset, so payloads stay decodable across environments. Decoding prefers the named zone (preserving DST semantics) and falls back to a fixed offset when the name cannot be resolved — for instance on a minimal host whose timezone database is missing. UTC never depends on a timezone database at all. kajson also declares the `tzdata` package as a dependency, so IANA lookups work out of the box on Windows and on bare containers without system tz files.
+
 ### Lists and Dictionaries with Complex Types
 
 ```python

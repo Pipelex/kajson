@@ -41,3 +41,8 @@ jobs:
 
       - name: Run tests
         run: make gha-tests
+
+      # Simulate hosts without system tz files (bare containers, python-build-standalone):
+      # kajson must stay fully functional via its tzdata dependency alone.
+      - name: Run tests without system timezone database
+        run: PYTHONTZPATH=/nonexistent make gha-tests
