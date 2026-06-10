@@ -18,7 +18,7 @@ classifiers = [
   "License :: OSI Approved :: Apache Software License",
 ]
 
-dependencies = ["pydantic>=2.10.6"]
+dependencies = ["pydantic>=2.10.6", "tzdata>=2024.1"]
 
 [project.urls]
 Homepage = "https://github.com/pipelex/kajson"

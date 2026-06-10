@@ -15,7 +15,7 @@ class TestTimeEncoderDecoder:
         test_time = datetime.time(14, 30, 45, 123456)
         result = kajson.json_encode_time(test_time)
 
-        expected = {"time": "14:30:45.123456", "tzinfo": None}
+        expected = {"time": "14:30:45.123456", "tzinfo": None, "utcoffset": None}
         assert result == expected
 
     def test_json_encode_time_with_timezone(self) -> None:
@@ -24,7 +24,8 @@ class TestTimeEncoderDecoder:
         test_time = datetime.time(14, 30, 45, 123456, tzinfo=timezone)
         result = kajson.json_encode_time(test_time)
 
-        expected = {"time": "14:30:45.123456", "tzinfo": timezone}
+        # A named zone on a bare time has no resolvable offset (no date), so only the name is stored
+        expected = {"time": "14:30:45.123456", "tzinfo": "America/New_York", "utcoffset": None}
         assert result == expected
 
     def test_json_decode_time_naive(self) -> None:
