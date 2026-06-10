@@ -48,6 +48,14 @@ class TestTzRobustness:
         assert decoded.tzname() == "Europe/Paris"
 
     @pytest.mark.usefixtures("no_tz_database")
+    def test_bare_zoneinfo_payload_without_tz_database_raises_helpful_error(self) -> None:
+        """A bare ZoneInfo payload with an unresolvable key must fail loudly, pointing at tzdata."""
+        payload = '{"zone": "Europe/Paris", "__class__": "ZoneInfo", "__module__": "zoneinfo"}'
+        with pytest.raises(KajsonDecoderError) as excinfo:
+            kajson.loads(payload)
+        assert "tzdata" in str(excinfo.value)
+
+    @pytest.mark.usefixtures("no_tz_database")
     def test_legacy_named_zone_payload_without_tz_database_raises_helpful_error(self) -> None:
         """Legacy payloads carry no offset: unresolvable names must fail loudly, pointing at tzdata."""
         legacy_payload = '{"datetime": "2026-06-10 12:00:00.000000", "tzinfo": "Europe/Paris", "__class__": "datetime", "__module__": "datetime"}'
@@ -95,6 +103,36 @@ class TestTzRobustness:
         assert isinstance(decoded.tzinfo, ZoneInfo)
         assert decoded.tzinfo.key == "Europe/Paris"
 
+    def test_fractional_second_offset_datetime_round_trip(self) -> None:
+        """Sub-second fixed offsets must round-trip through the wire format (float seconds)."""
+        original = datetime.datetime(2026, 6, 10, 12, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=1, microseconds=500000)))
+        decoded = kajson.loads(kajson.dumps(original))
+        assert decoded == original
+        assert decoded.utcoffset() == datetime.timedelta(seconds=1, microseconds=500000)
+
+    def test_iana_key_labeled_fixed_offset_keeps_instant(self) -> None:
+        """A fixed offset labeled with a single-segment IANA key (CET is a real tzdata key)
+        must not be hijacked by the named zone's DST rules: the wire offset is authoritative."""
+        original = datetime.datetime(2026, 7, 15, 12, 0, tzinfo=datetime.timezone(datetime.timedelta(hours=1), "CET"))
+        decoded = kajson.loads(kajson.dumps(original))
+        assert decoded.astimezone(datetime.timezone.utc) == original.astimezone(datetime.timezone.utc)
+        assert decoded.utcoffset() == datetime.timedelta(hours=1)
+        assert decoded.tzname() == "CET"
+
+    def test_dst_fall_back_fold_round_trip(self) -> None:
+        """The wire offset disambiguates the repeated wall hour: fold=1 must be restored,
+        preserving the instant instead of silently shifting it by the DST gap."""
+        new_york = ZoneInfo("America/New_York")
+        first = datetime.datetime(2023, 11, 5, 1, 30, tzinfo=new_york, fold=0)
+        second = datetime.datetime(2023, 11, 5, 1, 30, tzinfo=new_york, fold=1)
+        decoded_first = kajson.loads(kajson.dumps(first))
+        decoded_second = kajson.loads(kajson.dumps(second))
+        assert decoded_first.fold == 0
+        assert decoded_second.fold == 1
+        assert decoded_first.astimezone(datetime.timezone.utc) == first.astimezone(datetime.timezone.utc)
+        assert decoded_second.astimezone(datetime.timezone.utc) == second.astimezone(datetime.timezone.utc)
+        assert isinstance(decoded_second.tzinfo, ZoneInfo)
+
     # ------------------------------------------------------------------
     # Failure mode 3: datetime.time codec consistency
     # ------------------------------------------------------------------
@@ -122,6 +160,16 @@ class TestTzRobustness:
         decoded = kajson.loads(kajson.dumps(original))
         assert decoded == original
         assert decoded.tzname() == "CEST"
+
+    def test_time_with_iana_key_labeled_fixed_offset_keeps_offset(self) -> None:
+        """A non-null offset on a time payload proves a fixed-offset origin: resolving the
+        name through ZoneInfo would destroy the offset (time.utcoffset() is None on a bare
+        time), silently turning an aware time into one that compares like a naive one."""
+        original = datetime.time(14, 30, tzinfo=datetime.timezone(datetime.timedelta(hours=1), "CET"))
+        decoded = kajson.loads(kajson.dumps(original))
+        assert decoded == original
+        assert decoded.utcoffset() == datetime.timedelta(hours=1)
+        assert decoded.tzname() == "CET"
 
     def test_time_with_zoneinfo_round_trip(self) -> None:
         original = datetime.time(14, 30, 45, 123456, tzinfo=PARIS)
@@ -202,10 +250,22 @@ class TestTzRobustness:
             kajson.loads(malformed_payload)
         assert "utcoffset" in str(excinfo.value)
 
+    def test_legacy_datetime_payload_out_of_range_offset_name_raises(self) -> None:
+        """str(timezone) never emits minutes >= 60: such a name is corrupt and must fail
+        loudly instead of silently normalizing to a different offset."""
+        legacy_payload = '{"datetime": "2026-06-10 12:00:00.000000", "tzinfo": "UTC+02:60", "__class__": "datetime", "__module__": "datetime"}'
+        with pytest.raises(KajsonDecoderError):
+            kajson.loads(legacy_payload)
+
     def test_legacy_time_payload_nested_zoneinfo(self) -> None:
         legacy_payload = (
             '{"time": "14:30:45.123456", "tzinfo": {"zone": "Europe/Paris", "__class__": "ZoneInfo", "__module__": "zoneinfo"}, '
             '"__class__": "time", "__module__": "datetime"}'
         )
         decoded = kajson.loads(legacy_payload)
-        assert decoded == datetime.time(14, 30, 45, 123456, tzinfo=PARIS)
+        # time equality ignores tzinfo when both sides have utcoffset() None (any ZoneInfo
+        # on a bare time does), so pin the zone identity explicitly.
+        decoded_time = datetime.time(14, 30, 45, 123456, tzinfo=PARIS)
+        assert decoded == decoded_time
+        assert isinstance(decoded.tzinfo, ZoneInfo)
+        assert decoded.tzinfo.key == "Europe/Paris"

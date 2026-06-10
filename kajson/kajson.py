@@ -202,8 +202,10 @@ def load(
 # Matches the str() of a fixed-offset datetime.timezone, e.g. "UTC+02:00",
 # "UTC-05:30", "UTC+01:02:03" or "UTC+00:00:01.500000". Used to decode legacy
 # payloads (kajson <= 0.6.0 stored only str(tzinfo)) that carry no separate
-# "utcoffset" field.
-_FIXED_OFFSET_NAME_PATTERN = re.compile(r"^UTC([+-])(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,6}))?)?$")
+# "utcoffset" field. Minutes and seconds are capped at 59: str(timezone) never
+# emits more, so an out-of-range value is a corrupt payload that must fail
+# loudly instead of silently normalizing to a different offset.
+_FIXED_OFFSET_NAME_PATTERN = re.compile(r"^UTC([+-])(\d{2}):([0-5]\d)(?::([0-5]\d)(?:\.(\d{1,6}))?)?$")
 
 
 def _offset_to_seconds(offset: Optional[datetime.timedelta]) -> Union[int, float, None]:
@@ -224,13 +226,30 @@ def _validate_utcoffset_seconds(value: Any) -> Union[int, float]:
     raise KajsonDecoderError(f"Could not decode tzinfo: expected 'utcoffset' to be a number of seconds, got {type(value).__name__}")
 
 
-def _decode_tzinfo(tzinfo_value: Any, utcoffset_seconds: Any) -> datetime.tzinfo:
+def _fixed_offset_timezone(offset: datetime.timedelta, name: Optional[str]) -> datetime.timezone:
+    """Build a fixed-offset timezone, preserving a name that isn't the default offset label.
+
+    A preserved name is either a custom label passed to the timezone constructor, or an
+    unresolvable IANA key (so re-encoding keeps the zone identity and a later decode on
+    a host with a timezone database can recover it).
+    """
+    plain = datetime.timezone(offset) if offset else datetime.timezone.utc
+    if name and name != str(plain):
+        return datetime.timezone(offset, name)
+    return plain
+
+
+def _decode_tzinfo(tzinfo_value: Any, utcoffset_seconds: Any, prefer_fixed_offset: bool = False) -> datetime.tzinfo:
     """Resolve the wire-format tzinfo of a datetime/time to a tzinfo object.
 
     Resolution order:
     1. An already-decoded tzinfo object (legacy time payloads nested a ZoneInfo dict).
     2. "UTC" or a bare zero offset -> datetime.timezone.utc, with zero tz-database dependence.
-    3. IANA lookup via ZoneInfo(name) -- preserves DST semantics when a tz database is available.
+    3. IANA lookup via ZoneInfo(name) -- preserves DST semantics when a tz database is
+       available. Skipped when prefer_fixed_offset is set and an offset is present: a
+       time payload with a non-null offset proves the original tzinfo was a fixed offset
+       (a named zone on a bare time has no offset to encode), and a ZoneInfo attached to
+       a time always yields utcoffset() None, destroying the offset.
     4. Fixed offset built from the "utcoffset" field -- graceful degradation on hosts
        without a tz database, and the only correct path for datetime.timezone instances.
        The original name is preserved when it isn't the default offset label.
@@ -254,19 +273,13 @@ def _decode_tzinfo(tzinfo_value: Any, utcoffset_seconds: Any) -> datetime.tzinfo
         return datetime.timezone(datetime.timedelta(seconds=utcoffset_seconds), tzinfo_name)
     if tzinfo_name is None and utcoffset_seconds == 0:
         return datetime.timezone.utc
-    if tzinfo_name:
+    if tzinfo_name and not (prefer_fixed_offset and utcoffset_seconds is not None):
         try:
             return ZoneInfo(tzinfo_name)
         except (ZoneInfoNotFoundError, ValueError, KeyError):
             pass
     if utcoffset_seconds is not None:
-        offset = datetime.timedelta(seconds=utcoffset_seconds)
-        if tzinfo_name and tzinfo_name != str(datetime.timezone(offset)):
-            # Preserve the original name: a custom label passed to the timezone
-            # constructor, or an unresolvable IANA key (so re-encoding keeps the
-            # zone identity and a later decode on a tzdata host can recover it).
-            return datetime.timezone(offset, tzinfo_name)
-        return datetime.timezone(offset)
+        return _fixed_offset_timezone(datetime.timedelta(seconds=utcoffset_seconds), tzinfo_name)
     if tzinfo_name and (offset_match := _FIXED_OFFSET_NAME_PATTERN.match(tzinfo_name)):
         sign = 1 if offset_match.group(1) == "+" else -1
         offset = datetime.timedelta(
@@ -282,9 +295,8 @@ def _decode_tzinfo(tzinfo_value: Any, utcoffset_seconds: Any) -> datetime.tzinfo
     )
 
 
-# other implementation using more recent zoneinfo, without the need for pytz (untested):
 def json_encode_timezone(t: ZoneInfo) -> Dict[str, Any]:
-    """Encoder for timezones (using zoneinfo from Python 3.9+)."""
+    """Encoder for IANA named timezones (zoneinfo.ZoneInfo)."""
     return {"zone": t.key}
 
 
@@ -320,12 +332,7 @@ UniversalJSONEncoder.register(datetime.timezone, json_encode_fixed_timezone)
 def json_decode_fixed_timezone(obj_dict: Dict[str, Any]) -> datetime.timezone:
     """Decoder for fixed-offset timezones (datetime.timezone, including timezone.utc)."""
     offset = datetime.timedelta(seconds=_validate_utcoffset_seconds(obj_dict["utcoffset"]))
-    plain = datetime.timezone(offset) if offset else datetime.timezone.utc
-    name = obj_dict.get("name")
-    if name and name != str(plain):
-        # A custom name was passed to the timezone constructor: preserve it.
-        return datetime.timezone(offset, name)
-    return plain
+    return _fixed_offset_timezone(offset, obj_dict.get("name"))
 
 
 UniversalJSONDecoder.register(datetime.timezone, json_decode_fixed_timezone)
@@ -380,9 +387,25 @@ def json_decode_datetime(obj_dict: Dict[str, Any]) -> datetime.datetime:
 
     tzinfo_value = obj_dict.get("tzinfo")
     utcoffset_seconds = obj_dict.get("utcoffset")
-    if tzinfo_value is not None or utcoffset_seconds is not None:
-        dt = dt.replace(tzinfo=_decode_tzinfo(tzinfo_value, utcoffset_seconds))
-    return dt
+    if tzinfo_value is None and utcoffset_seconds is None:
+        return dt
+    dt = dt.replace(tzinfo=_decode_tzinfo(tzinfo_value, utcoffset_seconds))
+    if utcoffset_seconds is None:
+        return dt
+    # The wire offset is authoritative for the instant. A name resolved through
+    # ZoneInfo can disagree with it at the decoded wall time; reconcile:
+    wire_offset = datetime.timedelta(seconds=_validate_utcoffset_seconds(utcoffset_seconds))
+    if dt.utcoffset() == wire_offset:
+        return dt
+    fold1 = dt.replace(fold=1)
+    if fold1.utcoffset() == wire_offset:
+        # Ambiguous wall time (DST fall-back hour): the offset picks the second
+        # occurrence, restoring the fold the encoder saw.
+        return fold1
+    # The zone contradicts the offset in both folds: a fixed offset mislabeled with
+    # an IANA key (e.g. timezone(timedelta(hours=1), "CET")), or tz rules changed
+    # since encoding. Keep the instant, keep the name.
+    return dt.replace(tzinfo=_fixed_offset_timezone(wire_offset, str(dt.tzinfo)), fold=0)
 
 
 UniversalJSONDecoder.register(datetime.datetime, json_decode_datetime)
@@ -422,7 +445,7 @@ def json_decode_time(d: Dict[str, Any]) -> datetime.time:
     utcoffset_seconds = d.get("utcoffset")
     tzinfo: Optional[datetime.tzinfo] = None
     if tzinfo_value is not None or utcoffset_seconds is not None:
-        tzinfo = _decode_tzinfo(tzinfo_value, utcoffset_seconds)
+        tzinfo = _decode_tzinfo(tzinfo_value, utcoffset_seconds, prefer_fixed_offset=True)
 
     return datetime.time(hours, minutes, seconds, microseconds, tzinfo=tzinfo)
 
