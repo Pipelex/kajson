@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [v0.7.0] - 2026-06-10
 
 ### Fixed
 - **Aware datetimes now decode without an external timezone database.** kajson serialized timezone-aware datetimes into a format its own decoder could not read on hosts with neither system tz files (`/usr/share/zoneinfo`) nor the `tzdata` package — e.g. uv-managed python-build-standalone interpreters on bare containers, or Windows. Decoding any aware datetime (including plain UTC) raised `KajsonDecoderError` wrapping `ZoneInfoNotFoundError`. Two complementary fixes: (1) `tzdata` is now a declared dependency, so a tz database is always available; (2) the wire format is now self-sufficient — see below.
