@@ -214,6 +214,16 @@ def _offset_to_seconds(offset: Optional[datetime.timedelta]) -> Union[int, float
     return int(seconds) if seconds.is_integer() else seconds
 
 
+def _validate_utcoffset_seconds(value: Any) -> Union[int, float]:
+    """Check that a 'utcoffset' wire value is a number of seconds.
+
+    bool is excluded explicitly: it is an int subclass but not a valid offset.
+    """
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return value
+    raise KajsonDecoderError(f"Could not decode tzinfo: expected 'utcoffset' to be a number of seconds, got {type(value).__name__}")
+
+
 def _decode_tzinfo(tzinfo_value: Any, utcoffset_seconds: Any) -> datetime.tzinfo:
     """Resolve the wire-format tzinfo of a datetime/time to a tzinfo object.
 
@@ -233,8 +243,8 @@ def _decode_tzinfo(tzinfo_value: Any, utcoffset_seconds: Any) -> datetime.tzinfo
         return tzinfo_value
     if tzinfo_value is not None and not isinstance(tzinfo_value, str):
         raise KajsonDecoderError(f"Could not decode tzinfo: expected a string name or a tzinfo object, got {type(tzinfo_value).__name__}")
-    if utcoffset_seconds is not None and not isinstance(utcoffset_seconds, (int, float)):
-        raise KajsonDecoderError(f"Could not decode tzinfo: expected 'utcoffset' to be a number of seconds, got {type(utcoffset_seconds).__name__}")
+    if utcoffset_seconds is not None:
+        utcoffset_seconds = _validate_utcoffset_seconds(utcoffset_seconds)
     tzinfo_name: Optional[str] = tzinfo_value
     if tzinfo_name == "UTC":
         if not utcoffset_seconds:
@@ -309,7 +319,7 @@ UniversalJSONEncoder.register(datetime.timezone, json_encode_fixed_timezone)
 
 def json_decode_fixed_timezone(obj_dict: Dict[str, Any]) -> datetime.timezone:
     """Decoder for fixed-offset timezones (datetime.timezone, including timezone.utc)."""
-    offset = datetime.timedelta(seconds=obj_dict["utcoffset"])
+    offset = datetime.timedelta(seconds=_validate_utcoffset_seconds(obj_dict["utcoffset"]))
     plain = datetime.timezone(offset) if offset else datetime.timezone.utc
     name = obj_dict.get("name")
     if name and name != str(plain):

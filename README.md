@@ -151,7 +151,7 @@ assert restored_post.comments[0].created_at.year == datetime.now().year
 
 - **Python**: 3.10 – 3.14 (3.9 was dropped in the latest release)
 - **Pydantic**: v2.x
-- **Dependencies**: Minimal, only standard library + pydantic
+- **Dependencies**: Minimal, only standard library + pydantic + tzdata (the IANA timezone database used by the standard library's `zoneinfo`)
 
 ## 🔄 Migration from Standard JSON
 

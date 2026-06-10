@@ -184,11 +184,20 @@ class TestTzRobustness:
             kajson.loads(malformed_payload)
         assert "expected a string name or a tzinfo object" in str(excinfo.value)
 
-    def test_malformed_utcoffset_value_raises_clear_error(self) -> None:
-        """A non-numeric utcoffset must fail loudly instead of silently decoding as UTC."""
+    @pytest.mark.parametrize("malformed_offset", ['""', "true"])
+    def test_malformed_utcoffset_value_raises_clear_error(self, malformed_offset: str) -> None:
+        """A non-numeric utcoffset (booleans included) must fail loudly instead of silently decoding."""
         malformed_payload = (
-            '{"datetime": "2026-06-10 12:00:00.000000", "tzinfo": "UTC", "utcoffset": "", "__class__": "datetime", "__module__": "datetime"}'
+            f'{{"datetime": "2026-06-10 12:00:00.000000", "tzinfo": "UTC", "utcoffset": {malformed_offset}, '
+            '"__class__": "datetime", "__module__": "datetime"}'
         )
+        with pytest.raises(KajsonDecoderError) as excinfo:
+            kajson.loads(malformed_payload)
+        assert "utcoffset" in str(excinfo.value)
+
+    def test_malformed_bare_timezone_utcoffset_raises_clear_error(self) -> None:
+        """The bare datetime.timezone decoder applies the same utcoffset validation."""
+        malformed_payload = '{"name": "UTC+00:00:01", "utcoffset": true, "__class__": "timezone", "__module__": "datetime"}'
         with pytest.raises(KajsonDecoderError) as excinfo:
             kajson.loads(malformed_payload)
         assert "utcoffset" in str(excinfo.value)
