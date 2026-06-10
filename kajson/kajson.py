@@ -214,7 +214,7 @@ def _offset_to_seconds(offset: Optional[datetime.timedelta]) -> Union[int, float
     return int(seconds) if seconds.is_integer() else seconds
 
 
-def _decode_tzinfo(tzinfo_value: Any, utcoffset_seconds: Union[int, float, None]) -> datetime.tzinfo:
+def _decode_tzinfo(tzinfo_value: Any, utcoffset_seconds: Any) -> datetime.tzinfo:
     """Resolve the wire-format tzinfo of a datetime/time to a tzinfo object.
 
     Resolution order:
@@ -233,6 +233,8 @@ def _decode_tzinfo(tzinfo_value: Any, utcoffset_seconds: Union[int, float, None]
         return tzinfo_value
     if tzinfo_value is not None and not isinstance(tzinfo_value, str):
         raise KajsonDecoderError(f"Could not decode tzinfo: expected a string name or a tzinfo object, got {type(tzinfo_value).__name__}")
+    if utcoffset_seconds is not None and not isinstance(utcoffset_seconds, (int, float)):
+        raise KajsonDecoderError(f"Could not decode tzinfo: expected 'utcoffset' to be a number of seconds, got {type(utcoffset_seconds).__name__}")
     tzinfo_name: Optional[str] = tzinfo_value
     if tzinfo_name == "UTC":
         if not utcoffset_seconds:
