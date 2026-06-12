@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [v0.7.0] - 2026-06-10
 
 ### Fixed
 - **Aware datetimes now decode without an external timezone database.** kajson serialized timezone-aware datetimes into a format its own decoder could not read on hosts with neither system tz files (`/usr/share/zoneinfo`) nor the `tzdata` package — e.g. uv-managed python-build-standalone interpreters on bare containers, or Windows. Decoding any aware datetime (including plain UTC) raised `KajsonDecoderError` wrapping `ZoneInfoNotFoundError`. Two complementary fixes: (1) `tzdata` is now a declared dependency, so a tz database is always available; (2) the wire format is now self-sufficient — see below.
@@ -16,6 +16,9 @@
 ### Changed
 - **`tzdata` is now a runtime dependency.** Consumers that added `tzdata` themselves to work around the decode failure (e.g. pipelex) can drop it once they bump their kajson pin.
 - **`"UTC"` decodes to `datetime.timezone.utc`** instead of `ZoneInfo("UTC")`. The instant and offset are identical; only the tzinfo object type changes.
+
+### Security
+- **Refreshed dev/docs lockfile pins to clear all open Dependabot alerts** (urllib3, idna, pymdown-extensions, pytest, Pygments). None of these affected kajson's runtime surface — the package's only runtime dependencies are `pydantic` and `tzdata`; the flagged packages come in through the `dev` and `docs` extras.
 
 ## [v0.6.0] - 2026-05-29
 
