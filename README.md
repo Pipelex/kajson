@@ -23,9 +23,11 @@ import json
 from datetime import datetime
 from pydantic import BaseModel
 
+
 class User(BaseModel):
     name: str
     created_at: datetime
+
 
 user = User(name="Alice", created_at=datetime.now())
 
@@ -80,18 +82,16 @@ from datetime import datetime
 from pydantic import BaseModel
 from kajson import kajson, kajson_manager
 
+
 class User(BaseModel):
     name: str
     email: str
     created_at: datetime
 
+
 def main():
     # Create and serialize
-    user = User(
-        name="Alice", 
-        email="alice@example.com", 
-        created_at=datetime.now()
-    )
+    user = User(name="Alice", email="alice@example.com", created_at=datetime.now())
 
     # Serialize to JSON
     json_str = kajson.dumps(user, indent=2)
@@ -99,6 +99,7 @@ def main():
     # Deserialize back
     restored_user = kajson.loads(json_str)
     assert user == restored_user  # ✅ Perfect reconstruction!
+
 
 if __name__ == "__main__":
     kajson_manager.KajsonManager()
@@ -114,10 +115,12 @@ from datetime import datetime
 from typing import Any, Dict, List
 from pydantic import BaseModel
 
+
 class Comment(BaseModel):
     author: str
     content: str
     created_at: datetime
+
 
 class BlogPost(BaseModel):
     title: str
@@ -126,6 +129,7 @@ class BlogPost(BaseModel):
     comments: List[Comment]
     metadata: Dict[str, Any]
 
+
 # Create complex nested structure
 post = BlogPost(
     title="Introducing Kajson",
@@ -133,9 +137,9 @@ post = BlogPost(
     published_at=datetime.now(),
     comments=[
         Comment(author="Alice", content="Great post!", created_at=datetime.now()),
-        Comment(author="Bob", content="Very helpful", created_at=datetime.now())
+        Comment(author="Bob", content="Very helpful", created_at=datetime.now()),
     ],
-    metadata={"views": 1000, "likes": 50}
+    metadata={"views": 1000, "likes": 50},
 )
 
 # Serialize and deserialize - it just works!
@@ -160,10 +164,12 @@ Migrating is as simple as changing your import:
 ```python
 # Before
 import json
+
 data = json.dumps(my_object)  # Often fails with complex objects
 
-# After  
+# After
 import kajson as json  # Drop-in replacement!
+
 data = json.dumps(my_object)  # Works with complex objects
 ```
 
@@ -171,6 +177,7 @@ Or use Kajson's convenience functions directly:
 
 ```python
 import kajson
+
 data = kajson.dumps(my_object)
 ```
 
@@ -218,12 +225,15 @@ from pathlib import Path
 from typing import Any, Dict
 import kajson
 
+
 # Register Decimal support
 def encode_decimal(value: Decimal) -> Dict[str, str]:
     return {"decimal": str(value)}
 
+
 def decode_decimal(data: Dict[str, str]) -> Decimal:
     return Decimal(data["decimal"])
+
 
 kajson.UniversalJSONEncoder.register(Decimal, encode_decimal)
 kajson.UniversalJSONDecoder.register(Decimal, decode_decimal)
@@ -235,14 +245,8 @@ restored = kajson.loads(json_str)
 assert restored["price"] == Decimal("19.99")  # ✅
 
 # Register Path support
-kajson.UniversalJSONEncoder.register(
-    Path, 
-    lambda p: {"path": str(p)}
-)
-kajson.UniversalJSONDecoder.register(
-    Path, 
-    lambda d: Path(d["path"])
-)
+kajson.UniversalJSONEncoder.register(Path, lambda p: {"path": str(p)})
+kajson.UniversalJSONDecoder.register(Path, lambda d: Path(d["path"]))
 
 # Path objects now work too!
 config = {"home": Path.home(), "config": Path("/etc/myapp/config.json")}
@@ -259,25 +263,27 @@ Add JSON support to your own classes:
 from typing import Any, Dict
 from typing_extensions import override
 
+
 class Vector:
     def __init__(self, x: float, y: float):
         self.x = x
         self.y = y
-    
+
     def __json_encode__(self):
         """Called by Kajson during serialization"""
         return {"x": self.x, "y": self.y}
-    
+
     @classmethod
     def __json_decode__(cls, data: Dict[str, Any]):
         """Called by Kajson during deserialization"""
         return cls(data["x"], data["y"])
-    
+
     @override
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Vector):
             return False
         return self.x == other.x and self.y == other.y
+
 
 # Works automatically!
 vector = Vector(3.14, 2.71)
@@ -294,20 +300,17 @@ from datetime import datetime, timedelta
 from typing import Any, Dict
 from pydantic import BaseModel
 
+
 class Task(BaseModel):
     name: str
     created_at: datetime
     duration: timedelta
     metadata: Dict[str, Any]
 
+
 # Create mixed-type list
 tasks = [
-    Task(
-        name="Data processing",
-        created_at=datetime.now(),
-        duration=timedelta(hours=2, minutes=30),
-        metadata={"priority": "high", "cpu_cores": 8}
-    ),
+    Task(name="Data processing", created_at=datetime.now(), duration=timedelta(hours=2, minutes=30), metadata={"priority": "high", "cpu_cores": 8}),
     {"raw_data": "Some plain dict"},
     datetime.now(),
     ["plain", "list", "items"],
@@ -332,9 +335,11 @@ Kajson provides clear error messages for validation issues:
 ```python
 from pydantic import BaseModel, Field
 
+
 class Product(BaseModel):
     name: str
     price: float = Field(gt=0)  # Price must be positive
+
 
 # Invalid data
 json_str = '{"name": "Widget", "price": -10, "__class__": "Product", "__module__": "__main__"}'
@@ -357,14 +362,14 @@ from kajson import kajson, kajson_manager
 from kajson.kajson_manager import KajsonManager
 
 # Simulate dynamic class creation (e.g., from network, workflow definition)
-remote_class_definition = '''
+remote_class_definition = """
 from pydantic import BaseModel, Field
 
 class RemoteTask(BaseModel):
     task_id: str
     name: str  
     priority: int = Field(default=1, ge=1, le=10)
-'''
+"""
 
 # Execute and create the class dynamically
 remote_namespace = {}
@@ -406,22 +411,26 @@ Kajson perfectly handles polymorphism with Pydantic models, preserving exact sub
 ```python
 from pydantic import BaseModel
 
+
 class Animal(BaseModel):
     name: str
     species: str
+
 
 class Dog(Animal):
     breed: str
     is_good_boy: bool = True
 
+
 class Pet(BaseModel):
     owner: str
     animal: Animal  # ← Field declared as base class
 
+
 # Create pet with subclass instance
 pet = Pet(
     owner="Alice",
-    animal=Dog(name="Buddy", species="Canis lupus", breed="Golden Retriever")  # ← Actual subclass
+    animal=Dog(name="Buddy", species="Canis lupus", breed="Golden Retriever"),  # ← Actual subclass
 )
 
 # Serialize and deserialize

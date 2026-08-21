@@ -10,11 +10,13 @@ Kajson provides seamless integration with Pydantic v2 models, automatically hand
 from pydantic import BaseModel
 import kajson
 
+
 class User(BaseModel):
     id: int
     name: str
     email: str
     is_active: bool = True
+
 
 # Create instance
 user = User(id=1, name="Alice", email="alice@example.com")
@@ -36,18 +38,16 @@ from datetime import datetime
 from pydantic import BaseModel
 import kajson
 
+
 class Event(BaseModel):
     title: str
     start_time: datetime
     end_time: datetime
     description: str | None = None
 
+
 # Create event
-event = Event(
-    title="Team Meeting",
-    start_time=datetime(2025, 1, 15, 10, 0),
-    end_time=datetime(2025, 1, 15, 11, 30)
-)
+event = Event(title="Team Meeting", start_time=datetime(2025, 1, 15, 10, 0), end_time=datetime(2025, 1, 15, 11, 30))
 
 # Serialize and deserialize
 json_str = kajson.dumps(event)
@@ -67,11 +67,13 @@ from datetime import datetime
 from pydantic import BaseModel
 import kajson
 
+
 class Comment(BaseModel):
     id: int
     author: str
     content: str
     created_at: datetime
+
 
 class BlogPost(BaseModel):
     id: int
@@ -80,6 +82,7 @@ class BlogPost(BaseModel):
     author: str
     created_at: datetime
     comments: List[Comment]
+
 
 # Create nested structure
 post = BlogPost(
@@ -90,8 +93,8 @@ post = BlogPost(
     created_at=datetime.now(),
     comments=[
         Comment(id=1, author="Bob", content="Great post!", created_at=datetime.now()),
-        Comment(id=2, author="Carol", content="Very helpful", created_at=datetime.now())
-    ]
+        Comment(id=2, author="Carol", content="Very helpful", created_at=datetime.now()),
+    ],
 )
 
 # Serialize and deserialize
@@ -110,49 +113,35 @@ from typing import List, Dict, Optional
 from pydantic import BaseModel
 import kajson
 
+
 class Address(BaseModel):
     street: str
     city: str
     country: str
     postal_code: str
 
+
 class Company(BaseModel):
     name: str
     address: Address
-    
+
+
 class Person(BaseModel):
     name: str
     age: int
     addresses: Dict[str, Address]
     employer: Optional[Company] = None
 
+
 # Create complex nested structure
 person = Person(
     name="Alice",
     age=30,
     addresses={
-        "home": Address(
-            street="123 Main St",
-            city="New York",
-            country="USA",
-            postal_code="10001"
-        ),
-        "work": Address(
-            street="456 Business Ave",
-            city="New York",
-            country="USA",
-            postal_code="10002"
-        )
+        "home": Address(street="123 Main St", city="New York", country="USA", postal_code="10001"),
+        "work": Address(street="456 Business Ave", city="New York", country="USA", postal_code="10002"),
     },
-    employer=Company(
-        name="Tech Corp",
-        address=Address(
-            street="789 Tech Blvd",
-            city="San Francisco",
-            country="USA",
-            postal_code="94105"
-        )
-    )
+    employer=Company(name="Tech Corp", address=Address(street="789 Tech Blvd", city="San Francisco", country="USA", postal_code="94105")),
 )
 
 # Perfect serialization and deserialization
@@ -168,16 +157,18 @@ restored = kajson.loads(json_str)
 from pydantic import BaseModel, Field, validator
 import kajson
 
+
 class Product(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     price: float = Field(gt=0, description="Price must be positive")
     quantity: int = Field(ge=0, default=0)
-    
-    @validator('name')
+
+    @validator("name")
     def name_must_be_capitalized(cls, v):
         if not v[0].isupper():
-            raise ValueError('Product name must start with capital letter')
+            raise ValueError("Product name must start with capital letter")
         return v
+
 
 # Valid product
 valid_json = '{"name": "Laptop", "price": 999.99, "quantity": 10, "__class__": "Product", "__module__": "__main__"}'
@@ -199,17 +190,19 @@ from pydantic import BaseModel, field_validator
 from datetime import date
 import kajson
 
+
 class Person(BaseModel):
     name: str
     birth_date: date
-    
-    @field_validator('birth_date')
+
+    @field_validator("birth_date")
     def validate_age(cls, v):
         today = date.today()
         age = today.year - v.year - ((today.month, today.day) < (v.month, v.day))
         if age < 18:
-            raise ValueError('Person must be at least 18 years old')
+            raise ValueError("Person must be at least 18 years old")
         return v
+
 
 # Create and serialize
 person = Person(name="Alice", birth_date=date(1990, 1, 1))
@@ -227,20 +220,18 @@ restored = kajson.loads(json_str)
 from pydantic import BaseModel, ConfigDict
 import kajson
 
+
 class User(BaseModel):
-    model_config = ConfigDict(
-        str_strip_whitespace=True,
-        str_to_lower=True,
-        validate_assignment=True
-    )
-    
+    model_config = ConfigDict(str_strip_whitespace=True, str_to_lower=True, validate_assignment=True)
+
     username: str
     email: str
+
 
 # Pydantic config is respected
 user = User(username="  ALICE  ", email="  ALICE@EXAMPLE.COM  ")
 print(user.username)  # "alice"
-print(user.email)     # "alice@example.com"
+print(user.email)  # "alice@example.com"
 
 # Serialize and deserialize
 json_str = kajson.dumps(user)
@@ -254,29 +245,35 @@ from typing import Union, Literal
 from pydantic import BaseModel, Field
 import kajson
 
+
 class Cat(BaseModel):
     pet_type: Literal["cat"]
     meows: int
 
+
 class Dog(BaseModel):
-    pet_type: Literal["dog"] 
+    pet_type: Literal["dog"]
     barks: int
+
 
 class Bird(BaseModel):
     pet_type: Literal["bird"]
     chirps: int
 
+
 Pet = Union[Cat, Dog, Bird]
+
 
 class Person(BaseModel):
     name: str
-    pet: Pet = Field(discriminator='pet_type')
+    pet: Pet = Field(discriminator="pet_type")
+
 
 # Create person with different pets
 people = [
     Person(name="Alice", pet=Cat(pet_type="cat", meows=10)),
     Person(name="Bob", pet=Dog(pet_type="dog", barks=5)),
-    Person(name="Carol", pet=Bird(pet_type="bird", chirps=20))
+    Person(name="Carol", pet=Bird(pet_type="bird", chirps=20)),
 ]
 
 # Serialize list
@@ -296,7 +293,8 @@ from typing import TypeVar, Generic, List
 from pydantic import BaseModel
 import kajson
 
-T = TypeVar('T')
+T = TypeVar("T")
+
 
 class PagedResponse(BaseModel, Generic[T]):
     items: List[T]
@@ -304,18 +302,15 @@ class PagedResponse(BaseModel, Generic[T]):
     page_size: int
     total: int
 
+
 class User(BaseModel):
     id: int
     name: str
 
+
 # Create paged response
 users = [User(id=i, name=f"User{i}") for i in range(1, 6)]
-response = PagedResponse[User](
-    items=users,
-    page=1,
-    page_size=5,
-    total=100
-)
+response = PagedResponse[User](items=users, page=1, page_size=5, total=100)
 
 # Serialize and deserialize
 json_str = kajson.dumps(response)
@@ -332,23 +327,21 @@ from typing import List, Dict
 from pydantic import BaseModel
 import kajson
 
+
 class Task(BaseModel):
     id: int
     title: str
     completed: bool = False
 
+
 # List of models
-tasks = [
-    Task(id=1, title="Write documentation"),
-    Task(id=2, title="Review PR", completed=True),
-    Task(id=3, title="Deploy to production")
-]
+tasks = [Task(id=1, title="Write documentation"), Task(id=2, title="Review PR", completed=True), Task(id=3, title="Deploy to production")]
 
 # Dict of models
 task_dict = {
     "urgent": Task(id=4, title="Fix critical bug"),
     "normal": Task(id=5, title="Add new feature"),
-    "low": Task(id=6, title="Update dependencies")
+    "low": Task(id=6, title="Update dependencies"),
 }
 
 # Both serialize perfectly
@@ -372,6 +365,7 @@ Always use proper type annotations for better IDE support and validation:
 ```python
 from typing import Optional, List
 from pydantic import BaseModel
+
 
 class User(BaseModel):
     name: str  # Required
@@ -398,6 +392,7 @@ Document your models for better API documentation:
 ```python
 from pydantic import BaseModel, Field
 
+
 class Product(BaseModel):
     name: str = Field(description="Product name", example="Laptop")
     price: float = Field(description="Price in USD", gt=0, example=999.99)
@@ -415,6 +410,7 @@ class User:
         self.id = id
         self.name = name
         self._password_hash = password_hash
+
 
 # DTO for serialization
 class UserDTO(BaseModel):
