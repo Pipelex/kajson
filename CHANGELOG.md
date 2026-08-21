@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- **Tooling:** Pinned `ruff` to an exact `0.16.4`, replacing the `>=0.6.8` floor. The exact pin matches what the Ruff VS Code extension now bundles, which matters because Ruff 0.16 lints `pyproject.toml` itself: the extension syncs the config file to the language server, and a pre-0.16 binary parses it as Python source and paints phantom `invalid-syntax` diagnostics on lines like `requires-python`. A floor let the editor and the CLI resolve to different binaries; an exact pin cannot. This is a dev dependency, so no shipped behaviour changes, and the upgrade produced no new lint findings.
+- **Docs:** Reformatted the Python examples throughout the documentation and the README. Ruff 0.16 formats Python code blocks embedded in Markdown, which it previously left alone, so the examples now follow the same formatter rules as the source tree — blank lines around top-level definitions and the project's line length applied to call and literal wrapping. Only formatting changed; every example does the same thing it did before, and the strict mkdocs build still passes.
+- **Editor config:** Removed the `ruff.configuration` entry from `.vscode/settings.json`. That setting takes a path to a config file rather than a CLI flag, so its `--config=pyproject.toml` value never resolved — it only appeared to work because Ruff falls back to discovering the same `pyproject.toml` on its own.
+
 ## [v0.7.0] - 2026-06-10
 
 ### Fixed

@@ -50,9 +50,11 @@ registry = KajsonManager.get_class_registry()
 ```python
 from pydantic import BaseModel
 
+
 class MyModel(BaseModel):
     name: str
     value: int
+
 
 # Register with default name (class name)
 registry.register_class(MyModel)
@@ -68,11 +70,7 @@ registry.register_class(MyModel, "CustomModelName")
 registry.register_classes([Model1, Model2, Model3])
 
 # Register as a dictionary (custom names)
-registry.register_classes_dict({
-    "FirstModel": Model1,
-    "SecondModel": Model2,
-    "ThirdModel": Model3
-})
+registry.register_classes_dict({"FirstModel": Model1, "SecondModel": Model2, "ThirdModel": Model3})
 ```
 
 ### Retrieving Classes
@@ -138,7 +136,7 @@ class RemoteTask(BaseModel):
     name: str = Field(..., description="Task name")
     priority: int = Field(default=1, ge=1, le=10, description="Task priority")
     payload: Optional[Dict[str, Any]] = Field(default=None, description="Task payload")
-    
+
     def get_info(self) -> str:
         return f"Task {self.task_id}: {self.name} (priority: {self.priority})"
 '''
@@ -152,12 +150,7 @@ RemoteTask = remote_namespace["RemoteTask"]
 RemoteTask.__module__ = "remote.distributed.system"
 
 # Create and serialize a task instance
-task = RemoteTask(
-    task_id="TASK_001",
-    name="Process Data Pipeline",
-    priority=5,
-    payload={"input_file": "data.csv", "output_format": "parquet"}
-)
+task = RemoteTask(task_id="TASK_001", name="Process Data Pipeline", priority=5, payload={"input_file": "data.csv", "output_format": "parquet"})
 
 # Serialize the task
 json_str = kajson.dumps(task)
@@ -196,28 +189,24 @@ from kajson.class_registry_abstract import ClassRegistryAbstract
 from typing import Type, Any, Optional, Dict, List
 from pydantic import BaseModel
 
+
 class CustomRegistry(ClassRegistryAbstract):
     def __init__(self):
         self._classes: Dict[str, Type[Any]] = {}
-    
+
     def setup(self) -> None:
         """Initialize the registry."""
         pass
-    
+
     def teardown(self) -> None:
         """Clear all registered classes."""
         self._classes.clear()
-    
-    def register_class(
-        self,
-        class_type: Type[Any],
-        name: Optional[str] = None,
-        should_warn_if_already_registered: bool = True
-    ) -> None:
+
+    def register_class(self, class_type: Type[Any], name: Optional[str] = None, should_warn_if_already_registered: bool = True) -> None:
         """Register a single class."""
         key = name or class_type.__name__
         self._classes[key] = class_type
-    
+
     # Implement other required methods...
 ```
 
@@ -233,15 +222,16 @@ class OrderModel(BaseModel):
     items: List[Dict[str, Any]]
     total: float
 
+
 # Service B - Receives serialized orders
 def process_order(order_json: str):
     # Register the model from Service A
     registry = KajsonManager.get_class_registry()
     registry.register_class(OrderModel)
-    
+
     # Deserialize the order
     order = kajson.loads(order_json)
-    
+
     # Process the order
     print(f"Processing order {order.order_id} for customer {order.customer_id}")
     print(f"Total: ${order.total}")

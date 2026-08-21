@@ -56,9 +56,11 @@ import json
 from datetime import datetime
 from pydantic import BaseModel
 
+
 class User(BaseModel):
     name: str
     created_at: datetime
+
 
 user = User(name="Alice", created_at=datetime.now())
 
@@ -113,17 +115,15 @@ from datetime import datetime, timedelta
 from pydantic import BaseModel
 import kajson
 
+
 class Task(BaseModel):
     name: str
     created_at: datetime
     duration: timedelta
 
+
 # Create and serialize
-task = Task(
-    name="Write documentation",
-    created_at=datetime.now(),
-    duration=timedelta(hours=2)
-)
+task = Task(name="Write documentation", created_at=datetime.now(), duration=timedelta(hours=2))
 
 json_str = kajson.dumps(task, indent=2)
 print(json_str)

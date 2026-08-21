@@ -81,11 +81,10 @@ Register a custom encoder function for a specific type.
 ```python
 from decimal import Decimal
 
+
 def encode_decimal(value: Decimal) -> dict:
-    return {
-        "__decimal__": str(value),
-        "precision": value.as_tuple().exponent
-    }
+    return {"__decimal__": str(value), "precision": value.as_tuple().exponent}
+
 
 kajson.UniversalJSONEncoder.register(Decimal, encode_decimal)
 ```
@@ -192,6 +191,7 @@ When you register an encoder function, the `UniversalJSONEncoder` will:
 def encode_point(point: Point) -> Dict[str, Any]:
     return {"x": point.x, "y": point.y}  # No __class__ or __module__ needed
 
+
 # What gets serialized automatically:
 # {
 #     "x": 3.14,
@@ -214,7 +214,7 @@ def encode_shape(shape: Union[Circle, Rectangle]) -> Dict[str, Any]:
     return {
         "area": shape.area(),
         "__class__": "Shape",  # Override: use base class name
-        "__module__": "geometry"
+        "__module__": "geometry",
     }
 ```
 
@@ -226,17 +226,16 @@ def encode_shape(shape: Union[Circle, Rectangle]) -> Dict[str, Any]:
 import kajson
 from typing import Any, Dict
 
+
 class Point:
     def __init__(self, x: float, y: float):
         self.x = x
         self.y = y
 
+
 def encode_point(point: Point) -> Dict[str, Any]:
-    return {
-        "__point__": True,
-        "x": point.x,
-        "y": point.y
-    }
+    return {"__point__": True, "x": point.x, "y": point.y}
+
 
 # Register the encoder
 kajson.UniversalJSONEncoder.register(Point, encode_point)
@@ -254,14 +253,15 @@ def encode_positive_int(value: int) -> Dict[str, Any]:
         raise ValueError(f"Expected positive integer, got {value}")
     return {"__positive_int__": value}
 
+
 class PositiveInt:
     def __init__(self, value: int):
         if value <= 0:
             raise ValueError("Must be positive")
         self.value = value
 
-kajson.UniversalJSONEncoder.register(PositiveInt, 
-    lambda pi: encode_positive_int(pi.value))
+
+kajson.UniversalJSONEncoder.register(PositiveInt, lambda pi: encode_positive_int(pi.value))
 ```
 
 ### Conditional Encoding
@@ -269,21 +269,17 @@ kajson.UniversalJSONEncoder.register(PositiveInt,
 ```python
 import os
 
+
 def encode_path(path: Path) -> Dict[str, Any]:
     """Encode path with additional metadata"""
     result = {"__path__": str(path)}
-    
+
     # Add metadata if path exists
     if path.exists():
-        result.update({
-            "exists": True,
-            "is_file": path.is_file(),
-            "is_dir": path.is_dir(),
-            "size": path.stat().st_size if path.is_file() else None
-        })
+        result.update({"exists": True, "is_file": path.is_file(), "is_dir": path.is_dir(), "size": path.stat().st_size if path.is_file() else None})
     else:
         result["exists"] = False
-    
+
     return result
 ```
 
@@ -294,25 +290,25 @@ def encode_path(path: Path) -> Dict[str, Any]:
 ```python
 from typing import List, Optional
 
+
 class TreeNode:
     def __init__(self, value: Any, children: Optional[List["TreeNode"]] = None):
         self.value = value
         self.children = children or []
 
+
 def encode_tree_node(node: TreeNode) -> Dict[str, Any]:
     return {
         "__tree_node__": True,
         "value": node.value,
-        "children": node.children  # Recursively encoded
+        "children": node.children,  # Recursively encoded
     }
+
 
 kajson.UniversalJSONEncoder.register(TreeNode, encode_tree_node)
 
 # Create tree
-root = TreeNode("root", [
-    TreeNode("child1", [TreeNode("grandchild1")]),
-    TreeNode("child2")
-])
+root = TreeNode("root", [TreeNode("child1", [TreeNode("grandchild1")]), TreeNode("child2")])
 
 # Serialize entire tree
 json_str = kajson.dumps(root)
@@ -323,19 +319,18 @@ json_str = kajson.dumps(root)
 ```python
 from typing import TypeVar, Generic
 
-T = TypeVar('T')
+T = TypeVar("T")
+
 
 class Box(Generic[T]):
     def __init__(self, value: T):
         self.value = value
         self.type_name = type(value).__name__
 
+
 def encode_box(box: Box) -> Dict[str, Any]:
-    return {
-        "__box__": True,
-        "value": box.value,
-        "type_hint": box.type_name
-    }
+    return {"__box__": True, "value": box.value, "type_hint": box.type_name}
+
 
 kajson.UniversalJSONEncoder.register(Box, encode_box)
 ```
@@ -346,6 +341,7 @@ kajson.UniversalJSONEncoder.register(Box, encode_box)
 
 ```python
 from functools import lru_cache
+
 
 @lru_cache(maxsize=128)
 def get_encoder_for_type(type_class: Type) -> Optional[Callable]:
@@ -361,7 +357,7 @@ encoders = {
     IPv4Address: lambda ip: {"__ipv4__": str(ip)},
     IPv6Address: lambda ip: {"__ipv6__": str(ip)},
     UUID: lambda u: {"__uuid__": str(u)},
-    Path: lambda p: {"__path__": str(p)}
+    Path: lambda p: {"__path__": str(p)},
 }
 
 for type_class, encoder in encoders.items():
@@ -379,19 +375,16 @@ def safe_encode(value: Any) -> Dict[str, Any]:
         # Validate input
         if value is None:
             return {"__null__": True}
-        
+
         # Perform encoding
-        result = {
-            "__type__": type(value).__name__,
-            "data": str(value)
-        }
-        
+        result = {"__type__": type(value).__name__, "data": str(value)}
+
         # Validate output
         if not isinstance(result, dict):
             raise TypeError("Encoder must return a dict")
-        
+
         return result
-        
+
     except Exception as e:
         # Log error and re-raise
         print(f"Encoding error for {type(value)}: {e}")
@@ -405,15 +398,16 @@ Kajson automatically handles Pydantic models, but you can customize the encoding
 ```python
 from pydantic import BaseModel
 
+
 class User(BaseModel):
     id: int
     name: str
     internal_field: str = "secret"
-    
+
     def __json_encode__(self) -> dict:
         """Custom encoding that excludes internal fields"""
         data = self.model_dump()
-        data.pop('internal_field', None)
+        data.pop("internal_field", None)
         return data
 ```
 

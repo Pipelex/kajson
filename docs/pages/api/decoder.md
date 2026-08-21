@@ -73,10 +73,12 @@ Register a custom decoder function for a specific type.
 ```python
 from decimal import Decimal
 
+
 def decode_decimal(data: dict) -> Decimal:
     if "__decimal__" not in data:
         raise ValueError("Invalid decimal data")
     return Decimal(data["__decimal__"])
+
 
 kajson.UniversalJSONDecoder.register(Decimal, decode_decimal)
 ```
@@ -195,18 +197,21 @@ def json_decode_fixed_timezone(obj_dict: Dict[str, Any]) -> datetime.timezone:
 import kajson
 from typing import Dict, Any
 
+
 class Point:
     def __init__(self, x: float, y: float):
         self.x = x
         self.y = y
-    
+
     def __eq__(self, other):
         return self.x == other.x and self.y == other.y
+
 
 def decode_point(data: Dict[str, Any]) -> Point:
     if "__point__" not in data:
         raise ValueError("Not a Point object")
     return Point(data["x"], data["y"])
+
 
 # Register the decoder
 kajson.UniversalJSONDecoder.register(Point, decode_point)
@@ -223,18 +228,20 @@ assert isinstance(p, Point)
 def decode_positive_int(data: Dict[str, Any]) -> PositiveInt:
     if "__positive_int__" not in data:
         raise ValueError("Not a PositiveInt object")
-    
+
     value = data["__positive_int__"]
     if not isinstance(value, int) or value <= 0:
         raise ValueError(f"Invalid positive integer: {value}")
-    
+
     return PositiveInt(value)
+
 
 class PositiveInt:
     def __init__(self, value: int):
         if value <= 0:
             raise ValueError("Must be positive")
         self.value = value
+
 
 kajson.UniversalJSONDecoder.register(PositiveInt, decode_positive_int)
 ```
@@ -261,20 +268,20 @@ def decode_with_fallback(data: Dict[str, Any]) -> Any:
 ```python
 from typing import List, Optional, Dict, Any
 
+
 class TreeNode:
     def __init__(self, value: Any, children: Optional[List["TreeNode"]] = None):
         self.value = value
         self.children = children or []
 
+
 def decode_tree_node(data: Dict[str, Any]) -> TreeNode:
     if "__tree_node__" not in data:
         raise ValueError("Not a TreeNode")
-    
+
     # Children will be automatically decoded recursively
-    return TreeNode(
-        value=data["value"],
-        children=data.get("children", [])
-    )
+    return TreeNode(value=data["value"], children=data.get("children", []))
+
 
 kajson.UniversalJSONDecoder.register(TreeNode, decode_tree_node)
 ```
@@ -284,22 +291,18 @@ kajson.UniversalJSONDecoder.register(TreeNode, decode_tree_node)
 ```python
 from typing import TypeVar, Type
 
-T = TypeVar('T')
+T = TypeVar("T")
 
-def safe_decode(
-    json_str: str,
-    expected_type: Type[T]
-) -> T:
+
+def safe_decode(json_str: str, expected_type: Type[T]) -> T:
     """Decode with type checking"""
     result = kajson.loads(json_str)
-    
+
     if not isinstance(result, expected_type):
-        raise TypeError(
-            f"Expected {expected_type.__name__}, "
-            f"got {type(result).__name__}"
-        )
-    
+        raise TypeError(f"Expected {expected_type.__name__}, got {type(result).__name__}")
+
     return result
+
 
 # Usage
 user_json = '{"name": "Alice", "__class__": "User", "__module__": "__main__"}'
@@ -311,25 +314,29 @@ user = safe_decode(user_json, User)  # Type-checked
 ```python
 from abc import ABC, abstractmethod
 
+
 class Shape(ABC):
     @abstractmethod
     def area(self) -> float:
         pass
 
+
 class Circle(Shape):
     def __init__(self, radius: float):
         self.radius = radius
-    
+
     def area(self) -> float:
-        return 3.14159 * self.radius ** 2
+        return 3.14159 * self.radius**2
+
 
 class Rectangle(Shape):
     def __init__(self, width: float, height: float):
         self.width = width
         self.height = height
-    
+
     def area(self) -> float:
         return self.width * self.height
+
 
 def decode_shape(data: Dict[str, Any]) -> Shape:
     """Decode different shape types"""
@@ -339,6 +346,7 @@ def decode_shape(data: Dict[str, Any]) -> Shape:
         return Rectangle(data["width"], data["height"])
     else:
         raise ValueError("Unknown shape type")
+
 
 # Register for base class
 kajson.UniversalJSONDecoder.register(Shape, decode_shape)
@@ -351,17 +359,18 @@ kajson.UniversalJSONDecoder.register(Shape, decode_shape)
 ```python
 from pydantic import BaseModel, ValidationError
 
+
 class StrictUser(BaseModel):
     name: str
     age: int
-    
+
     @classmethod
     def __json_decode__(cls, data: dict) -> "StrictUser":
         """Custom decoding with extra validation"""
         # Pre-process data
         if "age" in data and data["age"] < 0:
             data["age"] = 0  # Fix negative ages
-        
+
         try:
             return cls(**data)
         except ValidationError as e:
@@ -408,10 +417,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 def logged_decode(data: Dict[str, Any]) -> Any:
     """Decoder that logs all operations"""
     logger.debug(f"Decoding data: {data}")
-    
+
     try:
         result = perform_decode(data)
         logger.debug(f"Successfully decoded: {type(result).__name__}")
@@ -427,6 +437,7 @@ def logged_decode(data: Dict[str, Any]) -> Any:
 
 ```python
 from functools import lru_cache
+
 
 @lru_cache(maxsize=256)
 def get_decoder_for_type(type_name: str) -> Optional[Callable]:
