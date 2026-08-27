@@ -52,6 +52,14 @@ jobs:
           path: dist/
       - name: Publish distribution 📦 to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # Makes a re-run of this workflow idempotent, which is what the signing
+          # fallback below tells the operator to do: PyPI files are immutable, so
+          # without this a re-run dies here on the already-published version and
+          # `github-release` — which needs this job — never gets to attach the
+          # missing signatures. An unbumped version is caught by version-check.yml
+          # on the PR, not here.
+          skip-existing: true
 
   github-release:
     name: >-
@@ -175,17 +183,20 @@ jobs:
         if: steps.sign.outcome == 'success'
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        # Upload to GitHub Release using the `gh` CLI.
-        # `dist/` contains the built packages, and the
-        # sigstore-produced signatures and certificates.
+        # Only the bundles signing just produced (`{input}.sigstore.json`). A
+        # `dist/**` glob would also match the wheel and sdist attached above, and
+        # `--clobber` deletes an asset before uploading its replacement — so a
+        # transient failure here would strip the release of the very dists the
+        # previous step exists to secure.
         run: >-
           gh release upload
-          "v$VERSION" dist/**
+          "v$VERSION" dist/*.sigstore.json
           --repo "$GITHUB_REPOSITORY"
           --clobber
       - name: Report an unsigned release
         if: steps.sign.outcome != 'success'
         run: >-
           echo "::warning::Sigstore signing failed. v$VERSION is released and its
-          dists are attached, but it carries no signature bundles. Re-run this
-          workflow once Sigstore is healthy to attach them."
+          dists are attached, but it carries no signature bundles. Once Sigstore is
+          healthy, use 'Re-run all jobs' on this run to attach them — signing is
+          non-fatal, so this job succeeded and 'Re-run failed jobs' is not offered."
