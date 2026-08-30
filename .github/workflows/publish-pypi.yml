@@ -134,6 +134,31 @@ jobs:
         run: |
           VERSION=$(grep -m 1 'version = ' pyproject.toml | cut -d '"' -f 2)
           echo "VERSION=$VERSION" >> $GITHUB_ENV
+      # `skip-existing` above is gated on `github.run_attempt > 1`, which separates a
+      # first attempt from a re-run but not a legitimate recovery from a re-run of an
+      # attempt that failed *because* an earlier commit had already published this
+      # version. In that second case skipping turns PyPI's duplicate rejection into
+      # success and carries the run down here, where `--clobber` would replace the
+      # tagged release's dists with this commit's build while PyPI kept serving the
+      # originals. The tag settles which case this is: it exists only once a release
+      # has shipped this version, and it names the commit that shipped it. Absent
+      # (attempt 1 died between the PyPI upload and `gh release create`) is allowed;
+      # pointing elsewhere is not. Uses the commits endpoint so an annotated tag
+      # resolves to its commit rather than to the tag object.
+      - name: Refuse to touch a release that shipped a different commit
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          TAGGED_SHA=$(gh api "repos/$GITHUB_REPOSITORY/commits/v$VERSION" --jq '.sha' 2>/dev/null || true)
+          # A missing tag is a 422 whose body `gh` writes to stdout, so treat anything
+          # that is not a commit sha as "no such tag" rather than as a mismatch.
+          if [[ ! "$TAGGED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            TAGGED_SHA=""
+          fi
+          if [ -n "$TAGGED_SHA" ] && [ "$TAGGED_SHA" != "$GITHUB_SHA" ]; then
+            echo "::error::v$VERSION is already tagged at $TAGGED_SHA, but this run is building $GITHUB_SHA. Refusing to replace that release's artifacts with a different commit's build. Bump the version instead of re-running this workflow."
+            exit 1
+          fi
       - name: Extract changelog notes for current version
         id: get_changelog
         run: |
