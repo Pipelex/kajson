@@ -73,6 +73,8 @@ registry.register_classes([Model1, Model2, Model3])
 registry.register_classes_dict({"FirstModel": Model1, "SecondModel": Model2, "ThirdModel": Model3})
 ```
 
+Both bulk forms accept an empty collection: registering nothing is a no-op that leaves the registry untouched, so seeding a registry from a snapshot that happens to be empty needs no guard at the call site.
+
 ### Retrieving Classes
 
 ```python

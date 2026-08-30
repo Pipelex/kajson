@@ -127,6 +127,19 @@ class TestClassRegistry:
         assert registry.has_class("String")
         mock_logger.debug.assert_called_with("Registered single class 'str' in registry")
 
+    def test_register_classes_dict_empty(self, mocker: MockerFixture):
+        """Test registering an empty dict of classes is a no-op, not a crash."""
+        registry = ClassRegistry()
+        mock_logger = mocker.MagicMock()
+        registry.set_logger(mock_logger)
+
+        registry.register_class(str, "String")
+        registry.register_classes_dict({})
+
+        # Nothing was added and nothing already registered was lost
+        assert registry.get_classes_dict() == {"String": str}
+        mock_logger.debug.assert_called_with("register_classes_dict called with empty dict of classes to register")
+
     def test_register_classes_list(self, mocker: MockerFixture):
         """Test registering multiple classes via list."""
         registry = ClassRegistry()
