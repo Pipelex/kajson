@@ -82,14 +82,8 @@ import kajson
 from decimal import Decimal
 
 # Register Decimal support
-kajson.UniversalJSONEncoder.register(
-    Decimal,
-    lambda d: {"value": str(d)}
-)
-kajson.UniversalJSONDecoder.register(
-    Decimal,
-    lambda data: Decimal(data["value"])
-)
+kajson.UniversalJSONEncoder.register(Decimal, lambda d: {"value": str(d)})
+kajson.UniversalJSONDecoder.register(Decimal, lambda data: Decimal(data["value"]))
 ```
 
 ## Best Practices

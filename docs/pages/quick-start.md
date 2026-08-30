@@ -24,18 +24,16 @@ from datetime import datetime
 from pydantic import BaseModel
 import kajson
 
+
 class User(BaseModel):
     name: str
     email: str
     created_at: datetime
     is_active: bool = True
 
+
 # Create a user
-user = User(
-    name="Alice",
-    email="alice@example.com",
-    created_at=datetime.now()
-)
+user = User(name="Alice", email="alice@example.com", created_at=datetime.now())
 
 # Serialize to JSON
 json_str = kajson.dumps(user, indent=2)
@@ -59,7 +57,7 @@ data = {
     "meeting_date": date(2025, 1, 15),
     "meeting_time": time(14, 30),
     "meeting_datetime": datetime(2025, 1, 15, 14, 30),
-    "duration": timedelta(hours=1, minutes=30)
+    "duration": timedelta(hours=1, minutes=30),
 }
 
 # Serialize and deserialize
@@ -80,10 +78,12 @@ from typing import List
 from pydantic import BaseModel
 from datetime import datetime
 
+
 class Comment(BaseModel):
     text: str
     author: str
     created_at: datetime
+
 
 class Post(BaseModel):
     title: str
@@ -91,15 +91,16 @@ class Post(BaseModel):
     comments: List[Comment]
     tags: List[str]
 
+
 # Create nested structure
 post = Post(
     title="Getting Started with Kajson",
     content="Kajson makes JSON serialization easy...",
     comments=[
         Comment(text="Great post!", author="Bob", created_at=datetime.now()),
-        Comment(text="Very helpful", author="Carol", created_at=datetime.now())
+        Comment(text="Very helpful", author="Carol", created_at=datetime.now()),
     ],
-    tags=["python", "json", "tutorial"]
+    tags=["python", "json", "tutorial"],
 )
 
 # Works perfectly

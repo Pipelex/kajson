@@ -13,18 +13,16 @@ from datetime import datetime
 from pydantic import BaseModel
 from kajson import kajson, kajson_manager
 
+
 class User(BaseModel):
     name: str
     email: str
     created_at: datetime
 
+
 def main():
     # Create and serialize
-    user = User(
-        name="Alice",
-        email="alice@example.com",
-        created_at=datetime.now()
-    )
+    user = User(name="Alice", email="alice@example.com", created_at=datetime.now())
 
     # Serialize to JSON
     json_str = kajson.dumps(user, indent=2)
@@ -32,6 +30,7 @@ def main():
     # Deserialize back
     restored_user = kajson.loads(json_str)
     assert user == restored_user  # ✅ Perfect reconstruction!
+
 
 if __name__ == "__main__":
     kajson_manager.KajsonManager()
@@ -50,10 +49,12 @@ from typing import List
 from pydantic import BaseModel
 from kajson import kajson, kajson_manager
 
+
 class Comment(BaseModel):
     author: str
     text: str
     posted_at: datetime
+
 
 class BlogPost(BaseModel):
     title: str
@@ -61,6 +62,7 @@ class BlogPost(BaseModel):
     published_at: datetime
     read_time: timedelta
     comments: List[Comment]
+
 
 def main():
     # Create complex nested structure
@@ -71,14 +73,15 @@ def main():
         read_time=timedelta(minutes=5),
         comments=[
             Comment(author="Bob", text="Great post!", posted_at=datetime.now()),
-            Comment(author="Carol", text="Very helpful", posted_at=datetime.now())
-        ]
+            Comment(author="Carol", text="Very helpful", posted_at=datetime.now()),
+        ],
     )
 
     # Works seamlessly!
     json_str = kajson.dumps(post)
     restored = kajson.loads(json_str)
     assert post == restored
+
 
 if __name__ == "__main__":
     kajson_manager.KajsonManager()
@@ -96,20 +99,21 @@ from typing import Any, Dict
 from typing_extensions import override
 from kajson import kajson, kajson_manager
 
+
 class Point:
     def __init__(self, x: float, y: float):
         self.x = x
         self.y = y
-    
+
     def __json_encode__(self):
         """Called during serialization"""
         return {"x": self.x, "y": self.y}
-    
+
     @classmethod
     def __json_decode__(cls, data: Dict[str, Any]):
         """Called during deserialization"""
         return cls(data["x"], data["y"])
-    
+
     @override
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Point):
@@ -120,12 +124,14 @@ class Point:
     def __repr__(self) -> str:
         return f"Point(x={self.x}, y={self.y})"
 
+
 def main():
     # Use it directly
     point = Point(3.14, 2.71)
     json_str = kajson.dumps(point)
     restored = kajson.loads(json_str)
     assert point == restored
+
 
 if __name__ == "__main__":
     kajson_manager.KajsonManager()
@@ -144,16 +150,11 @@ from pathlib import Path
 from typing import Any, Dict
 from kajson import kajson, kajson_manager
 
+
 def main():
     # Register Decimal support
-    kajson.UniversalJSONEncoder.register(
-        Decimal,
-        lambda d: {"decimal": str(d)}
-    )
-    kajson.UniversalJSONDecoder.register(
-        Decimal,
-        lambda data: Decimal(data["decimal"])
-    )
+    kajson.UniversalJSONEncoder.register(Decimal, lambda d: {"decimal": str(d)})
+    kajson.UniversalJSONDecoder.register(Decimal, lambda data: Decimal(data["decimal"]))
 
     # Register Path support - handle both abstract and concrete types
     def encode_path(p: Path) -> Dict[str, Any]:
@@ -172,13 +173,11 @@ def main():
         kajson.UniversalJSONDecoder.register(concrete_path_type, decode_path)
 
     # Now they work!
-    data = {
-        "price": Decimal("19.99"),
-        "config_path": Path("/etc/app/config.json")
-    }
+    data = {"price": Decimal("19.99"), "config_path": Path("/etc/app/config.json")}
     restored = kajson.loads(kajson.dumps(data))
     assert restored["price"] == Decimal("19.99")
     assert isinstance(restored["config_path"], Path)
+
 
 if __name__ == "__main__":
     kajson_manager.KajsonManager()
@@ -196,9 +195,11 @@ from datetime import date, datetime, time
 from pydantic import BaseModel
 from kajson import kajson, kajson_manager
 
+
 class Task(BaseModel):
     name: str
     due_date: date
+
 
 def main():
     # Mix different types in one list
@@ -219,6 +220,7 @@ def main():
     assert isinstance(restored[1], datetime)
     assert isinstance(restored[4], time)
 
+
 if __name__ == "__main__":
     kajson_manager.KajsonManager()
     main()
@@ -234,9 +236,11 @@ Demonstrates proper error handling when Pydantic validation fails during deseria
 from pydantic import BaseModel, Field
 from kajson import kajson, kajson_manager
 
+
 class Product(BaseModel):
     name: str
     price: float = Field(gt=0)  # Must be positive
+
 
 def main():
     # Valid data works fine
@@ -245,20 +249,21 @@ def main():
     restored = kajson.loads(json_str)
 
     # Invalid data in JSON
-    invalid_json = '''
+    invalid_json = """
 {
     "name": "Widget",
     "price": -10,
     "__class__": "Product",
     "__module__": "__main__"
 }
-'''
+"""
 
     try:
         kajson.loads(invalid_json)
     except kajson.KajsonDecoderError:
         print("✅ Validation failed as expected!")
         # Kajson properly caught the Pydantic validation error
+
 
 if __name__ == "__main__":
     kajson_manager.KajsonManager()
@@ -277,6 +282,7 @@ import kajson as json  # Instead of: import json
 from datetime import datetime
 from kajson import kajson_manager
 
+
 def main():
     # All your existing code works!
     data = {"user": "Alice", "logged_in": datetime.now()}
@@ -285,8 +291,10 @@ def main():
 
     # Or use kajson directly
     import kajson
+
     json_str2 = kajson.dumps(data)
     restored2 = kajson.loads(json_str2)
+
 
 if __name__ == "__main__":
     kajson_manager.KajsonManager()
@@ -305,8 +313,10 @@ from typing_extensions import override
 from pydantic import BaseModel, Field
 from kajson import kajson, kajson_manager
 
+
 class Animal(BaseModel):
     """Base animal class with common attributes."""
+
     name: str
     species: str
     age: int
@@ -314,8 +324,10 @@ class Animal(BaseModel):
     def make_sound(self) -> str:
         return "Some generic animal sound"
 
+
 class Dog(Animal):
     """Dog subclass with breed-specific attributes."""
+
     breed: str
     is_good_boy: bool = True
     favorite_toy: str = "tennis ball"
@@ -324,8 +336,10 @@ class Dog(Animal):
     def make_sound(self) -> str:
         return "Woof! Woof!"
 
+
 class Cat(Animal):
     """Cat subclass with feline-specific attributes."""
+
     lives_remaining: int = 9
     is_indoor: bool = True
     favorite_nap_spot: str = "sunny windowsill"
@@ -334,19 +348,24 @@ class Cat(Animal):
     def make_sound(self) -> str:
         return "Meow~"
 
+
 class Pet(BaseModel):
     """Pet registration with owner information."""
+
     owner_name: str
     animal: Animal  # ← Field declared as base class, but can hold subclass instances
     registration_date: str
     veterinarian: str
 
+
 class AnimalShelter(BaseModel):
     """Animal shelter with mixed animal types."""
+
     name: str
     location: str
     animals: List[Animal]  # ← List of base class, but can contain subclass instances
     capacity: int
+
 
 def main():
     # Create pets with different animal subclasses
@@ -355,14 +374,14 @@ def main():
             owner_name="Alice Smith",
             animal=Dog(name="Buddy", species="Canis lupus", age=3, breed="Golden Retriever"),
             registration_date="2024-01-15",
-            veterinarian="Dr. Johnson"
+            veterinarian="Dr. Johnson",
         ),
         Pet(
             owner_name="Bob Wilson",
             animal=Cat(name="Whiskers", species="Felis catus", age=5, lives_remaining=8),
             registration_date="2024-02-20",
-            veterinarian="Dr. Martinez"
-        )
+            veterinarian="Dr. Martinez",
+        ),
     ]
 
     # Create shelter with mixed types
@@ -373,7 +392,7 @@ def main():
         animals=[
             Dog(name="Max", species="Canis lupus", age=4, breed="German Shepherd"),
             Cat(name="Luna", species="Felis catus", age=2, lives_remaining=9),
-        ]
+        ],
     )
 
     # Serialize everything
@@ -394,6 +413,7 @@ def main():
     assert restored_pets[1].animal.make_sound() == "Meow~"  # Cat methods work
 
     print("🎉 Subclass polymorphism works perfectly!")
+
 
 if __name__ == "__main__":
     kajson_manager.KajsonManager()
@@ -418,58 +438,54 @@ from pydantic import BaseModel
 from kajson import kajson, kajson_manager
 
 T = TypeVar("T")
-K = TypeVar("K") 
+K = TypeVar("K")
 V = TypeVar("V")
+
 
 class Container(BaseModel, Generic[T]):
     """A generic container that can hold any type safely."""
+
     name: str
     items: List[T]
     capacity: int
 
+
 class KeyValueStore(BaseModel, Generic[K, V]):
     """A generic key-value store with typed keys and values."""
+
     name: str
     data: Dict[K, V]
     created_by: str
 
+
 class ApiResponse(BaseModel, Generic[T]):
     """A generic API response wrapper."""
+
     success: bool
     data: Optional[T] = None
     error: Optional[str] = None
     timestamp: str
 
+
 def main():
     # Single type parameter
-    string_container = Container[str](
-        name="fruits",
-        items=["apple", "banana", "cherry"],
-        capacity=10
-    )
-    
+    string_container = Container[str](name="fruits", items=["apple", "banana", "cherry"], capacity=10)
+
     # Multiple type parameters
-    scores = KeyValueStore[str, int](
-        name="user_scores",
-        data={"alice": 95, "bob": 87},
-        created_by="admin"
-    )
-    
+    scores = KeyValueStore[str, int](name="user_scores", data={"alice": 95, "bob": 87}, created_by="admin")
+
     # Nested generics
-    response = ApiResponse[List[Product]](
-        success=True,
-        data=[Product(name="Widget", price=19.99)],
-        timestamp="2025-01-15T10:30:00Z"
-    )
-    
+    response = ApiResponse[List[Product]](success=True, data=[Product(name="Widget", price=19.99)], timestamp="2025-01-15T10:30:00Z")
+
     # All serialize and deserialize perfectly!
     containers_json = kajson.dumps([string_container, scores, response])
     restored = kajson.loads(containers_json)
-    
+
     # Type information is preserved
     assert isinstance(restored[0], Container)  # Container[str]
     assert isinstance(restored[1], KeyValueStore)  # KeyValueStore[str, int]
     assert isinstance(restored[2], ApiResponse)  # ApiResponse[List[Product]]
+
 
 if __name__ == "__main__":
     kajson_manager.KajsonManager()
@@ -496,29 +512,37 @@ from pydantic import BaseModel
 from typing_extensions import override
 from kajson import kajson, kajson_manager
 
+
 class Personality(Enum):
     """Enum representing different cat personalities."""
+
     PLAYFUL = "playful"
     GRUMPY = "grumpy"
     CUDDLY = "cuddly"
 
+
 class Animal(BaseModel):
     """Base animal class with common attributes."""
+
     name: str
 
     def get_description(self) -> str:
         return f"Animal named {self.name}"
 
+
 class Dog(Animal):
     """Dog subclass with breed-specific attributes."""
+
     breed: str
 
     @override
     def get_description(self) -> str:
         return f"Dog named {self.name} ({self.breed} breed)"
 
+
 class Cat(Animal):
     """Cat subclass with feline-specific attributes including personality enum."""
+
     indoor: bool
     personality: Personality
 
@@ -527,22 +551,19 @@ class Cat(Animal):
         indoor_status = "indoor" if self.indoor else "outdoor"
         return f"Cat named {self.name} ({indoor_status}, {self.personality.value} personality)"
 
+
 class Pet(BaseModel):
     """Pet registration with acquisition date and animal reference."""
+
     acquired: datetime
     animal: Animal  # ← Field declared as base class, but can hold subclass instances
 
+
 def main():
     # Create instances with different subclasses
-    fido = Pet(
-        acquired=datetime.now(),
-        animal=Dog(name="Fido", breed="Corgi")
-    )
-    
-    whiskers = Pet(
-        acquired=datetime.now(),
-        animal=Cat(name="Whiskers", indoor=True, personality=Personality.GRUMPY)
-    )
+    fido = Pet(acquired=datetime.now(), animal=Dog(name="Fido", breed="Corgi"))
+
+    whiskers = Pet(acquired=datetime.now(), animal=Cat(name="Whiskers", indoor=True, personality=Personality.GRUMPY))
 
     # Serialize to JSON
     whiskers_json = kajson.dumps(whiskers, indent=2)
@@ -556,6 +577,7 @@ def main():
     assert whiskers_restored.animal.indoor is True  # ✅ All attributes intact
 
     print("🎉 SUCCESS: Polymorphism and enum preservation works perfectly!")
+
 
 if __name__ == "__main__":
     kajson_manager.KajsonManager()
@@ -578,16 +600,17 @@ Shows when and how to use the class registry for dynamically created classes tha
 from kajson import kajson, kajson_manager
 from kajson.kajson_manager import KajsonManager
 
+
 def main():
     # Simulate dynamic class creation (e.g., from network, workflow definition)
-    remote_class_definition = '''
+    remote_class_definition = """
 from pydantic import BaseModel, Field
 
 class RemoteTask(BaseModel):
     task_id: str
     name: str  
     priority: int = Field(default=1, ge=1, le=10)
-'''
+"""
 
     # Execute and create the class dynamically
     remote_namespace = {}
@@ -611,6 +634,7 @@ class RemoteTask(BaseModel):
     # Now deserialization works via class registry!
     restored_task = kajson.loads(json_str)
     assert restored_task.task_id == "TASK_001"
+
 
 if __name__ == "__main__":
     kajson_manager.KajsonManager()

@@ -47,11 +47,7 @@ Serialize `obj` to a JSON formatted string using the enhanced encoder.
 import kajson
 from datetime import datetime
 
-data = {
-    "name": "Alice",
-    "created_at": datetime.now(),
-    "active": True
-}
+data = {"name": "Alice", "created_at": datetime.now(), "active": True}
 
 json_str = kajson.dumps(data, indent=2)
 print(json_str)
@@ -136,11 +132,7 @@ Serialize `obj` to a JSON formatted stream.
 import kajson
 from datetime import date
 
-data = {
-    "event": "Conference",
-    "date": date(2025, 3, 15),
-    "attendees": 150
-}
+data = {"event": "Conference", "date": date(2025, 3, 15), "attendees": 150}
 
 with open("event.json", "w") as f:
     kajson.dump(data, f, indent=2)
@@ -200,8 +192,10 @@ Register a custom encoder for a specific type.
 ```python
 from decimal import Decimal
 
+
 def encode_decimal(d: Decimal) -> dict:
     return {"__decimal__": str(d)}
+
 
 kajson.UniversalJSONEncoder.register(Decimal, encode_decimal)
 ```
@@ -224,8 +218,10 @@ Register a custom decoder for a specific type.
 ```python
 from decimal import Decimal
 
+
 def decode_decimal(data: dict) -> Decimal:
     return Decimal(data["__decimal__"])
+
 
 kajson.UniversalJSONDecoder.register(Decimal, decode_decimal)
 ```
@@ -295,6 +291,7 @@ from datetime import datetime, timedelta
 from pydantic import BaseModel
 from typing import List
 
+
 class Task(BaseModel):
     id: int
     title: str
@@ -302,22 +299,11 @@ class Task(BaseModel):
     estimated_time: timedelta
     tags: List[str]
 
+
 # Create tasks
 tasks = [
-    Task(
-        id=1,
-        title="Write documentation",
-        due_date=datetime(2025, 2, 1, 17, 0),
-        estimated_time=timedelta(hours=3),
-        tags=["docs", "priority"]
-    ),
-    Task(
-        id=2,
-        title="Review PRs",
-        due_date=datetime(2025, 2, 2, 10, 0),
-        estimated_time=timedelta(hours=1, minutes=30),
-        tags=["review", "team"]
-    )
+    Task(id=1, title="Write documentation", due_date=datetime(2025, 2, 1, 17, 0), estimated_time=timedelta(hours=3), tags=["docs", "priority"]),
+    Task(id=2, title="Review PRs", due_date=datetime(2025, 2, 2, 10, 0), estimated_time=timedelta(hours=1, minutes=30), tags=["review", "team"]),
 ]
 
 # Serialize to JSON

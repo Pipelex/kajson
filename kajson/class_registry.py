@@ -74,10 +74,14 @@ class ClassRegistry(RootModel[ClassRegistryDict], ClassRegistryAbstract):
     @override
     def register_classes_dict(self, classes: Dict[str, Type[Any]]) -> None:
         """Registers multiple classes in the registry with names."""
+        if not classes:
+            self._log("register_classes_dict called with empty dict of classes to register")
+            return
+
         self.root.update(classes)
         nb_classes = len(classes)
         if nb_classes > 1:
-            self._log(f"Registered {len(classes)} classes in registry")
+            self._log(f"Registered {nb_classes} classes in registry")
             classes_list_str = "\n".join([f"{key}: {value.__name__}" for key, value in classes.items()])
             logging.log(level=LOGGING_LEVEL_VERBOSE, msg=classes_list_str)
         else:
