@@ -31,6 +31,11 @@ jobs:
         with:
           name: python-package-distributions
           path: dist/
+          # Artifacts are immutable in v4 and survive across run attempts, so the
+          # re-run the signing fallback prescribes would otherwise die here with a
+          # 409 before it ever reached signing. Hatchling builds reproducibly by
+          # default, so the replacement matches what PyPI already holds.
+          overwrite: true
 
   publish-to-pypi:
     name: >-
@@ -53,13 +58,19 @@ jobs:
       - name: Publish distribution 📦 to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          # Makes a re-run of this workflow idempotent, which is what the signing
-          # fallback below tells the operator to do: PyPI files are immutable, so
-          # without this a re-run dies here on the already-published version and
-          # `github-release` — which needs this job — never gets to attach the
-          # missing signatures. An unbumped version is caught by version-check.yml
-          # on the PR, not here.
-          skip-existing: true
+          # Only a re-run may skip an already-published version, which is what the
+          # signing fallback below tells the operator to do: PyPI files are immutable,
+          # so on a second attempt this step would otherwise die on the already-published
+          # version and `github-release` — which needs this job — would never get to
+          # attach the missing signatures.
+          #
+          # On a first attempt it stays off deliberately. version-check.yml runs on
+          # `pull_request` only, so nothing guards a direct push to `main` that keeps the
+          # current version. Letting that publish "successfully" would carry it into
+          # `github-release`, which would `--clobber` the tagged release's dists with a
+          # build of the newer commit while PyPI kept serving the originals. Failing here
+          # is what keeps that release intact.
+          skip-existing: ${{ github.run_attempt > 1 }}
 
   github-release:
     name: >-
