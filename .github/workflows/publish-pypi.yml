@@ -144,16 +144,36 @@ jobs:
       # has shipped this version, and it names the commit that shipped it. Absent
       # (attempt 1 died between the PyPI upload and `gh release create`) is allowed;
       # pointing elsewhere is not. Uses the commits endpoint so an annotated tag
-      # resolves to its commit rather than to the tag object.
+      # resolves to its commit rather than to the tag object, and distinguishes
+      # "no such tag" from "the API could not answer" — a guard that treats an
+      # outage, a rate limit or a bad token as "untagged" disarms itself exactly
+      # when it is least able to tell what it is letting through.
       - name: Refuse to touch a release that shipped a different commit
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          TAGGED_SHA=$(gh api "repos/$GITHUB_REPOSITORY/commits/v$VERSION" --jq '.sha' 2>/dev/null || true)
-          # A missing tag is a 422 whose body `gh` writes to stdout, so treat anything
-          # that is not a commit sha as "no such tag" rather than as a mismatch.
-          if [[ ! "$TAGGED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
-            TAGGED_SHA=""
+          # `gh` writes its error body to stdout rather than stderr, so a failed
+          # call still fills $BODY — with the failure, not with a commit.
+          if BODY=$(gh api "repos/$GITHUB_REPOSITORY/commits/v$VERSION" 2>/dev/null); then
+            TAGGED_SHA=$(jq -r '.sha' <<<"$BODY")
+          else
+            case "$(jq -r '.status // empty' <<<"$BODY" 2>/dev/null || true)" in
+              404|422)
+                # No such tag: attempt 1 died between the PyPI upload and
+                # `gh release create`. This is the recovery path, and it proceeds.
+                TAGGED_SHA=""
+                ;;
+              *)
+                # Anything else — 5xx, a rate limit, a bad token, or a transport
+                # failure that left no body at all — leaves the question open.
+                # `//` cannot supply the fallback here: on an empty body `jq`
+                # emits nothing rather than null, so the default is applied by
+                # the shell instead.
+                REASON=$(jq -r '.message // empty' <<<"$BODY" 2>/dev/null || true)
+                echo "::error::Could not determine whether v$VERSION is already tagged: ${REASON:-the GitHub API call returned no response body}. Refusing to touch the release without knowing which commit it shipped."
+                exit 1
+                ;;
+            esac
           fi
           if [ -n "$TAGGED_SHA" ] && [ "$TAGGED_SHA" != "$GITHUB_SHA" ]; then
             echo "::error::v$VERSION is already tagged at $TAGGED_SHA, but this run is building $GITHUB_SHA. Refusing to replace that release's artifacts with a different commit's build. Bump the version instead of re-running this workflow."
