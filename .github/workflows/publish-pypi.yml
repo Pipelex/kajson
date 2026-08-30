@@ -10,32 +10,72 @@ jobs:
     name: Build distribution 📦
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      actions: read # reading this run's own artifact list, below
+
     steps:
+      # A recovery re-run — the one the signing fallback in `github-release`
+      # prescribes — must attach and sign the exact bytes attempt 1 published,
+      # because PyPI's copies of them are immutable. Rebuilding cannot promise
+      # that: `[build-system] requires = ["hatchling"]` names no version, so a
+      # hatchling release landing between two attempts changes the output of the
+      # same commit, and GitHub would then serve — and Sigstore would attest —
+      # dists that differ from the ones on PyPI. Artifacts are scoped to the run
+      # rather than to the attempt, so the build attempt 1 stored is still here;
+      # reuse it and skip the rest of this job.
+      - name: Look for a build stored by an earlier attempt
+        id: earlier_build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          STATE=$(gh api \
+            "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
+            --jq '[.artifacts[] | select(.name == "python-package-distributions")]
+                  | if length == 0 then "absent"
+                    elif any(.expired) then "expired"
+                    else "present" end')
+          case "$STATE" in
+            present)
+              echo "An earlier attempt stored a build — reusing it."
+              echo "reuse=true" >> "$GITHUB_OUTPUT"
+              ;;
+            expired)
+              echo "::error::The build stored by an earlier attempt has expired, so this run can no longer reproduce the dists it published. Publish a new version instead of re-running this one."
+              exit 1
+              ;;
+            *)
+              echo "reuse=false" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
       - uses: actions/checkout@v4
+        if: steps.earlier_build.outputs.reuse != 'true'
         with:
           persist-credentials: false
       - name: Set up Python
+        if: steps.earlier_build.outputs.reuse != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.x"
       - name: Install pypa/build
+        if: steps.earlier_build.outputs.reuse != 'true'
         run: >-
           python3 -m
           pip install
           build
           --user
       - name: Build a binary wheel and a source tarball
+        if: steps.earlier_build.outputs.reuse != 'true'
         run: python3 -m build
+      # Deliberately no `overwrite`: artifacts are immutable in v4, and the guard
+      # above means this step is reached only when the run holds no build yet. A
+      # second attempt reuses the first one's bytes rather than replacing them.
       - name: Store the distribution packages
+        if: steps.earlier_build.outputs.reuse != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: python-package-distributions
           path: dist/
-          # Artifacts are immutable in v4 and survive across run attempts, so the
-          # re-run the signing fallback prescribes would otherwise die here with a
-          # 409 before it ever reached signing. Hatchling builds reproducibly by
-          # default, so the replacement matches what PyPI already holds.
-          overwrite: true
 
   publish-to-pypi:
     name: >-
