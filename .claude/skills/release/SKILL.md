@@ -1,155 +1,72 @@
 ---
 name: release
 description: >
-  Automates the kajson release workflow: bumps the version in pyproject.toml,
-  finalizes the CHANGELOG.md Unreleased section, runs quality checks, creates a
-  release/vX.Y.Z branch, commits, pushes, and opens a PR to main. Use when user
-  says "release", "cut a release", "bump version", "prepare a release", "make a
-  release", "ship it", "create release branch", or any variation of shipping a
-  new version of kajson. The user can optionally provide changelog content
-  inline when invoking the skill (e.g. "/release Added new encoder feature"),
-  which will be used as the changelog entry for this version.
+  Cut a release of kajson, the universal JSON encoder/decoder published to PyPI:
+  the release/vX.Y.Z worktree, the pyproject.toml bump and the uv.lock that
+  follows, the changelog entry, the quality gates, one commit, and a pull request
+  to main. Use when the user says "release", "cut a release", "bump version",
+  "prepare a release", "make a release", "ship it", "create release branch",
+  "promote dev to main", "tag a version", or any variation of shipping a new
+  version of kajson. Changelog content passed inline ("/release Added an encoder
+  for slots dataclasses") becomes the entry. The merge is landed by /ledger-land,
+  never by this skill.
 ---
 
-# Kajson Release Workflow
+# Releasing kajson
 
-This skill handles the full release cycle for the `kajson` Python package.
+The procedure is the workspace release play, [`docs/releasing.md`](../../../../docs/releasing.md) at the workspace root — read it first, then run it with what follows. The repo key is `kajson`, the base is `dev`, and the pull request targets `main`: `guard-branches.yml` refuses any head branch but `release/vX.Y.Z` into `main`, so there is no other way in. The release worktree is `_kajson--release`, made with `wt add kajson release --branch release/vX.Y.Z`. The repo declares neither `.worktree.toml` nor `.worktreeinclude`, so `wt` resolves the base from `origin/dev` and provisions with the Makefile's `install` target, which is what creates the `.venv` every gate below runs out of.
 
-## Files touched
+## What ships
 
-- **`pyproject.toml`** — the `version` field (line 3)
-- **`CHANGELOG.md`** — add `[vX.Y.Z] - YYYY-MM-DD` entry (remove `[Unreleased]` if present)
-- **`uv.lock`** — regenerated via `make li` (lock + install)
+The merge to `main` publishes, from the workflows that fire on the push:
 
-## Workflow
+- **The `kajson` package on PyPI**, by `publish-pypi.yml` — built with `python -m build` and uploaded by trusted publishing into the `pypi` environment. `skip-existing` is on only for a re-run (`github.run_attempt > 1`), so on a first attempt a push to `main` that did not bump the version **fails at the upload**. That failure is deliberate: `version-check.yml` runs on pull requests only, and nothing else stands between an unbumped push and the release job below.
+- **The GitHub Release and the `vX.Y.Z` tag**, by the same workflow's `github-release` job — the notes are the changelog section for that version, taken verbatim; the wheel and the sdist are attached, then signed with Sigstore and their bundles attached. Signing is `continue-on-error`, so an outage leaves a released, unsigned version and a warning naming the cure: "Re-run all jobs" on that run, which reuses the stored build rather than rebuilding.
+- **The MkDocs site**, by `deploy-docs.yml` — `make docs-deploy` onto `gh-pages`, served at <https://pipelex.github.io/kajson/>.
 
-### 1. Pre-flight checks
+The landing verifies the publish — the run, the registry's answer, the tag:
 
-- Read the current version from `pyproject.toml`.
-- Read `CHANGELOG.md` to understand the current state.
-- Run `git status` and `git log origin/main..HEAD` to assess the working tree:
-  - If there are **uncommitted changes** (staged or unstaged), warn the user and
-    ask whether to commit them as part of the release, stash them, or abort.
-  - If there are **unpushed commits** on the current branch, list them so the
-    user is aware — these will be included in the release branch.
-
-### 2. Determine the bump type
-
-Ask the user which kind of version bump they want — **patch**, **minor**, or
-**major** — unless they already specified it. Show the current version and what
-the new version would be for each option so the choice is concrete.
-
-### 3. Run quality checks
-
-Run `make agent-check`. This is the gate — if it fails, stop and report the
-errors so they can be fixed before retrying. Do not proceed past this step on
-failure.
-
-### 4. Ensure we're on the right branch
-
-The release branch must be named `release/vX.Y.Z` where X.Y.Z is the **new**
-version. All file modifications (changelog, version bump, lock) must happen on
-this branch.
-
-- If already on `release/vX.Y.Z` matching the new version, stay on it.
-- If on `dev`, `main`, or any other branch, create and switch to
-  `release/vX.Y.Z` from the current HEAD.
-- If on a `release/` branch for a **different** version, warn the user and ask
-  how to proceed.
-
-### 5. Finalize the changelog
-
-Add a new version entry at the top of the changelog for the release.
-
-1. If there is an `## [Unreleased]` section, **remove it** (including any blank
-   lines that follow it) and replace it with the new version heading. Any
-   content that was under `[Unreleased]` becomes the content of the new version.
-2. If there is no `[Unreleased]` section, insert the new version heading
-   directly after the `# Changelog` title.
-3. **Never add an `[Unreleased]` heading.** The changelog should only contain
-   concrete version entries.
-4. If the user provided changelog content when invoking the skill (e.g.
-   `/release Added new encoder feature`), **merge** that content with any
-   existing `[Unreleased]` content (do not discard either source). Format the
-   combined content properly under the appropriate headings (e.g. `### Added`,
-   `### Changed`, `### Fixed`), inferring headings from the content when
-   possible.
-5. If the release has no changelog content yet (neither from an `[Unreleased]`
-   section nor from inline user input), ask the user what to include before
-   proceeding.
-6. The result should look like:
-
-```markdown
-# Changelog
-
-## [vX.Y.Z] - YYYY-MM-DD
-
-### Changed
-- ...
-
-## [vPREVIOUS] - PREVIOUS-DATE
-...
+```bash
+gh run list --workflow=publish-pypi.yml --branch main --limit 3 --json conclusion,headSha,url  # the run whose headSha is the merge SHA: success
+curl -s https://pypi.org/pypi/kajson/json | jq -r .info.version                                # the registry's answer: X.Y.Z
+git fetch --tags --prune origin && git tag --list vX.Y.Z                                       # the tag
 ```
 
-### 6. Bump the version in pyproject.toml
+The registry can equally be read with `pip index versions kajson` where a `pip` is on the PATH — the worktree's uv-made venv has none. Never create the tag by hand ahead of the merge: `gh release create` is what makes it, and the job refuses outright to touch a release whose tag names a commit other than the one being built.
 
-Edit `pyproject.toml` line 3 to the new version string. Only change the version
-field — don't touch anything else.
+## Version files and the lock
 
-### 7. Lock dependencies
+- `pyproject.toml` — the `version` field under `[project]`, and nothing else in the file.
+- `uv.lock` — regenerated by `make li` (`uv lock`, then `uv sync --all-extras`), run after the bump so the lockfile records the new number. If it fails, stop and report it rather than committing a stale lock.
+- **Also stamped:** nothing. The version lives in `pyproject.toml` alone — no `__version__`, no README badge, no literal in the docs.
 
-Run `make li` to regenerate `uv.lock` and reinstall. This ensures the lockfile
-reflects the new version in `pyproject.toml`. If this step fails, stop and
-report the error.
+## Gates
 
-### 8. Commit and push
+Run in the worktree, in this order, before the commit:
 
-Stage all release-related changes. This includes at minimum `pyproject.toml`,
-`CHANGELOG.md`, and `uv.lock`, plus any other files the user chose to include
-in step 1 (e.g. previously uncommitted work that belongs in this release).
+1. `make agent-check` — unused imports, ruff format, ruff lint, pyright, mypy. **It rewrites files** (`ruff check --fix`, `ruff format`), so whatever it touches joins the release commit. Red blocks the release: fix the code, never loosen the target.
+2. `make agent-test` — the pytest suite, quiet unless it fails. `tests-check.yml` runs the same tests across every supported Python on the pull request, so a red one here is a red pull request there.
+3. **When `docs/` or `mkdocs.yml` changed since the last release**, `make docs-check` (`mkdocs build --strict`). `git log $(git describe --tags --abbrev=0)..HEAD --oneline -- docs/ mkdocs.yml` says whether they did; if nothing changed, skip it and say so. Strict mode fails on a dead link, and the docs deploy runs on the push to `main`, where there is no pull request left to fail.
 
-Commit with the message:
+## The release commit
 
-```
-Release vX.Y.Z
-```
+`pyproject.toml`, `uv.lock`, `CHANGELOG.md`, and each file `make agent-check` rewrote — staged by name.
 
-Push the branch to origin with `-u` to set up tracking.
+## CI on the release pull request
 
-### 9. Open a PR
+- `guard-branches.yml` — the head branch into `main` matches `release/vX.Y.Z` exactly.
+- `version-check.yml` — the `pyproject.toml` version equals the version in the branch name, **and** is strictly greater than the one on `main`.
+- `changelog-check.yml` — `CHANGELOG.md` carries a `## [vX.Y.Z] - ` heading for that version. It asserts nothing about `[Unreleased]`; leaving none behind is the play's rule, not CI's.
+- `lint-check.yml` — ruff format, ruff lint, pyright and mypy on every supported Python; the aggregator job `Lint (all versions)` is the single required status.
+- `tests-check.yml` — the suite on every supported Python, run twice: once normally, once under `PYTHONTZPATH=/nonexistent`, which is how kajson proves it still decodes aware datetimes on a host with no system timezone database.
+- `doc-check.yml` — `mkdocs build --strict`, only when `docs/**` or `mkdocs.yml` changed.
+- `cla.yml` — the CLA assistant, allowlisted for maintainers.
 
-Create a pull request targeting `main` with:
+Nothing in CI checks that `uv.lock` agrees with `pyproject.toml`: `make install` re-locks silently rather than failing, so the lock step in the play is the only thing keeping the two in step.
 
-- **Title:** `Release/vX.Y.Z`
-- **Body:** Include:
-  - The changelog entries for this version (copied from CHANGELOG.md)
-  - A note about the version bump from old to new
+## Particulars
 
-Use this format for the PR body:
-
-```markdown
-## Release vX.Y.Z
-
-Bumps version from `A.B.C` to `X.Y.Z`.
-
-### Changelog
-
-<paste the changelog entries for this version here>
-```
-
-Report the PR URL back to the user.
-
-## Important details
-
-- The version follows semver: `MAJOR.MINOR.PATCH`.
-- Always confirm the bump type with the user before making changes.
-- If `make agent-check` fails, the release is blocked — help the user fix the
-  issues rather than skipping the checks.
-- The CI will validate that:
-  - The `pyproject.toml` version matches the branch name (`version-check.yml`)
-  - The `CHANGELOG.md` has an entry for the version (`changelog-check.yml`)
-  - The `uv.lock` file is in sync with `pyproject.toml`
-- All checks must pass for the PR to be mergeable, so getting the changelog,
-  version, and lockfile right is critical.
-- Today's date for the changelog entry: use the current date in `YYYY-MM-DD`
-  format.
+- **No pre-release form.** `changelog-check.yml` fires on any head starting with `release/v` and then demands `^release/v([0-9]+\.[0-9]+\.[0-9]+)$`, so `release/v0.8.0-rc.1` does not skip the check the way it would elsewhere — it fails it. Ship a plain `X.Y.Z`.
+- **The pull request is titled `Release/vX.Y.Z`**, with the slash. That is what every release commit on `main` reads, and it is where this repo departs from the play's default `Release vX.Y.Z`. Nothing in CI asserts it.
+- **The tags are lightweight**, created as a side effect of `gh release create` rather than by `git tag -a`. Always pass `--tags` when reading them: bare `git describe` finds no annotated tag here and dies.
+- **The back-merge is a merge commit.** `dev` carries a `Merge branch 'main' into dev` after each release rather than a fast-forward; `/ledger-land` makes it, and the changelog is the one conflict it expects.
