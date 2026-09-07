@@ -21,7 +21,7 @@ The procedure is the workspace release play, [`docs/releasing.md`](../../../../d
 The merge to `main` publishes, from the workflows that fire on the push:
 
 - **The `kajson` package on PyPI**, by `publish-pypi.yml` — built with `python -m build` and uploaded by trusted publishing into the `pypi` environment. `skip-existing` is on only for a re-run (`github.run_attempt > 1`), so on a first attempt a push to `main` that did not bump the version **fails at the upload**. That failure is deliberate: `version-check.yml` runs on pull requests only, and nothing else stands between an unbumped push and the release job below.
-- **The GitHub Release and the `vX.Y.Z` tag**, by the same workflow's `github-release` job — the notes are the changelog section for that version, taken verbatim; the wheel and the sdist are attached, then signed with Sigstore and their bundles attached. Signing is `continue-on-error`, so an outage leaves a released, unsigned version and a warning naming the cure: "Re-run all jobs" on that run, which reuses the stored build rather than rebuilding.
+- **The GitHub Release and the `vX.Y.Z` tag**, by the same workflow's `github-release` job — the notes are the changelog section for that version, with its blank lines dropped and every line's leading whitespace stripped; the wheel and the sdist are attached, then signed with Sigstore and their bundles attached. Signing is `continue-on-error`, so an outage leaves a released, unsigned version and a warning naming the cure: "Re-run all jobs" on that run, which reuses the stored build rather than rebuilding.
 - **The MkDocs site**, by `deploy-docs.yml` — `make docs-deploy` onto `gh-pages`, served at <https://pipelex.github.io/kajson/>.
 
 The landing verifies the publish — the run, the registry's answer, the tag:
@@ -46,7 +46,7 @@ Run in the worktree, in this order, before the commit:
 
 1. `make agent-check` — unused imports, ruff format, ruff lint, pyright, mypy. **It rewrites files** (`ruff check --fix`, `ruff format`), so whatever it touches joins the release commit. Red blocks the release: fix the code, never loosen the target.
 2. `make agent-test` — the pytest suite, quiet unless it fails. `tests-check.yml` runs the same tests across every supported Python on the pull request, so a red one here is a red pull request there.
-3. **When `docs/` or `mkdocs.yml` changed since the last release**, `make docs-check` (`mkdocs build --strict`). `git log $(git describe --tags --abbrev=0)..HEAD --oneline -- docs/ mkdocs.yml` says whether they did; if nothing changed, skip it and say so. Strict mode fails on a dead link, and the docs deploy runs on the push to `main`, where there is no pull request left to fail.
+3. **When `docs/` or `mkdocs.yml` changed since the last release**, `make docs-check` (`mkdocs build --strict`). `git log $(git describe --tags --abbrev=0)..HEAD --oneline -- docs/ mkdocs.yml` says whether they did; if nothing changed, skip it and say so. Strict mode fails on a dead link, and `doc-check.yml` runs the same strict build on the pull request whenever those paths changed, so this is what keeps the pull request from opening red. The docs deploy on `main` is `mkdocs gh-deploy`, which is not strict and would publish the dead link rather than fail.
 
 ## The release commit
 
@@ -67,6 +67,7 @@ Nothing in CI checks that `uv.lock` agrees with `pyproject.toml`: `make install`
 ## Particulars
 
 - **No pre-release form.** `changelog-check.yml` fires on any head starting with `release/v` and then demands `^release/v([0-9]+\.[0-9]+\.[0-9]+)$`, so `release/v0.8.0-rc.1` does not skip the check the way it would elsewhere — it fails it. Ship a plain `X.Y.Z`.
-- **The pull request is titled `Release/vX.Y.Z`**, with the slash. That is what every release commit on `main` reads, and it is where this repo departs from the play's default `Release vX.Y.Z`. Nothing in CI asserts it.
+- **The pull request is titled `Release/vX.Y.Z`**, with the slash. That is what the recent release commits on `main` read — the oldest ones predate the convention — and it is where this repo departs from the play's default `Release vX.Y.Z`. Nothing in CI asserts it.
 - **The tags are lightweight**, created as a side effect of `gh release create` rather than by `git tag -a`. Always pass `--tags` when reading them: bare `git describe` finds no annotated tag here and dies.
+- **`pipelex` pins kajson exactly.** `pipelex/pyproject.toml` carries `kajson==A.B.C`, not a floor, so a release reaches the runtime only when that pin moves. Nothing arms that move on its own: `ledger.toml` declares no `release_followups` for `kajson`, so file the bump against `pipelex` yourself alongside the release item in step 3.
 - **The back-merge is a merge commit.** `dev` carries a `Merge branch 'main' into dev` after each release rather than a fast-forward; `/ledger-land` makes it, and the changelog is the one conflict it expects.
