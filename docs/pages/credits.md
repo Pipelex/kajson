@@ -2,7 +2,7 @@
 
 ## Core Team
 
-Kajson is developed and maintained by the team at **Pipelex** which is also behind the open-source language for repeatable AI workflows: [Pipelex](https://github.com/Pipelex/pipelex).
+Kajson is developed and maintained by the team behind [Pipelex](https://go.pipelex.com/product), the reference runtime for MTHDS, the open standard for AI methods. Pipelex lets you build AI methods with your coding agent and run them anywhere — from your agent or your chatbot via MCP, as a webapp, or via API in any software.
 
 ## Original Work
 
@@ -35,4 +35,3 @@ For questions, bug reports, or feature requests:
 
 - Open an issue on [GitHub](https://github.com/Pipelex/kajson/issues)
 - Join our community on [Discord](https://go.pipelex.com/discord)
-- Check out [Pipelex](https://github.com/Pipelex/pipelex) for AI workflow automation using Kajson

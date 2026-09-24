@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.7.2] - 2026-09-24
+
+### Changed
+- **Documentation:** The README, which is also the PyPI page, and the documentation site's home and credits pages now describe Pipelex as the reference runtime for MTHDS, the open standard for AI methods, with a link to its product page: MTHDS is the language, and Pipelex is the runtime that runs the methods written in it.
+
 ## [v0.7.1] - 2026-08-30
 
 ### Fixed
