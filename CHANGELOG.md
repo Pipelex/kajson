@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- **Documentation:** The README, which is also the PyPI page, and the documentation site's home and credits pages now say Pipelex methods run as an MCP for chatbots, as a webapp for people, or via API for your software, naming who each way of running a method is for.
+
 ## [v0.7.2] - 2026-09-24
 
 ### Changed
