@@ -1,0 +1,25 @@
+kajson/json_decoder.py
+  355ab6bfad63a1eb 161-170
+tests/unit/test_global_registry_fallback.py
+  355ab6bfad63a1eb 1-23,25-78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.3",
+  "base_commit_sha": "63d078cc2c649abd7a1ed4cf8dcea109e411b594",
+  "prompts": {
+    "355ab6bfad63a1eb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05703020-7b75-4418-90f8-8a986de7db57",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 88,
+      "total_deletions": 1,
+      "accepted_lines": 87,
+      "overriden_lines": 1
+    }
+  }
+}

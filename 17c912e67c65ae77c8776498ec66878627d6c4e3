@@ -1,0 +1,25 @@
+kajson/kajson.py
+  281d6251f77ce579 40-42,113-114,123-136,161-164,173-183
+tests/unit/test_class_source_code.py
+  281d6251f77ce579 119-131
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.3",
+  "base_commit_sha": "17c912e67c65ae77c8776498ec66878627d6c4e3",
+  "prompts": {
+    "281d6251f77ce579": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "17d8993e-07bb-4616-bb84-0488384fd589",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel",
+      "messages": [],
+      "total_additions": 47,
+      "total_deletions": 8,
+      "accepted_lines": 47,
+      "overriden_lines": 0
+    }
+  }
+}

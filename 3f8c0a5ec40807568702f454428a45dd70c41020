@@ -1,0 +1,25 @@
+.github/workflows/tests-check.yml
+  72251019ff6c6d33 28,31
+.github/workflows/lint-check.yml
+  72251019ff6c6d33 28,31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.19",
+  "base_commit_sha": "3f8c0a5ec40807568702f454428a45dd70c41020",
+  "prompts": {
+    "72251019ff6c6d33": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "564c3204-cd05-400c-827a-4f87242e0d14",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel <lchoquel@users.noreply.github.com>",
+      "messages": [],
+      "total_additions": 4,
+      "total_deletions": 2,
+      "accepted_lines": 4,
+      "overriden_lines": 0
+    }
+  }
+}

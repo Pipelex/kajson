@@ -1,0 +1,38 @@
+Makefile
+  629a93c6b71ef67c 70-72,93-94,232-241,331-333
+tests/unit/test_composite_class_registry.py
+  7a88467c4c70f70b 89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.19",
+  "base_commit_sha": "fe76fc17a522faa2b8dcb6066580f145b9ecc291",
+  "prompts": {
+    "629a93c6b71ef67c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d437ea3e-11d0-4688-a040-47e5267e3917",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel <lchoquel@users.noreply.github.com>",
+      "messages": [],
+      "total_additions": 18,
+      "total_deletions": 1,
+      "accepted_lines": 18,
+      "overriden_lines": 0
+    },
+    "7a88467c4c70f70b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a0c9119e-a84c-4a03-871f-8fcdfe7186a2",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel <lchoquel@users.noreply.github.com>",
+      "messages": [],
+      "total_additions": 2,
+      "total_deletions": 2,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    }
+  }
+}

@@ -1,0 +1,27 @@
+kajson/kajson_manager.py
+  563de38e10b83b72 1,12-14,41-43,45-48
+tests/unit/test_composite_class_registry.py
+  563de38e10b83b72 1-127
+kajson/composite_class_registry.py
+  563de38e10b83b72 1-99
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.19",
+  "base_commit_sha": "77b7a28c6317bf01496e50b2e488cf5213813ae6",
+  "prompts": {
+    "563de38e10b83b72": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df5b5e3e-da86-420a-b7c5-ab1f0b0519d2",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel <lchoquel@users.noreply.github.com>",
+      "messages": [],
+      "total_additions": 245,
+      "total_deletions": 7,
+      "accepted_lines": 238,
+      "overriden_lines": 0
+    }
+  }
+}

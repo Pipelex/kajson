@@ -1,0 +1,23 @@
+tests/unit/test_explicit_class_registry.py
+  ece96aaaddb7a8f7 60-72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.22",
+  "base_commit_sha": "dd9f481f737391721070962e9646b7566d951aff",
+  "prompts": {
+    "ece96aaaddb7a8f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "694385fd-00a1-477d-80ca-7f3891a27a33",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Louis Choquel <lchoquel@users.noreply.github.com>",
+      "messages": [],
+      "total_additions": 13,
+      "total_deletions": 0,
+      "accepted_lines": 13,
+      "overriden_lines": 0
+    }
+  }
+}
