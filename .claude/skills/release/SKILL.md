@@ -60,7 +60,7 @@ Run in the worktree, in this order, before the commit:
 - `lint-check.yml` — ruff format, ruff lint, pyright and mypy on every supported Python; the aggregator job `Lint (all versions)` is the single required status.
 - `tests-check.yml` — the suite on every supported Python, run twice: once normally, once under `PYTHONTZPATH=/nonexistent`, which is how kajson proves it still decodes aware datetimes on a host with no system timezone database.
 - `doc-check.yml` — `mkdocs build --strict`, only when `docs/**` or `mkdocs.yml` changed.
-- `cla.yml` — the CLA assistant, allowlisted for maintainers.
+- The CLA Assistant — the CLA Assistant is not a workflow of this repository: the organization ruleset `cla` (github-manager's `config/organization.yaml`) runs Pipelex/.github's `cla.yml` on every pull request into `dev`, and on none into `main`.
 
 Nothing in CI checks that `uv.lock` agrees with `pyproject.toml`: `make install` re-locks silently rather than failing, so the lock step in the play is the only thing keeping the two in step.
 
