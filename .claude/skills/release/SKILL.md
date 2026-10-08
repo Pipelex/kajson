@@ -60,7 +60,7 @@ Run in the worktree, in this order, before the commit:
 - `lint-check.yml` — ruff format, ruff lint, pyright and mypy on every supported Python; the aggregator job `Lint (all versions)` is the single required status.
 - `tests-check.yml` — the suite on every supported Python, run twice: once normally, once under `PYTHONTZPATH=/nonexistent`, which is how kajson proves it still decodes aware datetimes on a host with no system timezone database.
 - `doc-check.yml` — `mkdocs build --strict`, only when `docs/**` or `mkdocs.yml` changed.
-- `cla.yml` — the CLA assistant, allowlisted for maintainers.
+- The CLA Assistant — the CLA Assistant is not a workflow of this repository: the organization ruleset `cla` (github-manager's `config/organization.yaml`) runs Pipelex/.github's `cla.yml` on every pull request into `dev`, and on none into `main`.
 
 Nothing in CI checks that `uv.lock` agrees with `pyproject.toml`: `make install` re-locks silently rather than failing, so the lock step in the play is the only thing keeping the two in step.
 
@@ -69,5 +69,5 @@ Nothing in CI checks that `uv.lock` agrees with `pyproject.toml`: `make install`
 - **No pre-release form.** `changelog-check.yml` fires on any head starting with `release/v` and then demands `^release/v([0-9]+\.[0-9]+\.[0-9]+)$`, so `release/v0.8.0-rc.1` does not skip the check the way it would elsewhere — it fails it. Ship a plain `X.Y.Z`.
 - **The pull request is titled `Release/vX.Y.Z`**, with the slash. That is what the recent release commits on `main` read — the oldest ones predate the convention — and it is where this repo departs from the play's default `Release vX.Y.Z`. Nothing in CI asserts it.
 - **The tags are lightweight**, created as a side effect of `gh release create` rather than by `git tag -a`. Always pass `--tags` when reading them: bare `git describe` finds no annotated tag here and dies.
-- **`pipelex` pins kajson exactly.** `pipelex/pyproject.toml` carries `kajson==A.B.C`, not a floor, so a release reaches the runtime only when that pin moves. Nothing arms that move on its own: `ledger.toml` declares no `release_followups` for `kajson`, so file the bump against `pipelex` yourself alongside the release item in step 3.
+- **`pipelex` pins kajson exactly.** `pipelex/pyproject.toml` carries `kajson==A.B.C`, not a floor, so a release reaches the runtime only when that pin moves. Nothing arms that move on its own, since a release files nothing in the ledger: file the move of that pin to X.Y.Z against `pipelex` yourself in step 3, with `ledger new --owner pipelex … --after-release kajson@X.Y.Z` (or `ledger link <id> --after-release kajson@X.Y.Z` on an item already open), so it becomes ready by itself once the `vX.Y.Z` tag is in this repo's checkout.
 - **The back-merge is a merge commit.** `dev` carries a `Merge branch 'main' into dev` after each release rather than a fast-forward; `/ledger-land` makes it, and the changelog is the one conflict it expects.

@@ -10,7 +10,7 @@
 
 **Kajson** is a powerful drop-in replacement for Python's standard `json` module that automatically handles complex object serialization, including **Pydantic v2 models**, **datetime objects**, and **custom types**.
 
-This library is used by [Pipelex](https://go.pipelex.com/product), the reference runtime for MTHDS, the open standard for AI methods. Pipelex lets you build AI methods with your coding agent and run them anywhere — from your agent or your chatbot via MCP, as a webapp, or via API in any software.
+This library is used by [Pipelex](https://go.pipelex.com/product), the reference runtime for MTHDS, the open standard for AI methods. Pipelex lets you build AI methods with your coding agent and run them anywhere: as an MCP for chatbots, as a webapp for people, or via API for your software.
 
 ## ✨ Why Kajson?
 
