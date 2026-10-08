@@ -130,6 +130,6 @@ When adding support for new types:
 
 ## License
 
-* **CLA** – The first time you open a PR, the CLA-assistant bot will guide you through signing the Contributor License Agreement. The process uses the [CLA assistant lite](https://github.com/marketplace/actions/cla-assistant-lite).
+* **CLA** – The first time you open a PR, the CLA Assistant bot asks you to sign the [Contributor License Agreement](https://github.com/Pipelex/.github/blob/main/CLA.md), one agreement for every Pipelex repository, by posting a comment on the PR. The check reads your signature the next time it runs, so once you have commented, push a new commit or ask a maintainer to re-run it.
 * **Code of Conduct** – Be kind. All interactions fall under [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
 * **License** – Kajson is licensed under the [Apache 2.0 License](LICENSE).
