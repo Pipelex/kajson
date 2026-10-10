@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Security
+- **`docs` extra**: pins mkdocs-material 9.7.7, past its search-suggestion XSS advisory, which also lets pymdown-extensions move past its path-traversal and ReDoS advisories.
+
 ## [v0.7.3] - 2026-10-08
 
 ### Changed
