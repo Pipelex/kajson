@@ -21,6 +21,7 @@ jobs:
     env:
       VIRTUAL_ENV: ${{ github.workspace }}/.venv
       ENV: dev
+      UV_PYTHON: ${{ matrix.python-version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -37,7 +38,7 @@ jobs:
         run: uv --version
 
       - name: Install dependencies
-        run: PYTHON_VERSION=${{ matrix.python-version }} make install
+        run: make install
 
       - name: Run tests
         run: make gha-tests
@@ -46,3 +47,6 @@ jobs:
       # kajson must stay fully functional via its tzdata dependency alone.
       - name: Run tests without system timezone database
         run: PYTHONTZPATH=/nonexistent make gha-tests
+
+      - name: The interpreter is the one this job names
+        run: .venv/bin/python -c 'import sys; want = "${{ matrix.python-version }}"; got = "%d.%d" % sys.version_info[:2]; assert got == want, f"ran {got}, expected {want}"'
