@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Changed
+- **Development Python**: the repository pins its development interpreter in `.python-version`, which holds 3.11, and `make install` builds `.venv` on it, so a `.venv` that drifted to another Python returns to the pin on the next `make install`. `PYTHON_VERSION=<version> make install` now rebuilds an existing `.venv` on the version it asks for, where it used to leave `.venv` on its old interpreter without a word, and each job of the CI matrix checks that it ran on the Python version it names. Development tooling only; the published package does not change.
+
 ### Security
 - **`docs` extra**: pins mkdocs-material 9.7.7, past its search-suggestion XSS advisory, which also lets pymdown-extensions move past its path-traversal and ReDoS advisories.
 
