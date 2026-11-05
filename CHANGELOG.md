@@ -7,6 +7,7 @@
 
 ### Security
 - **`docs` extra**: pins mkdocs-material 9.7.7, past its search-suggestion XSS advisory, which also lets pymdown-extensions move past its path-traversal and ReDoS advisories.
+- **Development lockfile**: locks certifi 2026.10.23, which drops the emSign root certificates whose intermediate CA keys were compromised; certifi reaches the lock only through the `docs` extra's requests, so the published package's dependencies do not change.
 
 ## [v0.7.3] - 2026-10-08
 
