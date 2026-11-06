@@ -5,7 +5,11 @@ endif
 VIRTUAL_ENV := $(CURDIR)/.venv
 PROJECT_NAME := $(shell grep '^name = ' pyproject.toml | sed -E 's/name = "(.*)"/\1/')
 
-PYTHON_VERSION ?= 3.11
+# The interpreter is the one .python-version names, unless PYTHON_VERSION or UV_PYTHON asks for another.
+# Exporting it hands the same version to every uv command, so `uv sync` never rebuilds .venv on the pin.
+PYTHON_VERSION ?= $(or $(UV_PYTHON),$(shell cat .python-version))
+export UV_PYTHON := $(PYTHON_VERSION)
+
 VENV_PYTHON := $(VIRTUAL_ENV)/bin/python
 VENV_PYTEST := $(VIRTUAL_ENV)/bin/pytest
 VENV_RUFF := $(VIRTUAL_ENV)/bin/ruff

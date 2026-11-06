@@ -40,6 +40,8 @@ cd kajson
 make install
 ```
 
+The development interpreter is the Python version that `.python-version` names at the repository root, and `make install` builds `.venv` on it. If `.venv` was built on another Python, the next `make install` rebuilds it on the pinned version. To try another version, run `PYTHON_VERSION=3.13 make install` with the version you want; a plain `make install` afterwards returns `.venv` to the pin. CI runs the checks and tests on every Python version kajson supports.
+
 ## Verify Installation
 
 After installation, you can verify that Kajson is properly installed:

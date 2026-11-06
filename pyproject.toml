@@ -1,6 +1,6 @@
 [project]
 name = "kajson"
-version = "0.7.3"
+version = "0.7.4"
 description = "Powerful universal JSON encoder/decoder for Python objects with support for pydantic v2."
 authors = [{ name = "Evotis S.A.S.", email = "evotis@pipelex.com" }]
 maintainers = [{ name = "Pipelex staff", email = "oss@pipelex.com" }]
@@ -29,7 +29,7 @@ Documentation = "https://pipelex.github.io/kajson/"
 docs = [
   "mkdocs==1.6.1",
   "mkdocs-glightbox==0.4.0",
-  "mkdocs-material==9.6.14",
+  "mkdocs-material==9.7.7",
   "mkdocs-meta-manager==1.1.0",
 ]
 dev = [
