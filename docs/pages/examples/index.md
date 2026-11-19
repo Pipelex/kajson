@@ -594,38 +594,28 @@ if __name__ == "__main__":
 
 **Source:** [`ex_14_dynamic_class_registry.py`](https://github.com/PipelexLab/kajson/blob/main/examples/ex_14_dynamic_class_registry.py)
 
-Shows when and how to use the class registry for dynamically created classes that aren't available in standard module paths. Essential for distributed systems and runtime class generation.
+Shows when and how to use the class registry for dynamically created classes that aren't available in standard module paths. Essential for distributed systems and runtime class generation. Kajson never executes code: the example builds its class with pydantic's `create_model`.
 
 ```python
+from pydantic import Field, create_model
+
 from kajson import kajson, kajson_manager
 from kajson.kajson_manager import KajsonManager
 
 
 def main():
-    # Simulate dynamic class creation (e.g., from network, workflow definition)
-    remote_class_definition = """
-from pydantic import BaseModel, Field
-
-class RemoteTask(BaseModel):
-    task_id: str
-    name: str  
-    priority: int = Field(default=1, ge=1, le=10)
-"""
-
-    # Execute and create the class dynamically
-    remote_namespace = {}
-    exec(remote_class_definition, remote_namespace)
-    RemoteTask = remote_namespace["RemoteTask"]
-
-    # Set module to simulate it's not available locally
-    RemoteTask.__module__ = "remote.distributed.system"
+    # Build a class at runtime, e.g. from a description received over the network or a workflow definition
+    RemoteTask = create_model(
+        "RemoteTask",
+        __module__="remote.distributed.system",  # a module that does not exist locally
+        task_id=(str, ...),
+        name=(str, ...),
+        priority=(int, Field(default=1, ge=1, le=10)),
+    )
 
     # Create and serialize
     task = RemoteTask(task_id="TASK_001", name="Process Data", priority=5)
     json_str = kajson.dumps(task)
-
-    # Clear local definition (simulate distributed scenario)
-    del remote_namespace["RemoteTask"]
 
     # Register in class registry for deserialization
     registry = KajsonManager.get_class_registry()

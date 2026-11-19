@@ -355,36 +355,26 @@ except kajson.KajsonDecoderError as e:
 
 **Full example:** [`ex_14_dynamic_class_registry.py`](examples/ex_14_dynamic_class_registry.py)
 
-Kajson includes a powerful class registry for handling dynamically created classes that aren't available in standard module paths:
+Kajson includes a powerful class registry for handling dynamically created classes that aren't available in standard module paths. Kajson never executes code: you build the class yourself, for example with pydantic's `create_model`, and register it:
 
 ```python
+from pydantic import Field, create_model
+
 from kajson import kajson, kajson_manager
 from kajson.kajson_manager import KajsonManager
 
-# Simulate dynamic class creation (e.g., from network, workflow definition)
-remote_class_definition = """
-from pydantic import BaseModel, Field
-
-class RemoteTask(BaseModel):
-    task_id: str
-    name: str  
-    priority: int = Field(default=1, ge=1, le=10)
-"""
-
-# Execute and create the class dynamically
-remote_namespace = {}
-exec(remote_class_definition, remote_namespace)
-RemoteTask = remote_namespace["RemoteTask"]
-
-# Set module to simulate it's not available locally
-RemoteTask.__module__ = "remote.distributed.system"
+# Build a class at runtime, e.g. from a description received over the network or a workflow definition
+RemoteTask = create_model(
+    "RemoteTask",
+    __module__="remote.distributed.system",  # a module that does not exist locally
+    task_id=(str, ...),
+    name=(str, ...),
+    priority=(int, Field(default=1, ge=1, le=10)),
+)
 
 # Create and serialize
 task = RemoteTask(task_id="TASK_001", name="Process Data", priority=5)
 json_str = kajson.dumps(task)
-
-# Clear local definition (simulate distributed scenario)
-del remote_namespace["RemoteTask"]
 
 # Register in class registry for deserialization
 registry = KajsonManager.get_class_registry()
@@ -398,7 +388,7 @@ assert restored_task.task_id == "TASK_001"
 **The Class Registry is essential for:**
 - 🌐 **Distributed systems** - Classes defined across different services
 - ⚙️ **Workflow orchestrators** - Dynamic task definitions at runtime  
-- 🔌 **Plugin systems** - Runtime-loaded classes from plugins
+- 🔌 **Plugin systems** - Classes built at runtime from plugin declarations
 - 🚀 **Microservices** - Exchanging complex object definitions
 - 🏭 **Dynamic generation** - Any runtime class creation scenarios
 

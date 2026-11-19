@@ -116,40 +116,64 @@ registry.unregister_class_by_name("MyModel")
 registry.teardown()
 ```
 
+## Dynamic Classes: kajson Never Executes Code
+
+kajson never executes code, neither to build a class nor to find one. A class that exists only at runtime is built by your own code, for example with pydantic's `create_model`, and registered before kajson decodes it. When a class description comes from another system, it should arrive as data, such as field definitions or a JSON schema, which the receiving side turns into a class itself and checks against what it is willing to build. Never receive a class as Python source code to execute: that would let whoever sends the description run any code on the receiving side.
+
 ## Complete Example: Dynamic Class from Remote System
 
-Here's a real-world example showing how the class registry enables deserialization of dynamically created classes:
+Here's a real-world example showing how the class registry enables deserialization of a class built at runtime from a description received as data. The class gets its fields from the description and its behaviour, the `get_info()` method, from a base class the receiving side already has:
 
 ```python
-from typing import Optional, Dict, Any
-from pydantic import BaseModel, Field
+from typing import Any, Dict, Optional, Type
+
+from pydantic import BaseModel, Field, create_model
+
 from kajson import kajson
-from kajson.kajson_manager import KajsonManager
 from kajson.exceptions import KajsonDecoderError
+from kajson.kajson_manager import KajsonManager
 
-# Simulate receiving a class definition from a remote system
-remote_class_definition = '''
-from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
 
-class RemoteTask(BaseModel):
-    """A task definition received from a distributed system."""
-    task_id: str = Field(..., description="Unique task identifier")
-    name: str = Field(..., description="Task name")
-    priority: int = Field(default=1, ge=1, le=10, description="Task priority")
-    payload: Optional[Dict[str, Any]] = Field(default=None, description="Task payload")
+class TaskBehaviour(BaseModel):
+    """Behaviour shared by every task class, defined in code the receiving side already has."""
 
     def get_info(self) -> str:
-        return f"Task {self.task_id}: {self.name} (priority: {self.priority})"
-'''
+        fields = self.model_dump()
+        return f"Task {fields['task_id']}: {fields['name']} (priority: {fields['priority']})"
 
-# Execute the remote class definition
-remote_namespace: Dict[str, Any] = {}
-exec(remote_class_definition, remote_namespace)
-RemoteTask = remote_namespace["RemoteTask"]
 
-# Set module to simulate it's not available locally
-RemoteTask.__module__ = "remote.distributed.system"
+# The receiving side decides which types a class description may use
+FIELD_TYPES: Dict[str, Any] = {
+    "string": str,
+    "integer": int,
+    "object": Optional[Dict[str, Any]],
+}
+
+
+def build_class(description: Dict[str, Any], module_name: str) -> Type[BaseModel]:
+    """Build a pydantic class from a description received as data."""
+    field_definitions: Dict[str, Any] = {}
+    for field_name, field_spec in description["fields"].items():
+        field_type = FIELD_TYPES[field_spec["type"]]
+        default = field_spec.get("default", ...)
+        field_definitions[field_name] = (field_type, Field(default, description=field_spec["description"]))
+    return create_model(description["name"], __base__=TaskBehaviour, __module__=module_name, **field_definitions)
+
+
+# A class description received from a remote system: data, never code
+remote_class_description: Dict[str, Any] = {
+    "name": "RemoteTask",
+    "fields": {
+        "task_id": {"type": "string", "description": "Unique task identifier"},
+        "name": {"type": "string", "description": "Task name"},
+        "priority": {"type": "integer", "default": 1, "description": "Task priority"},
+        "payload": {"type": "object", "default": None, "description": "Task payload"},
+    },
+}
+
+# Build the class, with a module that does not exist locally
+# A class built at runtime has no static type, so the type checker sees it as Any
+RemoteTask: Any = build_class(remote_class_description, module_name="remote.distributed.system")
 
 # Create and serialize a task instance
 task = RemoteTask(task_id="TASK_001", name="Process Data Pipeline", priority=5, payload={"input_file": "data.csv", "output_format": "parquet"})
@@ -158,10 +182,7 @@ task = RemoteTask(task_id="TASK_001", name="Process Data Pipeline", priority=5, 
 json_str = kajson.dumps(task)
 print(f"Serialized: {json_str[:100]}...")
 
-# Clear the local class definition (simulate distributed scenario)
-del remote_namespace["RemoteTask"]
-
-# Without registry, deserialization fails
+# Without registry, deserialization fails: the module cannot be imported
 try:
     kajson.loads(json_str)
 except KajsonDecoderError as e:
@@ -241,39 +262,53 @@ def process_order(order_json: str):
 
 ### Plugin System Example
 
+A plugin declares its data classes as field definitions, and the plugin system builds and registers them:
+
 ```python
-# Plugin system that loads classes dynamically
+from typing import Any, Dict
+
+from pydantic import BaseModel, create_model
+
+from kajson import kajson
+from kajson.kajson_manager import KajsonManager
+
+
 class PluginRegistry:
+    # The plugin system decides which types a plugin's classes may use
+    FIELD_TYPES: Dict[str, Any] = {"string": str, "integer": int, "number": float, "boolean": bool}
+
     def __init__(self):
         self.kajson_registry = KajsonManager.get_class_registry()
-    
-    def load_plugin(self, plugin_code: str, plugin_name: str):
-        # Execute plugin code to get classes
-        plugin_namespace = {}
-        exec(plugin_code, plugin_namespace)
-        
-        # Register all BaseModel classes from the plugin
-        for name, obj in plugin_namespace.items():
-            if isinstance(obj, type) and issubclass(obj, BaseModel):
-                # Ensure unique module name for the plugin
-                obj.__module__ = f"plugins.{plugin_name}"
-                self.kajson_registry.register_class(obj, f"{plugin_name}.{name}")
-    
+
+    def load_plugin(self, plugin_name: str, class_definitions: Dict[str, Dict[str, str]]):
+        # Build each class the plugin declares, under a module name unique to the plugin
+        for class_name, fields in class_definitions.items():
+            field_definitions: Dict[str, Any] = {}
+            for field_name, type_name in fields.items():
+                field_definitions[field_name] = (self.FIELD_TYPES[type_name], ...)
+            plugin_class = create_model(class_name, __module__=f"plugins.{plugin_name}", **field_definitions)
+            self.kajson_registry.register_class(plugin_class)
+
     def serialize_plugin_data(self, data: BaseModel) -> str:
         return kajson.dumps(data)
-    
+
     def deserialize_plugin_data(self, json_str: str) -> BaseModel:
         # The registry will handle finding the right class
         return kajson.loads(json_str)
+
+
+plugins = PluginRegistry()
+plugins.load_plugin("weather", {"Reading": {"station": "string", "celsius": "number"}})
 ```
 
 ## Best Practices
 
 1. **Clear Naming**: Use descriptive names when registering classes to avoid conflicts
 2. **Module Simulation**: Set meaningful `__module__` values for dynamic classes
-3. **Cleanup**: Use `teardown()` to clear registrations when appropriate
-4. **Error Handling**: Always handle `KajsonDecoderError` when deserializing
-5. **Type Safety**: Use `get_required_subclass()` to ensure type safety
+3. **Data, Not Code**: Build dynamic classes from descriptions received as data, never by executing received source code
+4. **Cleanup**: Use `teardown()` to clear registrations when appropriate
+5. **Error Handling**: Always handle `KajsonDecoderError` when deserializing
+6. **Type Safety**: Use `get_required_subclass()` to ensure type safety
 
 ## Error Handling
 
