@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [v0.8.0] - 2026-11-19
 
 ### Changed
 - **Documentation's dynamic-class examples**: the README's "Dynamic Class Registry" section, the class-registry guide, the examples page and `ex_14_dynamic_class_registry.py` build their dynamic classes with pydantic's `create_model` instead of executing source code, and the guide now says that a class description received from another system should arrive as data, which the receiving side turns into a class itself, never as Python source to execute. The guide's plugin-system example registers each class under the name the decoder looks up.
