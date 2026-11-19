@@ -26,35 +26,10 @@ import re
 from typing import IO, Any, Dict, Optional, Union
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel
-
-from kajson.class_registry import ClassRegistry
 from kajson.class_registry_abstract import ClassRegistryAbstract
 from kajson.exceptions import KajsonDecoderError
 from kajson.json_decoder import UniversalJSONDecoder
 from kajson.json_encoder import UniversalJSONEncoder
-
-
-def _build_registry_from_source(source_code: str) -> ClassRegistry:
-    """Build a ClassRegistry from Python source code by exec'ing it and discovering BaseModel subclasses.
-
-    WARNING: The source is executed via exec() and can run arbitrary Python code.
-    Only pass trusted source code.
-
-    Args:
-        source_code: Python source code that defines one or more BaseModel subclasses.
-
-    Returns:
-        A ClassRegistry containing all discovered BaseModel subclasses.
-    """
-    namespace: dict[str, Any] = {}
-    exec(compile(source_code, "<kajson_class_source>", "exec"), namespace)
-    registry = ClassRegistry()
-    for name, obj in namespace.items():
-        if isinstance(obj, type) and issubclass(obj, BaseModel) and obj is not BaseModel:
-            registry.register_class(obj, name=name, should_warn_if_already_registered=False)
-    return registry
-
 
 # ------------------------------------------------
 # API similar to the standard library json package
@@ -95,7 +70,6 @@ def dump(obj: Any, fp: IO[str], **kwargs: Any) -> None:
 def loads(
     json_string: Union[str, bytes],
     class_registry: ClassRegistryAbstract | None = None,
-    class_source_code: str | None = None,
     **kwargs: Any,
 ) -> Any:
     """
@@ -107,36 +81,11 @@ def loads(
         class_registry: Optional explicit class registry for resolving classes.
             When provided, the decoder checks this registry first before falling
             back to sys.modules and dynamic import.
-        class_source_code: Optional Python source code defining BaseModel classes.
-            When provided, the source is exec'd and all discovered BaseModel subclasses
-            are registered in a ClassRegistry used during deserialization. If an explicit
-            class_registry is also provided, its entries take priority over source-derived ones.
-            WARNING: The source is executed via exec() and can run arbitrary Python code.
-            Only pass trusted source code.
         kwargs (**): Keyword arguments normally passed to `json.loads()` except
             for `cls`. Unpredictable behaviour might occur if `cls` is passed.
     Return:
         object - A Python object corresponding to the provided JSON formatted string.
     """
-    if class_source_code is not None:
-        source_registry = _build_registry_from_source(class_source_code)
-        if class_registry is not None:
-            if isinstance(class_registry, ClassRegistry):
-                # Build a temporary merged registry to avoid mutating the caller's registry.
-                # Source-derived classes go in first, then explicit registry overwrites.
-                merged = ClassRegistry()
-                for name, cls in source_registry.root.items():
-                    merged.register_class(cls, name=name, should_warn_if_already_registered=False)
-                for name, cls in class_registry.root.items():
-                    merged.register_class(cls, name=name, should_warn_if_already_registered=False)
-                class_registry = merged
-            else:
-                # Abstract registry with no iteration API — merge into it as best-effort
-                for name, cls in source_registry.root.items():
-                    if not class_registry.has_class(name):
-                        class_registry.register_class(cls, name=name, should_warn_if_already_registered=False)
-        else:
-            class_registry = source_registry
     if class_registry is not None:
         kwargs["class_registry"] = class_registry
     return json.loads(json_string, cls=UniversalJSONDecoder, **kwargs)
@@ -145,7 +94,6 @@ def loads(
 def load(
     fp: IO[str],
     class_registry: ClassRegistryAbstract | None = None,
-    class_source_code: str | None = None,
     **kwargs: Any,
 ) -> Any:
     """
@@ -157,33 +105,11 @@ def load(
         class_registry: Optional explicit class registry for resolving classes.
             When provided, the decoder checks this registry first before falling
             back to sys.modules and dynamic import.
-        class_source_code: Optional Python source code defining BaseModel classes.
-            When provided, the source is exec'd and all discovered BaseModel subclasses
-            are registered in a ClassRegistry used during deserialization. If an explicit
-            class_registry is also provided, its entries take priority over source-derived ones.
-            WARNING: The source is executed via exec() and can run arbitrary Python code.
-            Only pass trusted source code.
         kwargs (**): Keyword arguments normally passed to `json.load()` except
             for `cls`. Unpredictable behaviour might occur if `cls` is passed.
     Return:
         object - A Python object corresponding to the provided JSON formatted stream / file.
     """
-    if class_source_code is not None:
-        source_registry = _build_registry_from_source(class_source_code)
-        if class_registry is not None:
-            if isinstance(class_registry, ClassRegistry):
-                merged = ClassRegistry()
-                for name, cls in source_registry.root.items():
-                    merged.register_class(cls, name=name, should_warn_if_already_registered=False)
-                for name, cls in class_registry.root.items():
-                    merged.register_class(cls, name=name, should_warn_if_already_registered=False)
-                class_registry = merged
-            else:
-                for name, cls in source_registry.root.items():
-                    if not class_registry.has_class(name):
-                        class_registry.register_class(cls, name=name, should_warn_if_already_registered=False)
-        else:
-            class_registry = source_registry
     if class_registry is not None:
         kwargs["class_registry"] = class_registry
     return json.load(fp, cls=UniversalJSONDecoder, **kwargs)

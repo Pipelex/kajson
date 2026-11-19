@@ -160,8 +160,9 @@ class UniversalJSONDecoder(json.JSONDecoder):
                     the_class = getattr(sys.modules[module_name], base_class_name)
                 else:
                     # Module is loaded but class is not in it — fall through to global registry
-                    # before raising. This handles dynamic classes with __module__='builtins'
-                    # that were registered in the global ClassRegistry via exec().
+                    # before raising. This handles dynamically built classes (e.g. with pydantic's
+                    # create_model) whose __module__ names a loaded module that does not hold them,
+                    # such as 'builtins', and that were registered in the global ClassRegistry.
                     self.log(f"Class '{class_name}' not found in module '{module_name}', checking global registry")
                     registered_class = KajsonManager.get_class_registry().get_class(name=class_name)
                     if registered_class is not None:

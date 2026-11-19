@@ -11,51 +11,67 @@ This is particularly useful for:
 - Workflow orchestrators with dynamic task definitions
 - Plugin systems with runtime class generation
 - Microservices that exchange complex object definitions
+
+kajson does not execute Python source code to build a class. A class description received from another system
+arrives as data, and the receiving side builds the class itself, here with
+pydantic's create_model, before registering it.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Type
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, create_model
 
 from kajson import kajson, kajson_manager
 from kajson.exceptions import KajsonDecoderError
 from kajson.kajson_manager import KajsonManager
 
 
+class TaskBehaviour(BaseModel):
+    """Behaviour shared by every task class, defined in code the receiving side already has."""
+
+    def get_info(self) -> str:
+        fields = self.model_dump()
+        return f"Task {fields['task_id']}: {fields['name']} (priority: {fields['priority']})"
+
+
+# The receiving side decides which types a class description may use
+FIELD_TYPES: Dict[str, Any] = {
+    "string": str,
+    "integer": int,
+    "object": Optional[Dict[str, Any]],
+}
+
+
+def build_class(description: Dict[str, Any], module_name: str) -> Type[BaseModel]:
+    """Build a pydantic class from a description received as data."""
+    field_definitions: Dict[str, Any] = {}
+    for field_name, field_spec in description["fields"].items():
+        field_type = FIELD_TYPES[field_spec["type"]]
+        default = field_spec.get("default", ...)
+        field_definitions[field_name] = (field_type, Field(default, description=field_spec["description"]))
+    return create_model(description["name"], __base__=TaskBehaviour, __module__=module_name, **field_definitions)
+
+
 def main():
     print("=== Dynamic Class Registry Example ===\n")
 
-    # Simulate receiving a class definition from a remote system
+    # Simulate receiving a class description from a remote system: data, never code
     print("📡 Simulating dynamic class creation (e.g., from network, workflow definition, etc.)")
 
-    remote_class_definition = '''
-from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
+    remote_class_description: Dict[str, Any] = {
+        "name": "RemoteTask",
+        "fields": {
+            "task_id": {"type": "string", "description": "Unique task identifier"},
+            "name": {"type": "string", "description": "Task name"},
+            "priority": {"type": "integer", "default": 1, "description": "Task priority"},
+            "payload": {"type": "object", "default": None, "description": "Task payload"},
+        },
+    }
 
-class RemoteTask(BaseModel):
-    """A task definition received from a distributed system."""
-    task_id: str = Field(..., description="Unique task identifier")
-    name: str = Field(..., description="Task name")
-    priority: int = Field(default=1, ge=1, le=10, description="Task priority")
-    payload: Optional[Dict[str, Any]] = Field(default=None, description="Task payload")
-    
-    def get_info(self) -> str:
-        return f"Task {self.task_id}: {self.name} (priority: {self.priority})"
-'''
-
-    # Execute the remote class definition
-    print("🏗️  Creating class from remote definition...")
-
-    remote_namespace: Dict[str, Any] = {}
-    exec(remote_class_definition, remote_namespace)
-    RemoteTask = remote_namespace["RemoteTask"]
-
-    # Set module to simulate it's not available locally
-    RemoteTask.__module__ = "remote.distributed.system"
-
-    # Rebuild the model
-    types_namespace = {"Optional": Optional, "Dict": Dict, "Any": Any, "BaseModel": BaseModel, "Field": Field}
-    RemoteTask.model_rebuild(_types_namespace=types_namespace)
+    # Build the class, with a module that does not exist locally
+    print("🏗️  Building class from remote description...")
+    # A class built at runtime has no static type, so the type checker sees it as Any
+    RemoteTask: Any = build_class(remote_class_description, module_name="remote.distributed.system")
 
     # Create and serialize a task instance
     task = RemoteTask(task_id="TASK_001", name="Process Data Pipeline", priority=5, payload={"input_file": "data.csv", "output_format": "parquet"})
@@ -68,10 +84,6 @@ class RemoteTask(BaseModel):
     json_str = kajson.dumps(task)
     print(f"\n📤 Serialized task to JSON ({len(json_str)} chars)")
     print(f"   JSON preview: {json_str[:100]}...")
-
-    # Clear the local class definition (simulate it's no longer available)
-    print("\n🗑️  Clearing local class definition (simulating distributed scenario)")
-    del remote_namespace["RemoteTask"]
 
     # Try to deserialize without registry - should fail
     print("\n❌ Attempting deserialization without class registry...")
@@ -107,9 +119,9 @@ class RemoteTask(BaseModel):
     print("\n" + "=" * 60)
     print("📚 When do you need the class registry?")
     print("   • Dynamic class generation at runtime")
-    print("   • Distributed systems with class definitions over network")
+    print("   • Distributed systems with class descriptions over network")
     print("   • Workflow orchestrators with dynamic task types")
-    print("   • Plugin systems with runtime-loaded classes")
+    print("   • Plugin systems with runtime-built classes")
     print("   • Microservices exchanging complex object definitions")
     print("   • Any scenario where classes aren't in standard module paths")
 
