@@ -1,10 +1,10 @@
 # SPDX-FileCopyrightText: © 2025-2026 Evotis S.A.S.
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Generator, Type
+from typing import Generator, Type
 
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, create_model
 
 import kajson
 from kajson.class_registry import ClassRegistry
@@ -13,16 +13,8 @@ from kajson.kajson_manager import KajsonManager
 
 
 def _make_dynamic_class(name: str) -> Type[BaseModel]:
-    """Create a dynamic BaseModel subclass with __module__='builtins', simulating exec()-generated classes."""
-    namespace: dict[str, Any] = {}
-    source = f"""
-from pydantic import BaseModel
-
-class {name}(BaseModel):
-    greeting: str
-"""
-    exec(compile(source, "<test>", "exec"), namespace)
-    dynamic_cls: Type[BaseModel] = namespace[name]
+    """Build a BaseModel with create_model and __module__='builtins', the shape pipelex's dynamic classes take."""
+    dynamic_cls: Type[BaseModel] = create_model(name, __module__="builtins", greeting=(str, ...))
     assert dynamic_cls.__module__ == "builtins"
     return dynamic_cls
 

@@ -4,6 +4,7 @@
 import json
 from io import StringIO
 
+import pytest
 from pytest_mock import MockerFixture
 
 from kajson import kajson
@@ -135,3 +136,13 @@ class TestKajsonAPI:
         kajson.load(file_obj, parse_float=float)
 
         mock_load.assert_called_once_with(file_obj, cls=kajson.UniversalJSONDecoder, parse_float=float)
+
+    def test_loads_refuses_class_source_code(self) -> None:
+        """kajson builds no class from source code: the removed class_source_code keyword is refused."""
+        with pytest.raises(TypeError, match="class_source_code"):
+            kajson.loads("{}", class_source_code="class Anything: pass")
+
+    def test_load_refuses_class_source_code(self) -> None:
+        """load() refuses the removed class_source_code keyword like loads() does."""
+        with pytest.raises(TypeError, match="class_source_code"):
+            kajson.load(StringIO("{}"), class_source_code="class Anything: pass")
