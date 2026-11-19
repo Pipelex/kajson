@@ -12,7 +12,7 @@ This is particularly useful for:
 - Plugin systems with runtime class generation
 - Microservices that exchange complex object definitions
 
-kajson never executes code. A class description received from another system
+kajson does not execute Python source code to build a class. A class description received from another system
 arrives as data, and the receiving side builds the class itself, here with
 pydantic's create_model, before registering it.
 """

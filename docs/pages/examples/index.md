@@ -594,7 +594,7 @@ if __name__ == "__main__":
 
 **Source:** [`ex_14_dynamic_class_registry.py`](https://github.com/PipelexLab/kajson/blob/main/examples/ex_14_dynamic_class_registry.py)
 
-Shows when and how to use the class registry for dynamically created classes that aren't available in standard module paths. Essential for distributed systems and runtime class generation. Kajson never executes code: the example builds its class with pydantic's `create_model`.
+Shows when and how to use the class registry for dynamically created classes that aren't available in standard module paths. Essential for distributed systems and runtime class generation. Kajson does not execute Python source code to build a class: the example builds its class with pydantic's `create_model`.
 
 ```python
 from pydantic import Field, create_model

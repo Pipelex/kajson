@@ -6,7 +6,7 @@ Tests demonstrating when the class registry is actually needed during deserializ
 
 These tests simulate scenarios where classes need to be available for deserialization
 but are not in the standard module path (e.g., distributed systems, dynamic class generation).
-The dynamic classes are built with pydantic's create_model: kajson never executes code.
+The dynamic classes are built with pydantic's create_model: kajson does not execute Python source code to build a class.
 """
 
 from __future__ import annotations

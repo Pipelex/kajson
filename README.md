@@ -355,7 +355,7 @@ except kajson.KajsonDecoderError as e:
 
 **Full example:** [`ex_14_dynamic_class_registry.py`](examples/ex_14_dynamic_class_registry.py)
 
-Kajson includes a powerful class registry for handling dynamically created classes that aren't available in standard module paths. Kajson never executes code: you build the class yourself, for example with pydantic's `create_model`, and register it:
+Kajson includes a powerful class registry for handling dynamically created classes that aren't available in standard module paths. Kajson does not execute Python source code to build a class: you build it yourself, for example with pydantic's `create_model`, and register it:
 
 ```python
 from pydantic import Field, create_model
