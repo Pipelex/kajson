@@ -81,6 +81,7 @@ nav:
     - Pydantic Integration: pages/guide/pydantic.md
     - Custom Types: pages/guide/custom-types.md
     - Class Registry: pages/guide/class-registry.md
+    - Decoding Untrusted JSON: pages/guide/untrusted-json.md
     - Error Handling: pages/guide/error-handling.md
     - Known Limitations: pages/guide/known-limitations.md
   - API Reference:

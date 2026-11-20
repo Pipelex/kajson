@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **Safe decoding mode**: `loads()`, `load()` and `UniversalJSONDecoder` take `safe=True` for JSON you did not write yourself. A class marker can then cause an import only inside the packages named in the new `importable_packages` argument, and kajson rebuilds only pydantic models and dataclasses, enums, its built-in standard library types and classes with a registered decoder or `__json_decode__`, using that one strategy with no constructor fallback. A plain class, a stdlib dataclass, or a pydantic class or enum whose `__init__`, `__new__` or metaclass is overridden (pydantic-settings' `BaseSettings` among them) is refused with `KajsonDecoderError` before any of its code runs; safe mode is off by default, and the new guide page "Decoding Untrusted JSON" says what it does not cover.
+- **`timedelta` decoder**: a `timedelta` is rebuilt by a registered decoder that accepts the constructor's keyword arguments, instead of by calling the constructor with whatever the payload holds.
+
+### Changed
+- **Malformed class markers raise `KajsonDecoderError` (Breaking)**: in both modes, a `__class__` without a `__module__`, a marker whose names are not strings, a generic name whose base class is missing, and a name that resolves to something other than a class now raise `KajsonDecoderError` instead of a bare `KeyError`, `TypeError` or `AttributeError`.
+- **Malformed `timedelta` payloads raise (Breaking)**: a `timedelta` payload with an unknown key, a value that is not a number, a bool or a value that overflows now raises `KajsonDecoderError` instead of coming back as a plain dict.
+- **Documentation**: the README's security section and the API reference describe safe mode; the API reference gives `loads()` and `load()` their real signatures with `class_registry`, and documents the decoder and encoder class methods that exist (`clear_decoders`, `is_decoder_registered`, `get_registered_decoder` and their encoder counterparts) in place of `unregister` and `get_registered_types`, which never did.
+
 ## [v0.8.0] - 2026-11-19
 
 ### Changed

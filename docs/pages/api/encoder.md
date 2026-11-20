@@ -62,19 +62,18 @@ class MyEncoder(kajson.UniversalJSONEncoder):
 #### register
 
 ```python
-@classmethod
+@staticmethod
 def register(
-    cls,
-    type_class: Type,
-    encoder: Callable[[Any], dict]
+    obj_type: Type[T],
+    encoding_function: Callable[[T], dict[str, Any]],
 ) -> None
 ```
 
 Register a custom encoder function for a specific type.
 
 **Parameters:**
-- `type_class`: The Python type to register
-- `encoder`: Function that converts instances of `type_class` to a dict
+- `obj_type`: The Python type to register
+- `encoding_function`: Function that converts instances of `obj_type` to a dict
 
 **Example:**
 
@@ -89,28 +88,32 @@ def encode_decimal(value: Decimal) -> dict:
 kajson.UniversalJSONEncoder.register(Decimal, encode_decimal)
 ```
 
-#### unregister
+#### clear_encoders
 
 ```python
 @classmethod
-def unregister(cls, type_class: Type) -> None
+def clear_encoders(cls) -> None
 ```
 
-Remove a previously registered encoder for a type.
+Remove every registered encoder, kajson's built-in ones included. Meant for tests.
 
-**Parameters:**
-- `type_class`: The type to unregister
-
-#### get_registered_types
+#### is_encoder_registered
 
 ```python
 @classmethod
-def get_registered_types(cls) -> List[Type]
+def is_encoder_registered(cls, obj_type: Type[Any]) -> bool
 ```
 
-Get a list of all registered types.
+Whether an encoder is registered for `obj_type`.
 
-**Returns:** List of types with custom encoders
+#### get_registered_encoder
+
+```python
+@classmethod
+def get_registered_encoder(cls, obj_type: Type[Any]) -> Callable[[Any], dict[str, Any]] | None
+```
+
+The encoder registered for `obj_type`, or `None`.
 
 ## Built-in Encoders
 

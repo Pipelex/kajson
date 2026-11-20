@@ -545,3 +545,57 @@ class TestUniversalJSONDecoder:
         finally:
             if math_module is not None:
                 sys.modules["math"] = math_module
+
+    @pytest.mark.parametrize("safe", [False, True])
+    def test_marker_without_module_raises_decoder_error(self, safe: bool) -> None:
+        """A __class__ without __module__ used to leak a bare KeyError."""
+        with pytest.raises(KajsonDecoderError, match="without '__module__'"):
+            json.loads('{"__class__": "MockModelValid"}', cls=UniversalJSONDecoder, safe=safe)
+
+    @pytest.mark.parametrize("safe", [False, True])
+    @pytest.mark.parametrize(
+        "marker",
+        [
+            {"__class__": 1, "__module__": "tests.unit.test_json_decoder"},
+            {"__class__": "MockModelValid", "__module__": ["tests"]},
+            {"__class__": None, "__module__": None},
+        ],
+    )
+    def test_marker_with_non_string_names_raises_decoder_error(self, marker: Dict[str, Any], safe: bool) -> None:
+        """Non-string names used to leak a bare TypeError."""
+        with pytest.raises(KajsonDecoderError, match="must be strings"):
+            json.loads(json.dumps(marker), cls=UniversalJSONDecoder, safe=safe)
+
+    @pytest.mark.parametrize("safe", [False, True])
+    def test_generic_name_with_missing_base_in_imported_module_raises_decoder_error(self, safe: bool) -> None:
+        """A subscripted name whose base class is missing used to leak a bare AttributeError."""
+        marker = {"__class__": "NoSuchBase[int]", "__module__": "tests.unit.test_json_decoder"}
+        with pytest.raises(KajsonDecoderError, match="base class 'NoSuchBase' not found"):
+            json.loads(json.dumps(marker), cls=UniversalJSONDecoder, safe=safe)
+
+    def test_generic_name_with_missing_base_after_import_raises_decoder_error(self, mocker: MockerFixture) -> None:
+        mock_registry_instance = mocker.MagicMock()
+        mock_registry_instance.get_class.return_value = None
+        mocker.patch("kajson.kajson_manager.KajsonManager.get_class_registry", return_value=mock_registry_instance)
+        math_module = sys.modules.pop("math", None)
+        try:
+            with pytest.raises(KajsonDecoderError, match="base class 'NoSuchBase' not found in module 'math'"):
+                json.loads('{"__class__": "NoSuchBase[int]", "__module__": "math"}', cls=UniversalJSONDecoder)
+        finally:
+            if math_module is not None:
+                sys.modules["math"] = math_module
+
+    @pytest.mark.parametrize("safe", [False, True])
+    @pytest.mark.parametrize(
+        ("class_name", "module_name"),
+        [
+            ("setup_decoder", "tests.unit.test_json_decoder"),
+            ("sqrt", "math"),
+            ("FALLBACK_MESSAGE", "kajson.json_decoder"),
+        ],
+    )
+    def test_name_resolving_to_a_non_class_raises_decoder_error(self, class_name: str, module_name: str, safe: bool) -> None:
+        """A name that resolves to a function or a value used to leak a bare TypeError from issubclass."""
+        marker = {"__class__": class_name, "__module__": module_name}
+        with pytest.raises(KajsonDecoderError, match="does not name a class"):
+            json.loads(json.dumps(marker), cls=UniversalJSONDecoder, safe=safe)

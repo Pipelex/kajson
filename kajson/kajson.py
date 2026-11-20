@@ -23,7 +23,7 @@ All additions and modifications are Copyright (c) 2025 Evotis S.A.S.
 import datetime
 import json
 import re
-from typing import IO, Any, Dict, Optional, Union
+from typing import IO, Any, Collection, Dict, Optional, Union
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from kajson.class_registry_abstract import ClassRegistryAbstract
@@ -67,9 +67,23 @@ def dump(obj: Any, fp: IO[str], **kwargs: Any) -> None:
     json.dump(obj, fp, cls=UniversalJSONEncoder, **kwargs)
 
 
+def _add_decoder_options(kwargs: Dict[str, Any], *, safe: bool, importable_packages: Collection[str]) -> None:
+    """Forward the safe-mode options to the decoder, leaving the default call unchanged when they are not set.
+
+    `importable_packages` is forwarded whenever it was given, even empty, so the decoder validates it.
+    """
+    if safe is not False:
+        kwargs["safe"] = safe
+    if importable_packages != ():
+        kwargs["importable_packages"] = importable_packages
+
+
 def loads(
     json_string: Union[str, bytes],
     class_registry: ClassRegistryAbstract | None = None,
+    *,
+    safe: bool = False,
+    importable_packages: Collection[str] = (),
     **kwargs: Any,
 ) -> Any:
     """
@@ -81,19 +95,33 @@ def loads(
         class_registry: Optional explicit class registry for resolving classes.
             When provided, the decoder checks this registry first before falling
             back to sys.modules and dynamic import.
+        safe: Decode JSON you did not write yourself. A class marker can then cause
+            an import only inside `importable_packages`, and only classes kajson
+            rebuilds by validation or by a decoding hook are rebuilt; anything else
+            raises `KajsonDecoderError`. See the guide page "Decoding untrusted JSON".
+        importable_packages: Packages under which safe mode may import a module to
+            resolve a class, matched on package boundaries. Only allowed with `safe=True`.
         kwargs (**): Keyword arguments normally passed to `json.loads()` except
             for `cls`. Unpredictable behaviour might occur if `cls` is passed.
     Return:
         object - A Python object corresponding to the provided JSON formatted string.
+    Raises:
+        KajsonDecoderError: When a class marker is malformed, cannot be resolved,
+            is refused by safe mode, or its object cannot be rebuilt.
+        TypeError, ValueError: When `safe` or `importable_packages` is invalid.
     """
     if class_registry is not None:
         kwargs["class_registry"] = class_registry
+    _add_decoder_options(kwargs, safe=safe, importable_packages=importable_packages)
     return json.loads(json_string, cls=UniversalJSONDecoder, **kwargs)
 
 
 def load(
     fp: IO[str],
     class_registry: ClassRegistryAbstract | None = None,
+    *,
+    safe: bool = False,
+    importable_packages: Collection[str] = (),
     **kwargs: Any,
 ) -> Any:
     """
@@ -101,17 +129,24 @@ def load(
     the `UniversalJSONDecoder`. Takes the same keyword arguments as `json.load()`
     except for `cls` that is used to pass our custom decoder.
     Args:
-        fp (file-like object): A .write()-supporting file-like object.
+        fp (file-like object): A .read()-supporting file-like object.
         class_registry: Optional explicit class registry for resolving classes.
             When provided, the decoder checks this registry first before falling
             back to sys.modules and dynamic import.
+        safe: Decode JSON you did not write yourself; see `loads`.
+        importable_packages: Packages under which safe mode may import a module to
+            resolve a class; see `loads`. Only allowed with `safe=True`.
         kwargs (**): Keyword arguments normally passed to `json.load()` except
             for `cls`. Unpredictable behaviour might occur if `cls` is passed.
     Return:
         object - A Python object corresponding to the provided JSON formatted stream / file.
+    Raises:
+        KajsonDecoderError: As `loads`.
+        TypeError, ValueError: When `safe` or `importable_packages` is invalid.
     """
     if class_registry is not None:
         kwargs["class_registry"] = class_registry
+    _add_decoder_options(kwargs, safe=safe, importable_packages=importable_packages)
     return json.load(fp, cls=UniversalJSONDecoder, **kwargs)
 
 
@@ -387,4 +422,28 @@ def json_encode_timedelta(t: datetime.timedelta) -> Dict[str, float]:
 
 
 UniversalJSONEncoder.register(datetime.timedelta, json_encode_timedelta)
-# Won't require a decoder since "seconds" will be automatically passed to a constructor.
+
+# The keyword arguments of the timedelta constructor. kajson writes only "seconds",
+# but a payload using any of the others decodes, as it did through the constructor.
+_TIMEDELTA_KEYWORDS = frozenset({"days", "seconds", "microseconds", "milliseconds", "minutes", "hours", "weeks"})
+
+
+def json_decode_timedelta(obj_dict: Dict[str, Any]) -> datetime.timedelta:
+    """Decoder for timedeltas (from module datetime).
+
+    Accepts the timedelta constructor's keyword arguments, each a number (not a bool).
+    Any other key, a non-number, or a value the constructor rejects raises KajsonDecoderError.
+    """
+    unknown_keys = set(obj_dict) - _TIMEDELTA_KEYWORDS
+    if unknown_keys:
+        raise KajsonDecoderError(f"Could not decode timedelta: unexpected keys {sorted(unknown_keys)}")
+    for key, value in obj_dict.items():
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise KajsonDecoderError(f"Could not decode timedelta: expected '{key}' to be a number, got {type(value).__name__}")
+    try:
+        return datetime.timedelta(**obj_dict)
+    except (OverflowError, ValueError) as exc:
+        raise KajsonDecoderError(f"Could not decode timedelta: {exc}") from exc
+
+
+UniversalJSONDecoder.register(datetime.timedelta, json_decode_timedelta)

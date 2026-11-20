@@ -2,8 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import datetime
+from typing import Any, Dict
+
+import pytest
 
 from kajson import kajson
+from kajson.exceptions import KajsonDecoderError
 
 
 class TestTimedeltaEncoder:
@@ -51,8 +55,46 @@ class TestTimedeltaEncoder:
         # Encode
         json_str = kajson.dumps(original_timedelta)
 
-        # Decode (should be handled by automatic constructor calling)
+        # Decode (handled by the registered timedelta decoder)
         decoded_timedelta = kajson.loads(json_str)
 
         assert decoded_timedelta == original_timedelta
         assert isinstance(decoded_timedelta, datetime.timedelta)
+
+    def test_timedelta_decoder_is_registered(self) -> None:
+        assert kajson.UniversalJSONDecoder.get_registered_decoder(datetime.timedelta) is kajson.json_decode_timedelta
+
+    @pytest.mark.parametrize(
+        ("fields", "expected"),
+        [
+            ({"seconds": 90.5}, datetime.timedelta(seconds=90.5)),
+            ({"days": 2, "hours": 3}, datetime.timedelta(days=2, hours=3)),
+            (
+                {"weeks": 1, "minutes": -5, "milliseconds": 10, "microseconds": 7},
+                datetime.timedelta(weeks=1, minutes=-5, milliseconds=10, microseconds=7),
+            ),
+            ({}, datetime.timedelta()),
+        ],
+    )
+    @pytest.mark.parametrize("safe", [False, True])
+    def test_timedelta_decodes_every_constructor_keyword(self, fields: Dict[str, Any], expected: datetime.timedelta, safe: bool) -> None:
+        payload = kajson.json.dumps({**fields, "__class__": "timedelta", "__module__": "datetime"})
+        assert kajson.loads(payload, safe=safe) == expected
+
+    @pytest.mark.parametrize(
+        ("fields", "message"),
+        [
+            ({"seconds": 1, "evil": 2}, "unexpected keys"),
+            ({"seconds": "10"}, "expected 'seconds' to be a number"),
+            ({"seconds": True}, "expected 'seconds' to be a number"),
+            ({"days": None}, "expected 'days' to be a number"),
+            ({"days": 10**12}, "Could not decode timedelta"),
+            ({"seconds": 1e300}, "Could not decode timedelta"),
+        ],
+    )
+    @pytest.mark.parametrize("safe", [False, True])
+    def test_malformed_timedelta_payload_raises(self, fields: Dict[str, Any], message: str, safe: bool) -> None:
+        """A malformed timedelta used to come back silently as a raw dict."""
+        payload = kajson.json.dumps({**fields, "__class__": "timedelta", "__module__": "datetime"})
+        with pytest.raises(KajsonDecoderError, match=message):
+            kajson.loads(payload, safe=safe)
