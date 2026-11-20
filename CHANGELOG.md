@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [v0.9.0] - 2026-11-20
 
 ### Added
 - **Safe decoding mode**: `loads()`, `load()` and `UniversalJSONDecoder` take `safe=True` for JSON you did not write yourself. A class marker can then cause an import only inside the packages named in the new `importable_packages` argument, and kajson rebuilds only pydantic models and dataclasses, enums, its built-in standard library types and classes with a registered decoder or `__json_decode__`, using that one strategy with no constructor fallback. A plain class, a stdlib dataclass, a pydantic class or enum whose `__init__`, `__new__`, `model_validate` or metaclass is overridden (pydantic-settings' `BaseSettings` among them), and a pydantic class whose fields hold such a class or an `ImportString` are refused with `KajsonDecoderError` before any of their code runs. Safe-mode error messages leave out the payload's values. Safe mode is off by default, it also applies when a decoder subclass calls `_apply_decoder_strategies`, and the new guide page "Decoding Untrusted JSON" says what it does not cover.
