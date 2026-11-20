@@ -437,7 +437,7 @@ def json_decode_timedelta(obj_dict: dict[str, Any]) -> datetime.timedelta:
     """
     unknown_keys = set(obj_dict) - _TIMEDELTA_KEYWORDS
     if unknown_keys:
-        msg = f"Could not decode timedelta: unexpected keys {sorted(unknown_keys)}"
+        msg = f"Could not decode timedelta: {len(unknown_keys)} unexpected key(s); it takes only {', '.join(sorted(_TIMEDELTA_KEYWORDS))}"
         raise KajsonDecoderError(msg)
     for key, value in obj_dict.items():
         if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -446,7 +446,8 @@ def json_decode_timedelta(obj_dict: dict[str, Any]) -> datetime.timedelta:
     try:
         return datetime.timedelta(**obj_dict)
     except (OverflowError, ValueError) as exc:
-        msg = f"Could not decode timedelta: {exc}"
+        # The constructor's message quotes the value, which came from the payload.
+        msg = f"Could not decode timedelta: the duration is out of range ({type(exc).__name__})"
         raise KajsonDecoderError(msg) from exc
 
 

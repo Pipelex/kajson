@@ -59,7 +59,9 @@ Every problem with a class marker raises `KajsonDecoderError`, in both the defau
 - a name that resolves to something other than a class, such as a function;
 - a malformed `timedelta` payload.
 
-With `safe=True`, the decoder also refuses, with `KajsonDecoderError` raised before anything runs, a module outside `importable_packages`, a class it would rebuild by calling its constructor, and a pydantic class or enum whose construction is overridden. Error messages quote the module and class names from the marker, cut to a bounded length, and never include the payload's values.
+With `safe=True`, the decoder also refuses, with `KajsonDecoderError` raised before anything runs, a module outside `importable_packages`, a class it would rebuild by calling its constructor, a pydantic class or enum whose construction is overridden, and a pydantic class whose fields would run such code or import a module.
+
+In safe mode, error messages quote the module and class names from the marker, cut to a bounded length, and leave out the payload's values: a validation failure is described by pydantic's error locations and messages without the input, and any other failure by its exception type. A message written by your own validator appears as you wrote it, so keep payload values out of it, and a `KajsonDecoderError` raised by a decoder or hook keeps its message for the same reason. The original exception stays chained as `__cause__` for debugging; it can contain the payload's values, so log it rather than send it back to whoever sent the JSON.
 
 ```python
 import kajson

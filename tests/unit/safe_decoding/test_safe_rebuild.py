@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: © 2025-2026 Evotis S.A.S.
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 from pydantic import ValidationError
@@ -16,13 +16,15 @@ class TestSafeRebuild:
     @pytest.mark.usefixtures("registered_decoders")
     def test_failing_registered_decoder_raises_even_with_fallback_enabled(self, mocker: MockerFixture) -> None:
         mocker.patch("kajson.json_decoder.IS_DECODER_FALLBACK_ENABLED", True)
-        with pytest.raises(KajsonDecoderError, match="registered decoder failed"):
+        with pytest.raises(KajsonDecoderError, match="failed: ValueError") as excinfo:
             kajson.loads(make_marker("WithFailingRegisteredDecoder"), safe=True)
+        assert "registered decoder failed" in str(excinfo.value.__cause__)
 
     def test_failing_json_decode_raises_even_with_fallback_enabled(self, mocker: MockerFixture) -> None:
         mocker.patch("kajson.json_decoder.IS_DECODER_FALLBACK_ENABLED", True)
-        with pytest.raises(KajsonDecoderError, match="hook failed"):
+        with pytest.raises(KajsonDecoderError, match="failed: ValueError") as excinfo:
             kajson.loads(make_marker("WithFailingJsonDecode"), safe=True)
+        assert "hook failed" in str(excinfo.value.__cause__)
 
     def test_attribute_error_inside_json_decode_raises(self) -> None:
         with pytest.raises(KajsonDecoderError, match="AttributeError"):
@@ -48,7 +50,7 @@ class TestSafeRebuild:
         ],
         ids=["missing-root", "extra-key", "invalid-root"],
     )
-    def test_malformed_root_model_payload_raises(self, fields: Dict[str, Any], message: str) -> None:
+    def test_malformed_root_model_payload_raises(self, fields: dict[str, Any], message: str) -> None:
         with pytest.raises(KajsonDecoderError, match=message):
             kajson.loads(make_marker("IntListRoot", **fields), safe=True)
 

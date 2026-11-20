@@ -83,7 +83,7 @@ Deserialize a JSON string to a Python object with type reconstruction, using `Un
 - `JSONDecodeError`: If the JSON syntax is invalid
 - `KajsonDecoderError`: If a class marker is malformed, names something that is not a class or cannot be found, is refused by safe mode, or if rebuilding the object fails
 - `TypeError`: If `safe` is not a bool, or `importable_packages` is a single string or holds something other than strings
-- `ValueError`: If `importable_packages` is given without `safe=True`, or holds an entry that is not a dotted package name
+- `ValueError`: If a non-empty `importable_packages` is given without `safe=True`, or holds an entry that is not a dotted package name
 
 **Example:**
 

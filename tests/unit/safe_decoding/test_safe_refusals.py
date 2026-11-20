@@ -6,8 +6,9 @@ import json
 import subprocess
 import sys
 import threading
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Dict, Type
+from typing import Any
 
 import pytest
 from pydantic import BaseModel
@@ -35,15 +36,15 @@ from tests.unit.safe_decoding.safe_decoding_classes import (
 )
 
 
-def _in_model_field(inner: Dict[str, Any]) -> Any:
+def _in_model_field(inner: dict[str, Any]) -> Any:
     return {"__class__": "AnyFieldModel", "__module__": MODULE_NAME, "payload": inner}
 
 
-def _in_list(inner: Dict[str, Any]) -> Any:
+def _in_list(inner: dict[str, Any]) -> Any:
     return [1, inner, 3]
 
 
-def _in_dict_value(inner: Dict[str, Any]) -> Any:
+def _in_dict_value(inner: dict[str, Any]) -> Any:
     return {"outer": {"key": inner}}
 
 
@@ -110,7 +111,7 @@ class TestSafeRefusals:
     def test_refusal_message_quotes_names_and_omits_values(self) -> None:
         with pytest.raises(KajsonDecoderError) as excinfo:
             kajson.loads(make_marker("KeywordConstructorCounter", password="hunter2"), safe=True)
-        assert "'KeywordConstructorCounter'" in str(excinfo.value)
+        assert f"'{MODULE_NAME}.KeywordConstructorCounter'" in str(excinfo.value)
         assert "hunter2" not in error_chain_text(excinfo.value)
 
     def test_base_settings_reading_an_env_file_is_refused_without_leaking_it(self, tmp_path: Path) -> None:
@@ -137,7 +138,7 @@ class TestSafeRefusals:
             (MetaclassCallModel, CountingModelMetaclass, "metaclass __call__"),
         ],
     )
-    def test_model_overriding_its_construction_is_refused(self, model: Type[BaseModel], counted: Any, overridden: str) -> None:
+    def test_model_overriding_its_construction_is_refused(self, model: type[BaseModel], counted: Any, overridden: str) -> None:
         with pytest.raises(KajsonDecoderError, match=overridden):
             kajson.loads(make_marker(model.__name__, number=1), safe=True)
         assert counted.calls == 0
@@ -174,7 +175,7 @@ class TestSafeRefusals:
         assert CountingEnumMeta.calls == 0
 
     @pytest.mark.parametrize("wrap", [_in_model_field, _in_list, _in_dict_value])
-    def test_refused_marker_nested_anywhere_fails_the_whole_decode(self, wrap: Callable[[Dict[str, Any]], Any]) -> None:
+    def test_refused_marker_nested_anywhere_fails_the_whole_decode(self, wrap: Callable[[dict[str, Any]], Any]) -> None:
         inner = {"__class__": "KeywordConstructorCounter", "__module__": MODULE_NAME, "number": 1}
         with pytest.raises(KajsonDecoderError, match="Refusing to instantiate"):
             kajson.loads(json.dumps(wrap(inner)), safe=True)

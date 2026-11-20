@@ -27,11 +27,13 @@ import json
 import logging
 import sys
 import warnings
+import weakref
 from collections.abc import Callable, Iterable
 from enum import Enum, EnumMeta
 from typing import Any, ClassVar, TypeVar, cast
 
 from pydantic import BaseModel, RootModel, ValidationError
+from pydantic._internal import _validators as pydantic_validators
 from pydantic.dataclasses import is_pydantic_dataclass, rebuild_dataclass
 
 from kajson.class_registry_abstract import ClassRegistryAbstract
@@ -98,6 +100,10 @@ _BASE_MODEL_VALIDATE_FUNC: Any = cast(Any, BaseModel.model_validate).__func__
 _ROOT_MODEL_INIT: Any = cast(Any, RootModel).__init__
 _ENUM_META_CALL: Any = EnumMeta.__call__
 _ENUM_META_GETITEM: Any = EnumMeta.__getitem__
+# pydantic's validator for `ImportString`, which imports the module its input names.
+_PYDANTIC_IMPORT_STRING: Any = getattr(pydantic_validators, "import_string", None)
+# Most validation errors listed in a safe-mode message; the rest are counted.
+_MAX_LISTED_VALIDATION_ERRORS = 10
 
 
 class _Declined:
@@ -173,7 +179,7 @@ def _classify(the_class: type[Any]) -> list[_DecodeStrategy]:
 
 
 def _construction_override(the_class: type[Any], strategy: _DecodeStrategy) -> str | None:
-    """Name the construction step `the_class` overrides, for a class safe mode rebuilds structurally.
+    """Say which construction step `the_class` overrides, for a class safe mode rebuilds structurally.
 
     Validation is not enough on its own: pydantic's `model_validate` runs a model's own `__init__`
     and `__new__`, a model may override `model_validate` itself, and pydantic-settings' `BaseSettings.__init__` reads the files its arguments
@@ -184,11 +190,11 @@ def _construction_override(the_class: type[Any], strategy: _DecodeStrategy) -> s
     match strategy:
         case _DecodeStrategy.ROOT_MODEL:
             if the_class.__init__ is not _ROOT_MODEL_INIT:
-                return "__init__"
+                return "overrides __init__"
             return _model_validate_override(the_class) or _pydantic_new_or_call_override(the_class)
         case _DecodeStrategy.BASE_MODEL:
             if the_class.__init__ is not _BASE_MODEL_INIT:
-                return "__init__"
+                return "overrides __init__"
             return _model_validate_override(the_class) or _pydantic_new_or_call_override(the_class)
         case _DecodeStrategy.PYDANTIC_DATACLASS:
             # Safe mode runs the dataclass's validator directly and never calls its __init__.
@@ -196,9 +202,9 @@ def _construction_override(the_class: type[Any], strategy: _DecodeStrategy) -> s
         case _DecodeStrategy.ENUM:
             metaclass = type(the_class)
             if metaclass.__call__ is not _ENUM_META_CALL:
-                return "its metaclass __call__"
+                return "overrides its metaclass __call__"
             if getattr(metaclass, "__getitem__", None) is not _ENUM_META_GETITEM:
-                return "its metaclass __getitem__"
+                return "overrides its metaclass __getitem__"
             return None
         case _DecodeStrategy.REGISTERED_DECODER | _DecodeStrategy.JSON_DECODE_HOOK | _DecodeStrategy.GENERIC_CONSTRUCTOR:
             return None
@@ -207,7 +213,7 @@ def _construction_override(the_class: type[Any], strategy: _DecodeStrategy) -> s
 def _model_validate_override(the_class: type[Any]) -> str | None:
     """Name the `model_validate` override of a pydantic model, or None: safe mode rebuilds a model by calling it."""
     if getattr(the_class.model_validate, "__func__", None) is not _BASE_MODEL_VALIDATE_FUNC:
-        return "model_validate"
+        return "overrides model_validate"
     return None
 
 
@@ -217,10 +223,75 @@ def _pydantic_new_or_call_override(the_class: type[Any]) -> str | None:
     pydantic's validator runs an overridden `__new__`; calling the class runs the metaclass `__call__`.
     """
     if the_class.__new__ is not object.__new__:
-        return "__new__"
+        return "overrides __new__"
     if type(the_class).__call__ is not type.__call__:
-        return "its metaclass __call__"
+        return "overrides its metaclass __call__"
     return None
+
+
+# The verdict of `_schema_hazard` per class, kept with the schema it was read from.
+_SCHEMA_HAZARD_CACHE: weakref.WeakKeyDictionary[type[Any], tuple[Any, str | None]] = weakref.WeakKeyDictionary()
+
+
+def _schema_hazard(the_class: type[Any]) -> str | None:
+    """Say what in a pydantic class's validation would run code other than pydantic's own, or None.
+
+    Validating a model also builds every model and dataclass its fields hold, and pydantic runs
+    a nested model's own `__init__` and a nested class's own `__new__` with the payload's keys,
+    whatever class the marker named; an `ImportString` field imports the module its input names.
+    This walks the class's core schema, definitions included, and names the first such thing found.
+    """
+    if not getattr(the_class, "__pydantic_complete__", True):
+        if is_pydantic_dataclass(the_class):
+            rebuild_dataclass(the_class, raise_errors=False)
+        else:
+            cast(type[BaseModel], the_class).model_rebuild(raise_errors=False)
+    schema: Any = getattr(the_class, "__pydantic_core_schema__", None)
+    if not isinstance(schema, dict):
+        return "has a pydantic schema that is not complete, so its fields cannot be checked"
+    cached = _SCHEMA_HAZARD_CACHE.get(the_class)
+    if cached is not None and cached[0] is schema:
+        return cached[1]
+    hazard = _find_schema_hazard(cast(dict[str, Any], schema))
+    _SCHEMA_HAZARD_CACHE[the_class] = (schema, hazard)
+    return hazard
+
+
+def _find_schema_hazard(schema: dict[str, Any]) -> str | None:
+    """Walk a pydantic core schema without recursion and return the first hazard `_schema_hazard` describes."""
+    pending: list[Any] = [schema]
+    seen: set[int] = set()
+    while pending:
+        node: Any = pending.pop()
+        if isinstance(node, (list, tuple)):
+            pending.extend(cast(Iterable[Any], node))
+            continue
+        if not isinstance(node, dict) or id(cast(object, node)) in seen:
+            continue
+        seen.add(id(cast(object, node)))
+        the_node = cast(dict[str, Any], node)
+        if _PYDANTIC_IMPORT_STRING is not None and the_node.get("function") is _PYDANTIC_IMPORT_STRING:
+            return "has an ImportString field, whose validation imports the module its value names"
+        node_class = the_node.get("cls")
+        if the_node.get("type") in ("model", "dataclass") and isinstance(node_class, type):
+            if the_node.get("custom_init"):
+                return f"holds the class {_quote_name(node_class.__qualname__)}, which overrides __init__"
+            if node_class.__new__ is not object.__new__:
+                return f"holds the class {_quote_name(node_class.__qualname__)}, which overrides __new__"
+        pending.extend(the_node.values())
+    return None
+
+
+def _validation_summary(exc: ValidationError) -> str:
+    """Describe a pydantic validation error by location and message only, never by input value."""
+    details = exc.errors(include_url=False, include_context=False, include_input=False)
+    parts: list[str] = []
+    for detail in details[:_MAX_LISTED_VALIDATION_ERRORS]:
+        location = ".".join(_quote_name(str(part)) for part in detail["loc"]) or "(root)"
+        parts.append(f"{location}: {detail['msg']}")
+    if len(details) > _MAX_LISTED_VALIDATION_ERRORS:
+        parts.append(f"and {len(details) - _MAX_LISTED_VALIDATION_ERRORS} more")
+    return "; ".join(parts)
 
 
 class UniversalJSONDecoder(json.JSONDecoder):
@@ -302,7 +373,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
         Raises:
             TypeError: When `safe` is not a bool, or `importable_packages` is a string or
                 holds something other than strings.
-            ValueError: When `importable_packages` is given without `safe=True`, or holds
+            ValueError: When a non-empty `importable_packages` is given without `safe=True`, or holds
                 an entry that is not a dotted package name.
         """
         self._class_registry: ClassRegistryAbstract | None = kwargs.pop("class_registry", None)
@@ -456,6 +527,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
         try:
             module = importlib.import_module(module_name)
         except Exception as exc:
+            # Unbounded surface: importing runs the module's top-level code, which may raise anything.
             error_msg = f"Error while trying to import module {_quote_name(module_name)}: {exc}"
             self.log(error_msg)
             raise KajsonDecoderError(error_msg) from exc
@@ -473,8 +545,11 @@ class UniversalJSONDecoder(json.JSONDecoder):
         """Rebuild an object in permissive mode, walking every strategy that applies to the resolved class.
 
         A failed hook moves on to the next strategy only when `IS_DECODER_FALLBACK_ENABLED` is set.
-        Subclasses that replace class resolution call this method to keep kajson's rebuild.
+        Subclasses that replace class resolution call this method to keep kajson's rebuild; on a
+        decoder built with `safe=True` it applies safe mode's rule instead.
         """
+        if self._safe:
+            return self._apply_safe_strategy(the_class, class_name, str(getattr(the_class, "__module__", "")), the_dict)
         for strategy in _classify(the_class):
             result = self._rebuild(strategy, the_class, class_name, the_dict, safe=False)
             if not isinstance(result, _Declined):
@@ -485,17 +560,17 @@ class UniversalJSONDecoder(json.JSONDecoder):
     def _apply_safe_strategy(self, the_class: type[Any], class_name: str, module_name: str, the_dict: dict[str, Any]) -> Any:
         """Rebuild an object in safe mode: refuse unless the first strategy rebuilds by validation or a hook, then use it alone."""
         strategy = _classify(the_class)[0]
-        qualified = f"{_quote_name(module_name)}.{_quote_name(class_name)}"
+        qualified = _quote_name(f"{module_name}.{class_name}")
         if not strategy.is_allowed_in_safe_mode:
             msg = (
                 f"Refusing to instantiate {qualified}: safe mode does not call a class's constructor with the payload's keys. "
                 f"It rebuilds {SAFE_MODE_REBUILDABLE_KINDS}."
             )
             raise KajsonDecoderError(msg)
-        if (override := _construction_override(the_class, strategy)) is not None:
+        if (hazard := self._safe_construction_hazard(the_class, strategy)) is not None:
             msg = (
                 f"Refusing to instantiate {qualified}: safe mode rebuilds a {strategy.kind_label} "
-                f"only when constructing it runs nothing but the library's own code, and this class overrides {override}."
+                f"only when constructing it runs nothing but the library's own code, and this class {hazard}."
             )
             raise KajsonDecoderError(msg)
         try:
@@ -505,12 +580,24 @@ class UniversalJSONDecoder(json.JSONDecoder):
         except Exception as exc:
             # Unbounded surface: the rebuild runs the class's validators, model_post_init,
             # __post_init__, _missing_ and decoding hooks. Safe-mode callers catch KajsonDecoderError only.
-            msg = f"Could not decode {qualified}: {type(exc).__name__}: {exc}"
+            # The message names the exception type only: its text may quote the payload's values.
+            msg = f"Could not decode {qualified}: {type(exc).__name__}"
             raise KajsonDecoderError(msg) from exc
         if isinstance(result, _Declined):  # pragma: no cover - safe rebuilds never decline
             msg = f"Could not decode {qualified}"
             raise KajsonDecoderError(msg)
         return result
+
+    @staticmethod
+    def _safe_construction_hazard(the_class: type[Any], strategy: _DecodeStrategy) -> str | None:
+        """Say why rebuilding `the_class` would run code other than the library's own, or None."""
+        if (override := _construction_override(the_class, strategy)) is not None:
+            return override
+        match strategy:
+            case _DecodeStrategy.ROOT_MODEL | _DecodeStrategy.BASE_MODEL | _DecodeStrategy.PYDANTIC_DATACLASS:
+                return _schema_hazard(the_class)
+            case _DecodeStrategy.ENUM | _DecodeStrategy.REGISTERED_DECODER | _DecodeStrategy.JSON_DECODE_HOOK | _DecodeStrategy.GENERIC_CONSTRUCTOR:
+                return None
 
     def _rebuild(self, strategy: _DecodeStrategy, the_class: type[Any], class_name: str, the_dict: dict[str, Any], *, safe: bool) -> Any:
         """Rebuild an object with one strategy. Returns `_DECLINED` when a permissive hook gives way to the next strategy."""
@@ -522,13 +609,21 @@ class UniversalJSONDecoder(json.JSONDecoder):
             case _DecodeStrategy.ROOT_MODEL:
                 return self._rebuild_root_model(cast(type[RootModel[Any]], the_class), class_name, the_dict, safe=safe)
             case _DecodeStrategy.ENUM:
-                return self._rebuild_enum(cast(type[Enum], the_class), class_name, the_dict)
+                return self._rebuild_enum(cast(type[Enum], the_class), class_name, the_dict, safe=safe)
             case _DecodeStrategy.BASE_MODEL:
                 return self._rebuild_base_model(cast(type[BaseModel], the_class), class_name, the_dict, safe=safe)
             case _DecodeStrategy.PYDANTIC_DATACLASS:
                 return self._rebuild_pydantic_dataclass(the_class, class_name, the_dict, safe=safe)
             case _DecodeStrategy.GENERIC_CONSTRUCTOR:
                 return self._rebuild_with_constructor(the_class, the_dict)
+
+    @staticmethod
+    def _hook_failure_reason(exc: Exception, *, safe: bool) -> str:
+        """Describe a failed hook. In safe mode, only a `KajsonDecoderError` keeps its message, as a
+        hook that raises one vouches for its text; any other exception's text may quote the payload."""
+        if safe and not isinstance(exc, KajsonDecoderError):
+            return type(exc).__name__
+        return f"'{exc}'"
 
     @staticmethod
     def _hook_failed(error_msg: str, exc: Exception, *, safe: bool) -> _Declined:
@@ -545,7 +640,8 @@ class UniversalJSONDecoder(json.JSONDecoder):
         except Exception as exc:
             # Unbounded surface: the decoder is a function a caller registered.
             func_name = getattr(decoder, "__name__", repr(decoder))
-            error_msg = f"Could not decode {_quote_name(class_name)} from json because function '{func_name}' failed: '{exc}'."
+            reason = self._hook_failure_reason(exc, safe=safe)
+            error_msg = f"Could not decode {_quote_name(class_name)} from json because function '{func_name}' failed: {reason}."
             return self._hook_failed(error_msg, exc, safe=safe)
 
     def _rebuild_with_json_decode_hook(self, the_class: type[Any], class_name: str, the_dict: dict[str, Any], *, safe: bool) -> Any:
@@ -553,7 +649,8 @@ class UniversalJSONDecoder(json.JSONDecoder):
             return getattr(the_class, "__json_decode__")(the_dict)
         except Exception as exc:
             # Unbounded surface: the hook is the class's own decoding code.
-            error_msg = f"Could not decode {_quote_name(class_name)} from json because static method __json_decode__ failed: '{exc}'."
+            reason = self._hook_failure_reason(exc, safe=safe)
+            error_msg = f"Could not decode {_quote_name(class_name)} from json because static method __json_decode__ failed: {reason}."
             return self._hook_failed(error_msg, exc, safe=safe)
 
     def _rebuild_root_model(self, the_class: type[RootModel[Any]], class_name: str, the_dict: dict[str, Any], *, safe: bool) -> Any:
@@ -566,7 +663,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
             try:
                 return the_class.model_validate(the_dict["root"])
             except ValidationError as exc:
-                error_msg = f"Could not decode {_quote_name(class_name)} pydantic RootModel from json: {exc}"
+                error_msg = f"Could not decode {_quote_name(class_name)} pydantic RootModel from json: {_validation_summary(exc)}"
                 self.log(error_msg)
                 raise KajsonDecoderError(error_msg) from exc
 
@@ -595,7 +692,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
             self.log(error_msg)
             raise KajsonDecoderError(error_msg) from exc
 
-    def _rebuild_enum(self, the_class: type[Enum], class_name: str, the_dict: dict[str, Any]) -> Any:
+    def _rebuild_enum(self, the_class: type[Enum], class_name: str, the_dict: dict[str, Any], *, safe: bool) -> Any:
         self.log(f"Handling enum class '{the_class}'")
         try:
             # For enums, we need to reconstruct using the enum name or value
@@ -610,8 +707,12 @@ class UniversalJSONDecoder(json.JSONDecoder):
                 raise KajsonDecoderError(msg)
         except (KeyError, ValueError, TypeError) as exc:
             # TypeError: an unhashable name, such as a list, cannot be looked up.
-            # Do NOT include the_dict in the message: payloads may carry secrets.
-            error_msg = f"Could not reconstruct enum {_quote_name(class_name)}: {exc}"
+            # Do NOT include the_dict in the message: payloads may carry secrets. The lookup's
+            # own message quotes the name or value it was given, so safe mode leaves it out.
+            if safe:
+                error_msg = f"Could not reconstruct enum {_quote_name(class_name)}: no member has that {'name' if '_name_' in the_dict else 'value'}"
+            else:
+                error_msg = f"Could not reconstruct enum {_quote_name(class_name)}: {exc}"
             self.log(error_msg)
             raise KajsonDecoderError(error_msg) from exc
 
@@ -623,11 +724,14 @@ class UniversalJSONDecoder(json.JSONDecoder):
             # Do NOT include the_dict or base_model_obj in messages: payloads may carry
             # secrets (passwords, API keys). The chained exception (from exc) still
             # carries the offending value via pydantic's ValidationError for debugging.
+            if safe:
+                # Safe mode never falls back to calling the class with the payload's keys, and
+                # its message leaves out the input values pydantic's own message quotes.
+                error_msg = f"Could not model_validate pydantic BaseModel {_quote_name(class_name)}: {_validation_summary(exc)}"
+                self.log(error_msg)
+                raise KajsonDecoderError(error_msg) from exc
             error_msg = f"Could not model_validate pydantic BaseModel '{the_class}': {exc}"
             self.log(error_msg)
-            if safe:
-                # Safe mode never falls back to calling the class with the payload's keys.
-                raise KajsonDecoderError(error_msg) from exc
             try:
                 base_model_obj = the_class(**the_dict)
             except ValidationError as exc:
@@ -654,12 +758,22 @@ class UniversalJSONDecoder(json.JSONDecoder):
                 return the_class.__pydantic_validator__.validate_python(the_dict)
             # Calling the dataclass runs its pydantic validator (validates + coerces).
             return the_class(**the_dict)
+        except ValidationError as exc:
+            if safe:
+                error_msg = f"Could not decode pydantic dataclass {_quote_name(class_name)}: {_validation_summary(exc)}"
+            else:
+                error_msg = f"Could not decode pydantic dataclass '{the_class}': {exc}"
+            self.log(error_msg)
+            raise KajsonDecoderError(error_msg) from exc
         except Exception as exc:
             # Broad by design: the constructor runs user-defined validation and an optional
             # __post_init__, whose exception surface is unbounded (pydantic only wraps
             # ValueError/AssertionError into ValidationError; RuntimeError/TypeError/etc. escape raw).
             # Do NOT include the_dict in the message: payloads may carry secrets.
-            error_msg = f"Could not decode pydantic dataclass '{the_class}': {exc}"
+            if safe:
+                error_msg = f"Could not decode pydantic dataclass {_quote_name(class_name)}: {type(exc).__name__}"
+            else:
+                error_msg = f"Could not decode pydantic dataclass '{the_class}': {exc}"
             self.log(error_msg)
             raise KajsonDecoderError(error_msg) from exc
 
@@ -670,6 +784,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
         try:
             return the_class(**the_dict)
         except Exception:
+            # Unbounded surface: the constructor of any class a marker names; failing moves on to the next attempt.
             pass
 
         # Try the default constructor (no arguments)
@@ -679,6 +794,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
             obj.__dict__ = the_dict
             return obj
         except Exception:
+            # Unbounded surface: the no-argument constructor of any class a marker names; failing returns the raw dict.
             pass
 
         # Default, return the raw dict:

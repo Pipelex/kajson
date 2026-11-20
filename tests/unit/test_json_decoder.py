@@ -5,8 +5,9 @@ import json
 import logging
 import sys
 import warnings
+from collections.abc import Generator
 from enum import Enum
-from typing import Any, Dict, Generator
+from typing import Any
 
 import pytest
 from pydantic import BaseModel, Field, RootModel, ValidationError
@@ -31,7 +32,7 @@ class MockModelInvalid(BaseModel):
     value: int = Field(ge=100)  # Will fail with values < 100
 
 
-class MockRootModelValid(RootModel[Dict[str, Any]]):
+class MockRootModelValid(RootModel[dict[str, Any]]):
     """Mock RootModel for successful validation."""
 
     pass
@@ -50,7 +51,7 @@ class MockClassWithJsonDecode:
         self.data = data
 
     @classmethod
-    def __json_decode__(cls, the_dict: Dict[str, Any]) -> "MockClassWithJsonDecode":
+    def __json_decode__(cls, the_dict: dict[str, Any]) -> "MockClassWithJsonDecode":
         return cls(the_dict["data"])
 
     @override
@@ -65,7 +66,7 @@ class MockClassWithFailingJsonDecode:
         self.data = data
 
     @classmethod
-    def __json_decode__(cls, the_dict: Dict[str, Any]) -> "MockClassWithFailingJsonDecode":
+    def __json_decode__(cls, the_dict: dict[str, Any]) -> "MockClassWithFailingJsonDecode":
         raise ValueError("Intentional failure in __json_decode__")
 
 
@@ -120,7 +121,7 @@ class MockEnum(Enum):
 
 class MockClassWithAttributeErrorInJsonDecode:
     @staticmethod
-    def __json_decode__(the_dict: Dict[str, Any]) -> "MockClassWithAttributeErrorInJsonDecode":
+    def __json_decode__(the_dict: dict[str, Any]) -> "MockClassWithAttributeErrorInJsonDecode":
         msg = "a bug inside the hook"
         raise AttributeError(msg)
 
@@ -131,7 +132,7 @@ class TestUniversalJSONDecoder:
     def test_register_valid_type_and_function(self) -> None:
         """Test registering a valid type and decoding function."""
 
-        def test_decoder(data: Dict[str, Any]) -> str:
+        def test_decoder(data: dict[str, Any]) -> str:
             return f"decoded_{data['value']}"
 
         UniversalJSONDecoder.register(str, test_decoder)
@@ -141,7 +142,7 @@ class TestUniversalJSONDecoder:
     def test_register_invalid_type_raises_error(self) -> None:
         """Test that registering invalid type raises TypeError."""
 
-        def test_decoder(data: Dict[str, Any]) -> str:
+        def test_decoder(data: dict[str, Any]) -> str:
             return "test"
 
         with pytest.raises(TypeError) as excinfo:
@@ -196,7 +197,7 @@ class TestUniversalJSONDecoder:
     def test_universal_decoder_registered_decoder_success(self, setup_decoder: UniversalJSONDecoder) -> None:
         """Test decoder with successfully registered decoder."""
 
-        def test_decoder(data: Dict[str, Any]) -> str:
+        def test_decoder(data: dict[str, Any]) -> str:
             return f"decoded_{data['value']}"
 
         UniversalJSONDecoder.register(str, test_decoder)
@@ -209,7 +210,7 @@ class TestUniversalJSONDecoder:
     def test_universal_decoder_registered_decoder_failure_no_fallback(self, setup_decoder: UniversalJSONDecoder) -> None:
         """Test decoder with failing registered decoder when fallback disabled."""
 
-        def failing_decoder(data: Dict[str, Any]) -> str:
+        def failing_decoder(data: dict[str, Any]) -> str:
             raise ValueError("Decoder failed")
 
         UniversalJSONDecoder.register(str, failing_decoder)
@@ -225,7 +226,7 @@ class TestUniversalJSONDecoder:
         """Test decoder with failing registered decoder when fallback enabled."""
         mocker.patch("kajson.json_decoder.IS_DECODER_FALLBACK_ENABLED", True)
 
-        def failing_decoder(data: Dict[str, Any]) -> str:
+        def failing_decoder(data: dict[str, Any]) -> str:
             raise ValueError("Decoder failed")
 
         UniversalJSONDecoder.register(str, failing_decoder)
@@ -573,7 +574,7 @@ class TestUniversalJSONDecoder:
             {"__class__": None, "__module__": None},
         ],
     )
-    def test_marker_with_non_string_names_raises_decoder_error(self, marker: Dict[str, Any], safe: bool) -> None:
+    def test_marker_with_non_string_names_raises_decoder_error(self, marker: dict[str, Any], safe: bool) -> None:
         """Non-string names used to leak a bare TypeError."""
         with pytest.raises(KajsonDecoderError, match="must be strings"):
             json.loads(json.dumps(marker), cls=UniversalJSONDecoder, safe=safe)
@@ -612,11 +613,11 @@ class TestUniversalJSONDecoder:
         with pytest.raises(KajsonDecoderError, match="does not name a class"):
             json.loads(json.dumps(marker), cls=UniversalJSONDecoder, safe=safe)
 
-    @pytest.mark.parametrize("safe", [False, True])
-    def test_attribute_error_inside_json_decode_raises(self, safe: bool) -> None:
+    @pytest.mark.parametrize(("safe", "expected"), [(False, "a bug inside the hook"), (True, "failed: AttributeError")])
+    def test_attribute_error_inside_json_decode_raises(self, safe: bool, expected: str) -> None:
         """An AttributeError raised by the hook used to be swallowed, and the constructor ran instead."""
         marker = {"__class__": "MockClassWithAttributeErrorInJsonDecode", "__module__": "tests.unit.test_json_decoder"}
-        with pytest.raises(KajsonDecoderError, match="a bug inside the hook"):
+        with pytest.raises(KajsonDecoderError, match=expected):
             json.loads(json.dumps(marker), cls=UniversalJSONDecoder, safe=safe)
 
     @pytest.mark.parametrize("safe", [False, True])

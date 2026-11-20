@@ -11,7 +11,7 @@ import kajson
 from kajson.class_registry import ClassRegistry
 from kajson.exceptions import KajsonDecoderError
 from kajson.json_decoder import UniversalJSONDecoder
-from tests.unit.safe_decoding.safe_decoding_classes import PlainModel, ResolvingSubclass, make_marker
+from tests.unit.safe_decoding.safe_decoding_classes import KeywordConstructorCounter, PlainModel, ResolvingSubclass, make_marker
 
 
 class TestSafeEntryPoints:
@@ -41,3 +41,12 @@ class TestSafeEntryPoints:
         registry.register_class(PlainModel)
         result = json.loads(kajson.dumps(PlainModel(name="sub")), cls=ResolvingSubclass, class_registry=registry)
         assert result == PlainModel(name="sub")
+
+    @pytest.mark.usefixtures("reset_counters")
+    def test_subclass_calling_the_rebuild_keeps_safe_mode(self) -> None:
+        """A subclass that replaces resolution and calls _apply_decoder_strategies still refuses in safe mode."""
+        registry = ClassRegistry()
+        registry.register_class(KeywordConstructorCounter)
+        with pytest.raises(KajsonDecoderError, match="Refusing to instantiate"):
+            json.loads(make_marker("KeywordConstructorCounter", number=1), cls=ResolvingSubclass, class_registry=registry, safe=True)
+        assert KeywordConstructorCounter.calls == 0

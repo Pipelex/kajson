@@ -13,10 +13,10 @@ import json
 import uuid
 from enum import Enum, EnumMeta
 from pathlib import Path
-from typing import Any, ClassVar, Dict, Generic, List, TypeVar
+from typing import Any, ClassVar, Generic, TypeVar
 
 import pydantic_settings
-from pydantic import BaseModel, RootModel, field_validator
+from pydantic import BaseModel, ImportString, RootModel, field_validator
 from pydantic._internal._model_construction import ModelMetaclass
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 from typing_extensions import override
@@ -35,7 +35,7 @@ def make_marker(class_name: str, module_name: str = MODULE_NAME, **fields: Any) 
 
 def error_chain_text(exc: BaseException) -> str:
     """Concatenate the text of an exception and of every exception chained to it."""
-    texts: List[str] = []
+    texts: list[str] = []
     current: BaseException | None = exc
     seen: set[int] = set()
     while current is not None and id(current) not in seen:
@@ -78,7 +78,7 @@ class Box(BaseModel, Generic[ValueType]):
     value: ValueType
 
 
-class IntListRoot(RootModel[List[int]]):
+class IntListRoot(RootModel[list[int]]):
     pass
 
 
@@ -97,24 +97,24 @@ class WithJsonDecode:
     def __init__(self, value: int) -> None:
         self.value = value
 
-    def __json_encode__(self) -> Dict[str, Any]:
+    def __json_encode__(self) -> dict[str, Any]:
         return {"value": self.value}
 
     @staticmethod
-    def __json_decode__(the_dict: Dict[str, Any]) -> "WithJsonDecode":
+    def __json_decode__(the_dict: dict[str, Any]) -> "WithJsonDecode":
         return WithJsonDecode(the_dict["value"])
 
 
 class WithFailingJsonDecode:
     @staticmethod
-    def __json_decode__(the_dict: Dict[str, Any]) -> "WithFailingJsonDecode":
+    def __json_decode__(the_dict: dict[str, Any]) -> "WithFailingJsonDecode":
         msg = "hook failed"
         raise ValueError(msg)
 
 
 class WithAttributeErrorJsonDecode:
     @staticmethod
-    def __json_decode__(the_dict: Dict[str, Any]) -> "WithAttributeErrorJsonDecode":
+    def __json_decode__(the_dict: dict[str, Any]) -> "WithAttributeErrorJsonDecode":
         msg = "hook failed with an AttributeError"
         raise AttributeError(msg)
 
@@ -128,11 +128,11 @@ class WithFailingRegisteredDecoder:
     pass
 
 
-def decode_with_registered(the_dict: Dict[str, Any]) -> WithRegisteredDecoder:
+def decode_with_registered(the_dict: dict[str, Any]) -> WithRegisteredDecoder:
     return WithRegisteredDecoder(the_dict["value"])
 
 
-def failing_registered_decoder(the_dict: Dict[str, Any]) -> WithFailingRegisteredDecoder:
+def failing_registered_decoder(the_dict: dict[str, Any]) -> WithFailingRegisteredDecoder:
     msg = "registered decoder failed"
     raise ValueError(msg)
 
@@ -239,7 +239,73 @@ class EnvFileSettings(pydantic_settings.BaseSettings):
     sentinel_token: str = ""
 
 
+@dataclasses.dataclass
+class NewOverridingDataclass:
+    calls: ClassVar[int] = 0
+    number: int = 0
+
+    def __new__(cls, *args: Any, **kwargs: Any) -> "NewOverridingDataclass":
+        NewOverridingDataclass.calls += 1
+        return object.__new__(cls)
+
+
+class HoldsEnvFileSettings(BaseModel):
+    settings: EnvFileSettings
+
+
+class HoldsInitOverridingModel(BaseModel):
+    inner: InitOverridingModel
+
+
+class HoldsNewOverridingModel(BaseModel):
+    inner: NewOverridingModel
+
+
+class HoldsNewOverridingDataclass(BaseModel):
+    inner: NewOverridingDataclass
+
+
+class DeeplyHoldsInitOverridingModel(BaseModel):
+    """The overriding class sits two containers down, inside another model's schema."""
+
+    layers: list[dict[str, HoldsInitOverridingModel]] | None = None
+
+
+class RecursiveHolder(BaseModel):
+    """A self-referencing model, whose schema keeps the overriding class among its definitions."""
+
+    children: list["RecursiveHolder"]
+    danger: InitOverridingModel | None = None
+
+
+class TreeNode(BaseModel):
+    name: str
+    children: list["TreeNode"]
+
+
+@pydantic_dataclass
+class PointHolder:
+    point: PydanticPoint
+
+
+class ImportStringModel(BaseModel):
+    target: ImportString[Any]
+
+
+class RuntimeErrorValidatorModel(BaseModel):
+    """Its validator raises an error pydantic does not wrap, quoting the input."""
+
+    value: str
+
+    @field_validator("value")
+    @classmethod
+    def reject(cls, value: str) -> str:
+        msg = f"rejected {value}"
+        raise RuntimeError(msg)
+
+
 COUNTED_CLASSES = (
+    NewOverridingDataclass,
     KeywordConstructorCounter,
     NoArgConstructorCounter,
     InitOverridingModel,
@@ -257,7 +323,7 @@ class ResolvingSubclass(UniversalJSONDecoder):
     """Stands for pipelex-server's RestrictedPayloadDecoder: replaces resolution, keeps kajson's rebuild."""
 
     @override
-    def universal_decoder(self, the_dict: Dict[str, Any]) -> Any:
+    def universal_decoder(self, the_dict: dict[str, Any]) -> Any:
         if "__class__" not in the_dict:
             return the_dict
         class_name = the_dict.pop("__class__")

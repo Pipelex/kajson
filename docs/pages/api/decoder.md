@@ -38,7 +38,7 @@ The decoder takes kajson's own options as keyword arguments and passes every oth
 **Raises:**
 
 - `TypeError`: If `safe` is not a bool, or `importable_packages` is a single string or holds something other than strings
-- `ValueError`: If `importable_packages` is given without `safe=True`, or holds an entry that is not a dotted package name
+- `ValueError`: If a non-empty `importable_packages` is given without `safe=True`, or holds an entry that is not a dotted package name
 
 ### Methods
 
