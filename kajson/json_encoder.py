@@ -26,7 +26,8 @@ import dataclasses
 import json
 import re
 import warnings
-from typing import Any, Callable, ClassVar, Dict, Type, TypeVar, cast
+from collections.abc import Callable
+from typing import Any, ClassVar, TypeVar, cast
 
 from typing_extensions import override
 
@@ -65,10 +66,10 @@ class UniversalJSONEncoder(json.JSONEncoder):
     """
 
     # The registered encoding functions:
-    _encoders: ClassVar[Dict[Type[Any], Callable[[Any], Dict[str, Any]]]] = {}
+    _encoders: ClassVar[dict[type[Any], Callable[[Any], dict[str, Any]]]] = {}
 
     @staticmethod
-    def register(obj_type: Type[T], encoding_function: Callable[[T], Dict[str, Any]]) -> None:
+    def register(obj_type: type[T], encoding_function: Callable[[T], dict[str, Any]]) -> None:
         """
         Register a function as an encoder for the provided type/class. The provided
         encoder should take a single argument (the object to serialise) and return
@@ -94,18 +95,18 @@ class UniversalJSONEncoder(json.JSONEncoder):
         cls._encoders.clear()
 
     @classmethod
-    def is_encoder_registered(cls, obj_type: Type[Any]) -> bool:
+    def is_encoder_registered(cls, obj_type: type[Any]) -> bool:
         """Check if an encoder is registered for the given type. Primarily for testing purposes."""
         return obj_type in cls._encoders
 
     @classmethod
-    def get_registered_encoder(cls, obj_type: Type[Any]) -> Callable[[Any], Dict[str, Any]] | None:
+    def get_registered_encoder(cls, obj_type: type[Any]) -> Callable[[Any], dict[str, Any]] | None:
         """Get the registered encoder for the given type. Primarily for testing purposes."""
         return cls._encoders.get(obj_type)
 
     # argument must be named "o" to override the default method
     @override
-    def default(self, o: Any) -> Dict[str, Any]:
+    def default(self, o: Any) -> dict[str, Any]:
         """
         Extends the default behaviour of the default JSON encoder. It will try
         the different methods to encode the provided object in the following order:
@@ -123,12 +124,12 @@ class UniversalJSONEncoder(json.JSONEncoder):
         obj: Any = o
         # Default JSON encoder:
         try:
-            return cast(Dict[str, Any], json.JSONEncoder.default(self, obj))
+            return cast(dict[str, Any], json.JSONEncoder.default(self, obj))
         except TypeError:
             pass
 
         already_encoded = False
-        the_dict: Dict[str, Any] = {}
+        the_dict: dict[str, Any] = {}
 
         # Use a registered encoding function:
         if type(obj) in UniversalJSONEncoder._encoders:
@@ -202,14 +203,14 @@ class UniversalJSONEncoder(json.JSONEncoder):
 #########################################################################################
 
 
-def _encode_dataclass_fields(obj: Any) -> Dict[str, Any]:
+def _encode_dataclass_fields(obj: Any) -> dict[str, Any]:
     """Build a kajson-compatible field dict from a dataclass instance.
 
     Uses ``dataclasses.fields()`` so slots=True instances (which have no ``__dict__``)
     serialize the same as regular dataclasses. Isolating this in a helper keeps
     pyright's TypeGuard narrowing of ``obj`` from leaking back into the caller.
     """
-    result: Dict[str, Any] = {}
+    result: dict[str, Any] = {}
     for the_field in dataclasses.fields(obj):
         field_value = getattr(obj, the_field.name)
         if callable(field_value):
@@ -242,7 +243,7 @@ __class_expression = re.compile(r"^<class '([a-zA-Z0-9._]*)'>")
 __type_expression = re.compile(r"^<type '([a-zA-Z0-9._]*)'>")
 
 
-def _get_type_module(the_type: Type[Any]) -> str:
+def _get_type_module(the_type: type[Any]) -> str:
     """
     Get the name of the module containing the given type.
     Args:

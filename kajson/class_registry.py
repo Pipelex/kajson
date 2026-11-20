@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field, PrivateAttr, RootModel
 from typing_extensions import override
@@ -13,7 +13,7 @@ from kajson.exceptions import ClassRegistryInheritanceError, ClassRegistryNotFou
 LOGGING_LEVEL_VERBOSE = 5
 CLASS_REGISTRY_LOGGER_CHANNEL_NAME = "class_registry"
 
-ClassRegistryDict = Dict[str, Type[Any]]
+ClassRegistryDict = dict[str, type[Any]]
 
 
 class ClassRegistry(RootModel[ClassRegistryDict], ClassRegistryAbstract):
@@ -42,7 +42,7 @@ class ClassRegistry(RootModel[ClassRegistryDict], ClassRegistryAbstract):
     @override
     def register_class(
         self,
-        class_type: Type[Any],
+        class_type: type[Any],
         name: Optional[str] = None,
         should_warn_if_already_registered: bool = True,
     ) -> None:
@@ -56,7 +56,7 @@ class ClassRegistry(RootModel[ClassRegistryDict], ClassRegistryAbstract):
         self.root[key] = class_type
 
     @override
-    def unregister_class(self, class_type: Type[Any]) -> None:
+    def unregister_class(self, class_type: type[Any]) -> None:
         """Unregisters a class from the registry."""
         key = class_type.__name__
         if key not in self.root:
@@ -72,7 +72,7 @@ class ClassRegistry(RootModel[ClassRegistryDict], ClassRegistryAbstract):
         del self.root[name]
 
     @override
-    def register_classes_dict(self, classes: Dict[str, Type[Any]]) -> None:
+    def register_classes_dict(self, classes: dict[str, type[Any]]) -> None:
         """Registers multiple classes in the registry with names."""
         if not classes:
             self._log("register_classes_dict called with empty dict of classes to register")
@@ -88,7 +88,7 @@ class ClassRegistry(RootModel[ClassRegistryDict], ClassRegistryAbstract):
             self._log(f"Registered single class '{list(classes.values())[0].__name__}' in registry")
 
     @override
-    def register_classes(self, classes: List[Type[Any]]) -> None:
+    def register_classes(self, classes: list[type[Any]]) -> None:
         """Registers multiple classes in the registry with names."""
         if not classes:
             self._log("register_classes called with empty list of classes to register")
@@ -109,7 +109,7 @@ class ClassRegistry(RootModel[ClassRegistryDict], ClassRegistryAbstract):
             self._log(f"Registered single class '{classes[0].__name__}' in registry")
 
     @override
-    def get_class(self, name: str) -> Optional[Type[Any]]:
+    def get_class(self, name: str) -> Optional[type[Any]]:
         """Retrieves a class from the registry by its name. Returns None if not found."""
         # First try exact match
         if name in self.root:
@@ -124,14 +124,14 @@ class ClassRegistry(RootModel[ClassRegistryDict], ClassRegistryAbstract):
         return None
 
     @override
-    def get_required_class(self, name: str) -> Type[Any]:
+    def get_required_class(self, name: str) -> type[Any]:
         """Retrieves a class from the registry by its name. Raises an error if not found."""
         if name not in self.root:
             raise ClassRegistryNotFoundError(f"Class '{name}' not found in registry")
         return self.root[name]
 
     @override
-    def get_required_subclass(self, name: str, base_class: Type[Any]) -> Type[Any]:
+    def get_required_subclass(self, name: str, base_class: type[Any]) -> type[Any]:
         """Retrieves a class from the registry by its name. Raises an error if not found."""
         if name not in self.root:
             raise ClassRegistryNotFoundError(f"Class '{name}' not found in registry")
@@ -140,7 +140,7 @@ class ClassRegistry(RootModel[ClassRegistryDict], ClassRegistryAbstract):
         return self.root[name]
 
     @override
-    def get_required_base_model(self, name: str) -> Type[BaseModel]:
+    def get_required_base_model(self, name: str) -> type[BaseModel]:
         return self.get_required_subclass(name=name, base_class=BaseModel)
 
     @override
@@ -149,7 +149,7 @@ class ClassRegistry(RootModel[ClassRegistryDict], ClassRegistryAbstract):
         return name in self.root
 
     @override
-    def has_subclass(self, name: str, base_class: Type[Any]) -> bool:
+    def has_subclass(self, name: str, base_class: type[Any]) -> bool:
         """Checks if a class is in the registry by its name."""
         if name not in self.root:
             return False
@@ -158,6 +158,6 @@ class ClassRegistry(RootModel[ClassRegistryDict], ClassRegistryAbstract):
         return True
 
     @override
-    def get_classes_dict(self) -> Dict[str, Type[Any]]:
+    def get_classes_dict(self) -> dict[str, type[Any]]:
         """Returns a snapshot dict of all registered classes by name."""
         return dict(self.root)

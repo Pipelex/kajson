@@ -193,12 +193,15 @@ Kajson extends the standard JSON encoder/decoder by:
 
 ## ⚠️ Security Considerations
 
-**Warning**: Instantiating classes using `__class__` and `__module__` attributes poses a security threat when deserializing untrusted JSON data. Malicious JSON could potentially instantiate arbitrary classes and execute code.
+**Warning**: by default, `kajson.loads` and `kajson.load` instantiate whatever the JSON names. A `__class__` and `__module__` marker makes the decoder import the named module and, for a class it has no better strategy for, call the class with the payload's keys. Decoding JSON that someone else wrote therefore runs code that person chose.
 
-Only use Kajson to deserialize JSON from trusted sources. For untrusted data, consider:
-- Validating JSON structure before deserialization
-- Using a whitelist of allowed classes
-- Sanitizing input data
+For JSON you did not write yourself, turn on safe mode:
+
+```python
+data = kajson.loads(untrusted_text, safe=True, importable_packages=["my_app.models"])
+```
+
+In safe mode a marker can cause an import only inside the packages you list, and kajson rebuilds only classes it reconstructs by validation or by a decoding hook: pydantic models and dataclasses, enums, the standard library types it ships decoders for, and classes with a registered decoder or `__json_decode__`. Anything else raises `KajsonDecoderError` before it runs. Safe mode does not make every payload harmless: read [Decoding Untrusted JSON](https://pipelex.github.io/kajson/pages/guide/untrusted-json/) for what it still leaves to you, such as checking the type of the result and bounding the size of the input.
 
 For more discussion on this topic, see [this discussion thread](https://github.com/Pipelex/kajson/discussions/44).
 

@@ -283,12 +283,16 @@ print(response)
        data = kajson.load(f)
    ```
 
-2. **Handle exceptions** when loading untrusted data:
+2. **Decode untrusted data in safe mode, and handle its exceptions**: the default decoder instantiates whatever the JSON names, so read [Decoding Untrusted JSON](untrusted-json.md) first:
    ```python
+   import json
+
    try:
-       data = kajson.loads(user_input)
-   except kajson.JSONDecodeError as e:
+       data = kajson.loads(user_input, safe=True, importable_packages=["my_app.models"])
+   except json.JSONDecodeError as e:
        print(f"Invalid JSON: {e}")
+   except kajson.KajsonDecoderError as e:
+       print(f"Refused or invalid object: {e}")
    ```
 
 3. **Use appropriate formatting** for your use case:

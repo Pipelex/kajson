@@ -120,7 +120,7 @@ registry.teardown()
 
 kajson does not build classes from Python source code. A class that exists only at runtime is built by your own code, for example with pydantic's `create_model`, and registered before kajson decodes it. When a class description comes from another system, it should arrive as data, such as field definitions or a JSON schema, which the receiving side turns into a class itself and checks against what it is willing to build. Never receive a class as Python source code to execute: that would let whoever sends the description run any code on the receiving side.
 
-This does not make decoding untrusted JSON safe. To find a class that is neither loaded nor registered, kajson imports the module the payload's `__module__` names, which runs that module's top-level code, and then instantiates the class; the README's Security Considerations section explains why kajson should only decode JSON from trusted sources.
+A registry does not make decoding untrusted JSON safe on its own. By default, to find a class that is neither loaded nor registered, kajson imports the module the payload's `__module__` names, which runs that module's top-level code, and then instantiates the class. For JSON you did not write yourself, decode with `safe=True`, which limits imports to the packages you name and refuses classes kajson would rebuild by calling their constructor, including those held in a registry; [Decoding Untrusted JSON](untrusted-json.md) explains what it covers.
 
 ## Complete Example: Dynamic Class from Remote System
 

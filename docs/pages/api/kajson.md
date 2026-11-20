@@ -57,36 +57,33 @@ print(json_str)
 
 ```python
 def loads(
-    s: str | bytes | bytearray,
+    json_string: str | bytes,
+    class_registry: ClassRegistryAbstract | None = None,
     *,
-    cls: Type[JSONDecoder] | None = None,
-    object_hook: Callable[[dict[str, Any]], Any] | None = None,
-    parse_float: Callable[[str], Any] | None = None,
-    parse_int: Callable[[str], Any] | None = None,
-    parse_constant: Callable[[str], Any] | None = None,
-    object_pairs_hook: Callable[[list[tuple[str, Any]]], Any] | None = None,
-    **kw: Any
+    safe: bool = False,
+    importable_packages: Collection[str] = (),
+    **kwargs: Any,
 ) -> Any
 ```
 
-Deserialize a JSON string to a Python object with type reconstruction.
+Deserialize a JSON string to a Python object with type reconstruction, using `UniversalJSONDecoder`.
 
 **Parameters:**
 
-- `s`: JSON string, bytes, or bytearray to deserialize
-- `cls`: Custom decoder class (default: UniversalJSONDecoder)
-- `object_hook`: Function called with every JSON object decoded
-- `parse_float`: Function to parse float values
-- `parse_int`: Function to parse integer values
-- `parse_constant`: Function to parse constants (NaN, Infinity, -Infinity)
-- `object_pairs_hook`: Function called with ordered list of pairs
-- `**kw`: Additional keyword arguments passed to the decoder
+- `json_string`: JSON string or bytes to deserialize
+- `class_registry`: An explicit class registry, consulted before imported modules, the global registry and imports when a class marker is resolved (see [Class Registry](../guide/class-registry.md))
+- `safe`: Decode JSON you did not write yourself. A class marker can then cause an import only inside `importable_packages`, and only classes kajson rebuilds by validation or by a decoding hook are rebuilt (see [Decoding Untrusted JSON](../guide/untrusted-json.md)). Defaults to `False`.
+- `importable_packages`: Packages under which safe mode may import a module to resolve a class, matched on package boundaries: `my_app.models` admits `my_app.models.orders` but not `my_app.models_legacy`. Only allowed with `safe=True`.
+- `**kwargs`: Passed to `json.loads`, and from there to the decoder, for example `parse_float` or the standard library's `strict`. Do not pass `cls`.
 
 **Returns:** Deserialized Python object
 
 **Raises:**
+
 - `JSONDecodeError`: If the JSON syntax is invalid
-- `KajsonDecoderError`: If type reconstruction fails
+- `KajsonDecoderError`: If a class marker is malformed, names something that is not a class or cannot be found, is refused by safe mode, or if rebuilding the object fails
+- `TypeError`: If `safe` is not a bool, or `importable_packages` is a single string or holds something other than strings
+- `ValueError`: If a non-empty `importable_packages` is given without `safe=True`, or holds an entry that is not a dotted package name
 
 **Example:**
 
@@ -96,6 +93,9 @@ import kajson
 json_str = '{"name": "Alice", "age": 30}'
 data = kajson.loads(json_str)
 print(data)  # {'name': 'Alice', 'age': 30}
+
+# JSON received from a client: refuse anything but the application's own models
+order = kajson.loads(request_body, safe=True, importable_packages=["my_app.models"])
 ```
 
 ### dump
@@ -142,15 +142,12 @@ with open("event.json", "w") as f:
 
 ```python
 def load(
-    fp: IO[str] | IO[bytes],
+    fp: IO[str],
+    class_registry: ClassRegistryAbstract | None = None,
     *,
-    cls: Type[JSONDecoder] | None = None,
-    object_hook: Callable[[dict[str, Any]], Any] | None = None,
-    parse_float: Callable[[str], Any] | None = None,
-    parse_int: Callable[[str], Any] | None = None,
-    parse_constant: Callable[[str], Any] | None = None,
-    object_pairs_hook: Callable[[list[tuple[str, Any]]], Any] | None = None,
-    **kw: Any
+    safe: bool = False,
+    importable_packages: Collection[str] = (),
+    **kwargs: Any,
 ) -> Any
 ```
 
@@ -162,6 +159,8 @@ Deserialize a JSON file to a Python object.
 - Other parameters: Same as `loads()`
 
 **Returns:** Deserialized Python object
+
+**Raises:** Same as `loads()`
 
 **Example:**
 
