@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: © 2025-2026 Evotis S.A.S.
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Generator, Type
+from collections.abc import Generator
 
 import pytest
 from pydantic import BaseModel, create_model
@@ -12,9 +12,9 @@ from kajson.exceptions import KajsonDecoderError
 from kajson.kajson_manager import KajsonManager
 
 
-def _make_dynamic_class(name: str) -> Type[BaseModel]:
+def _make_dynamic_class(name: str) -> type[BaseModel]:
     """Build a BaseModel with create_model and __module__='builtins', the shape pipelex's dynamic classes take."""
-    dynamic_cls: Type[BaseModel] = create_model(name, __module__="builtins", greeting=(str, ...))
+    dynamic_cls: type[BaseModel] = create_model(name, __module__="builtins", greeting=(str, ...))
     assert dynamic_cls.__module__ == "builtins"
     return dynamic_cls
 
@@ -67,4 +67,19 @@ class TestGlobalRegistryFallback:
         json_str = '{"__class__": "CompletelyUnknownClass", "__module__": "builtins", "greeting": "Hello"}'
 
         with pytest.raises(KajsonDecoderError, match="not found in module 'builtins' or global registry"):
+            kajson.loads(json_str)
+
+    @pytest.mark.parametrize("safe", [False, True])
+    def test_global_registry_resolves_a_generic_name_whose_base_is_not_in_the_module(self, safe: bool) -> None:
+        """A runtime-built class registered under a subscripted name decodes even though its base is not in the named module."""
+        dynamic_cls = _make_dynamic_class("DynamicBox[int]")
+        KajsonManager.get_class_registry().register_class(dynamic_cls)
+
+        result = kajson.loads(kajson.dumps(dynamic_cls(greeting="Hi")), safe=safe)
+        assert type(result) is dynamic_cls
+        assert result.greeting == "Hi"  # type: ignore[attr-defined]
+
+    def test_generic_name_in_neither_module_nor_global_registry_names_the_missing_base(self) -> None:
+        json_str = '{"__class__": "UnknownBox[int]", "__module__": "builtins"}'
+        with pytest.raises(KajsonDecoderError, match="base class 'UnknownBox' not found in module 'builtins' or global registry"):
             kajson.loads(json_str)

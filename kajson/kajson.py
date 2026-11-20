@@ -23,7 +23,8 @@ All additions and modifications are Copyright (c) 2025 Evotis S.A.S.
 import datetime
 import json
 import re
-from typing import IO, Any, Dict, Optional, Union
+from collections.abc import Collection
+from typing import IO, Any, Optional, Union
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from kajson.class_registry_abstract import ClassRegistryAbstract
@@ -67,9 +68,23 @@ def dump(obj: Any, fp: IO[str], **kwargs: Any) -> None:
     json.dump(obj, fp, cls=UniversalJSONEncoder, **kwargs)
 
 
+def _add_decoder_options(kwargs: dict[str, Any], *, safe: bool, importable_packages: Collection[str]) -> None:
+    """Forward the safe-mode options to the decoder, leaving the default call unchanged when they are not set.
+
+    `importable_packages` is forwarded whenever it was given, even empty, so the decoder validates it.
+    """
+    if safe is not False:
+        kwargs["safe"] = safe
+    if importable_packages != ():
+        kwargs["importable_packages"] = importable_packages
+
+
 def loads(
     json_string: Union[str, bytes],
     class_registry: ClassRegistryAbstract | None = None,
+    *,
+    safe: bool = False,
+    importable_packages: Collection[str] = (),
     **kwargs: Any,
 ) -> Any:
     """
@@ -81,19 +96,33 @@ def loads(
         class_registry: Optional explicit class registry for resolving classes.
             When provided, the decoder checks this registry first before falling
             back to sys.modules and dynamic import.
+        safe: Decode JSON you did not write yourself. A class marker can then cause
+            an import only inside `importable_packages`, and only classes kajson
+            rebuilds by validation or by a decoding hook are rebuilt; anything else
+            raises `KajsonDecoderError`. See the guide page "Decoding untrusted JSON".
+        importable_packages: Packages under which safe mode may import a module to
+            resolve a class, matched on package boundaries. Only allowed with `safe=True`.
         kwargs (**): Keyword arguments normally passed to `json.loads()` except
             for `cls`. Unpredictable behaviour might occur if `cls` is passed.
     Return:
         object - A Python object corresponding to the provided JSON formatted string.
+    Raises:
+        KajsonDecoderError: When a class marker is malformed, cannot be resolved,
+            is refused by safe mode, or its object cannot be rebuilt.
+        TypeError, ValueError: When `safe` or `importable_packages` is invalid.
     """
     if class_registry is not None:
         kwargs["class_registry"] = class_registry
+    _add_decoder_options(kwargs, safe=safe, importable_packages=importable_packages)
     return json.loads(json_string, cls=UniversalJSONDecoder, **kwargs)
 
 
 def load(
     fp: IO[str],
     class_registry: ClassRegistryAbstract | None = None,
+    *,
+    safe: bool = False,
+    importable_packages: Collection[str] = (),
     **kwargs: Any,
 ) -> Any:
     """
@@ -101,17 +130,24 @@ def load(
     the `UniversalJSONDecoder`. Takes the same keyword arguments as `json.load()`
     except for `cls` that is used to pass our custom decoder.
     Args:
-        fp (file-like object): A .write()-supporting file-like object.
+        fp (file-like object): A .read()-supporting file-like object.
         class_registry: Optional explicit class registry for resolving classes.
             When provided, the decoder checks this registry first before falling
             back to sys.modules and dynamic import.
+        safe: Decode JSON you did not write yourself; see `loads`.
+        importable_packages: Packages under which safe mode may import a module to
+            resolve a class; see `loads`. Only allowed with `safe=True`.
         kwargs (**): Keyword arguments normally passed to `json.load()` except
             for `cls`. Unpredictable behaviour might occur if `cls` is passed.
     Return:
         object - A Python object corresponding to the provided JSON formatted stream / file.
+    Raises:
+        KajsonDecoderError: As `loads`.
+        TypeError, ValueError: When `safe` or `importable_packages` is invalid.
     """
     if class_registry is not None:
         kwargs["class_registry"] = class_registry
+    _add_decoder_options(kwargs, safe=safe, importable_packages=importable_packages)
     return json.load(fp, cls=UniversalJSONDecoder, **kwargs)
 
 
@@ -221,7 +257,7 @@ def _decode_tzinfo(tzinfo_value: Any, utcoffset_seconds: Any, prefer_fixed_offse
     )
 
 
-def json_encode_timezone(t: ZoneInfo) -> Dict[str, Any]:
+def json_encode_timezone(t: ZoneInfo) -> dict[str, Any]:
     """Encoder for IANA named timezones (zoneinfo.ZoneInfo)."""
     return {"zone": t.key}
 
@@ -229,7 +265,7 @@ def json_encode_timezone(t: ZoneInfo) -> Dict[str, Any]:
 UniversalJSONEncoder.register(ZoneInfo, json_encode_timezone)
 
 
-def json_decode_timezone(obj_dict: Dict[str, Any]) -> ZoneInfo:
+def json_decode_timezone(obj_dict: dict[str, Any]) -> ZoneInfo:
     """Decoder for timezones (using zoneinfo from Python 3.9+)."""
     try:
         return ZoneInfo(obj_dict["zone"])
@@ -247,7 +283,7 @@ UniversalJSONDecoder.register(ZoneInfo, json_decode_timezone)
 #########################################################################################
 
 
-def json_encode_fixed_timezone(t: datetime.timezone) -> Dict[str, Any]:
+def json_encode_fixed_timezone(t: datetime.timezone) -> dict[str, Any]:
     """Encoder for fixed-offset timezones (datetime.timezone, including timezone.utc)."""
     return {"name": str(t), "utcoffset": _offset_to_seconds(t.utcoffset(None))}
 
@@ -255,7 +291,7 @@ def json_encode_fixed_timezone(t: datetime.timezone) -> Dict[str, Any]:
 UniversalJSONEncoder.register(datetime.timezone, json_encode_fixed_timezone)
 
 
-def json_decode_fixed_timezone(obj_dict: Dict[str, Any]) -> datetime.timezone:
+def json_decode_fixed_timezone(obj_dict: dict[str, Any]) -> datetime.timezone:
     """Decoder for fixed-offset timezones (datetime.timezone, including timezone.utc)."""
     offset = datetime.timedelta(seconds=_validate_utcoffset_seconds(obj_dict["utcoffset"]))
     return _fixed_offset_timezone(offset, obj_dict.get("name"))
@@ -265,7 +301,7 @@ UniversalJSONDecoder.register(datetime.timezone, json_decode_fixed_timezone)
 
 
 #########################################################################################
-def json_encode_date(d: datetime.date) -> Dict[str, str]:
+def json_encode_date(d: datetime.date) -> dict[str, str]:
     """Encoder for dates (from module datetime)."""
     return {"date": str(d)}
 
@@ -273,7 +309,7 @@ def json_encode_date(d: datetime.date) -> Dict[str, str]:
 UniversalJSONEncoder.register(datetime.date, json_encode_date)
 
 
-def json_decode_date(obj_dict: Dict[str, str]) -> datetime.date:
+def json_decode_date(obj_dict: dict[str, str]) -> datetime.date:
     """Decoder for dates (from module datetime)."""
     # Split date string into parts and convert to integers
     year, month, day = map(int, obj_dict["date"].split("-"))
@@ -285,7 +321,7 @@ UniversalJSONDecoder.register(datetime.date, json_decode_date)
 #########################################################################################
 
 
-def json_encode_datetime(datetime_value: datetime.datetime) -> Dict[str, Any]:
+def json_encode_datetime(datetime_value: datetime.datetime) -> dict[str, Any]:
     """Encoder for datetimes (from module datetime).
 
     Alongside the tzinfo name, the UTC offset (in seconds) is stored so that aware
@@ -304,7 +340,7 @@ def json_encode_datetime(datetime_value: datetime.datetime) -> Dict[str, Any]:
 UniversalJSONEncoder.register(datetime.datetime, json_encode_datetime)
 
 
-def json_decode_datetime(obj_dict: Dict[str, Any]) -> datetime.datetime:
+def json_decode_datetime(obj_dict: dict[str, Any]) -> datetime.datetime:
     """Decoder for datetimes (from module datetime)."""
     if datetime_str := obj_dict.get("datetime"):
         dt = datetime.datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S.%f")
@@ -339,7 +375,7 @@ UniversalJSONDecoder.register(datetime.datetime, json_decode_datetime)
 #########################################################################################
 
 
-def json_encode_time(t: datetime.time) -> Dict[str, Any]:
+def json_encode_time(t: datetime.time) -> dict[str, Any]:
     """Encoder for times (from module datetime).
 
     The tzinfo is stored as its string name plus the UTC offset in seconds, matching
@@ -353,7 +389,7 @@ def json_encode_time(t: datetime.time) -> Dict[str, Any]:
 UniversalJSONEncoder.register(datetime.time, json_encode_time)
 
 
-def json_decode_time(d: Dict[str, Any]) -> datetime.time:
+def json_decode_time(d: dict[str, Any]) -> datetime.time:
     """Decoder for times (from module datetime)."""
     time_str = d.get("time")
     if not time_str:
@@ -381,10 +417,38 @@ UniversalJSONDecoder.register(datetime.time, json_decode_time)
 #########################################################################################
 
 
-def json_encode_timedelta(t: datetime.timedelta) -> Dict[str, float]:
+def json_encode_timedelta(t: datetime.timedelta) -> dict[str, float]:
     """Encoder for timedeltas (from module datetime)."""
     return {"seconds": t.total_seconds()}
 
 
 UniversalJSONEncoder.register(datetime.timedelta, json_encode_timedelta)
-# Won't require a decoder since "seconds" will be automatically passed to a constructor.
+
+# The keyword arguments of the timedelta constructor. kajson writes only "seconds",
+# but a payload using any of the others decodes, as it did through the constructor.
+_TIMEDELTA_KEYWORDS = frozenset({"days", "seconds", "microseconds", "milliseconds", "minutes", "hours", "weeks"})
+
+
+def json_decode_timedelta(obj_dict: dict[str, Any]) -> datetime.timedelta:
+    """Decoder for timedeltas (from module datetime).
+
+    Accepts the timedelta constructor's keyword arguments, each a number (not a bool).
+    Any other key, a non-number, or a value the constructor rejects raises KajsonDecoderError.
+    """
+    unknown_keys = set(obj_dict) - _TIMEDELTA_KEYWORDS
+    if unknown_keys:
+        msg = f"Could not decode timedelta: {len(unknown_keys)} unexpected key(s); it takes only {', '.join(sorted(_TIMEDELTA_KEYWORDS))}"
+        raise KajsonDecoderError(msg)
+    for key, value in obj_dict.items():
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            msg = f"Could not decode timedelta: expected '{key}' to be a number, got {type(value).__name__}"
+            raise KajsonDecoderError(msg)
+    try:
+        return datetime.timedelta(**obj_dict)
+    except (OverflowError, ValueError) as exc:
+        # The constructor's message quotes the value, which came from the payload.
+        msg = f"Could not decode timedelta: the duration is out of range ({type(exc).__name__})"
+        raise KajsonDecoderError(msg) from exc
+
+
+UniversalJSONDecoder.register(datetime.timedelta, json_decode_timedelta)

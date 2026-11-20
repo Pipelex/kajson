@@ -84,7 +84,7 @@ class TestClassRegistryAbstract:
         params = get_class_sig.parameters
         assert "self" in params
         assert "name" in params
-        assert get_class_sig.return_annotation == Optional[Type[Any]]
+        assert get_class_sig.return_annotation == Optional[type[Any]]
 
         # Test register_classes_in_folder method
         # register_folder_method = getattr(ClassRegistryAbstract, "register_classes_in_folder")

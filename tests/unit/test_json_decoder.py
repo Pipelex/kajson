@@ -5,7 +5,9 @@ import json
 import logging
 import sys
 import warnings
-from typing import Any, Dict, Generator
+from collections.abc import Generator
+from enum import Enum
+from typing import Any
 
 import pytest
 from pydantic import BaseModel, Field, RootModel, ValidationError
@@ -30,7 +32,7 @@ class MockModelInvalid(BaseModel):
     value: int = Field(ge=100)  # Will fail with values < 100
 
 
-class MockRootModelValid(RootModel[Dict[str, Any]]):
+class MockRootModelValid(RootModel[dict[str, Any]]):
     """Mock RootModel for successful validation."""
 
     pass
@@ -49,7 +51,7 @@ class MockClassWithJsonDecode:
         self.data = data
 
     @classmethod
-    def __json_decode__(cls, the_dict: Dict[str, Any]) -> "MockClassWithJsonDecode":
+    def __json_decode__(cls, the_dict: dict[str, Any]) -> "MockClassWithJsonDecode":
         return cls(the_dict["data"])
 
     @override
@@ -64,7 +66,7 @@ class MockClassWithFailingJsonDecode:
         self.data = data
 
     @classmethod
-    def __json_decode__(cls, the_dict: Dict[str, Any]) -> "MockClassWithFailingJsonDecode":
+    def __json_decode__(cls, the_dict: dict[str, Any]) -> "MockClassWithFailingJsonDecode":
         raise ValueError("Intentional failure in __json_decode__")
 
 
@@ -113,13 +115,24 @@ def setup_decoder() -> Generator[UniversalJSONDecoder, None, None]:
     UniversalJSONDecoder._decoders.update(saved_decoders)  # pyright: ignore[reportPrivateUsage]
 
 
+class MockEnum(Enum):
+    ALPHA = "alpha"
+
+
+class MockClassWithAttributeErrorInJsonDecode:
+    @staticmethod
+    def __json_decode__(the_dict: dict[str, Any]) -> "MockClassWithAttributeErrorInJsonDecode":
+        msg = "a bug inside the hook"
+        raise AttributeError(msg)
+
+
 class TestUniversalJSONDecoder:
     """Test cases for UniversalJSONDecoder class."""
 
     def test_register_valid_type_and_function(self) -> None:
         """Test registering a valid type and decoding function."""
 
-        def test_decoder(data: Dict[str, Any]) -> str:
+        def test_decoder(data: dict[str, Any]) -> str:
             return f"decoded_{data['value']}"
 
         UniversalJSONDecoder.register(str, test_decoder)
@@ -129,7 +142,7 @@ class TestUniversalJSONDecoder:
     def test_register_invalid_type_raises_error(self) -> None:
         """Test that registering invalid type raises TypeError."""
 
-        def test_decoder(data: Dict[str, Any]) -> str:
+        def test_decoder(data: dict[str, Any]) -> str:
             return "test"
 
         with pytest.raises(TypeError) as excinfo:
@@ -184,7 +197,7 @@ class TestUniversalJSONDecoder:
     def test_universal_decoder_registered_decoder_success(self, setup_decoder: UniversalJSONDecoder) -> None:
         """Test decoder with successfully registered decoder."""
 
-        def test_decoder(data: Dict[str, Any]) -> str:
+        def test_decoder(data: dict[str, Any]) -> str:
             return f"decoded_{data['value']}"
 
         UniversalJSONDecoder.register(str, test_decoder)
@@ -197,7 +210,7 @@ class TestUniversalJSONDecoder:
     def test_universal_decoder_registered_decoder_failure_no_fallback(self, setup_decoder: UniversalJSONDecoder) -> None:
         """Test decoder with failing registered decoder when fallback disabled."""
 
-        def failing_decoder(data: Dict[str, Any]) -> str:
+        def failing_decoder(data: dict[str, Any]) -> str:
             raise ValueError("Decoder failed")
 
         UniversalJSONDecoder.register(str, failing_decoder)
@@ -213,7 +226,7 @@ class TestUniversalJSONDecoder:
         """Test decoder with failing registered decoder when fallback enabled."""
         mocker.patch("kajson.json_decoder.IS_DECODER_FALLBACK_ENABLED", True)
 
-        def failing_decoder(data: Dict[str, Any]) -> str:
+        def failing_decoder(data: dict[str, Any]) -> str:
             raise ValueError("Decoder failed")
 
         UniversalJSONDecoder.register(str, failing_decoder)
@@ -545,3 +558,71 @@ class TestUniversalJSONDecoder:
         finally:
             if math_module is not None:
                 sys.modules["math"] = math_module
+
+    @pytest.mark.parametrize("safe", [False, True])
+    def test_marker_without_module_raises_decoder_error(self, safe: bool) -> None:
+        """A __class__ without __module__ used to leak a bare KeyError."""
+        with pytest.raises(KajsonDecoderError, match="without '__module__'"):
+            json.loads('{"__class__": "MockModelValid"}', cls=UniversalJSONDecoder, safe=safe)
+
+    @pytest.mark.parametrize("safe", [False, True])
+    @pytest.mark.parametrize(
+        "marker",
+        [
+            {"__class__": 1, "__module__": "tests.unit.test_json_decoder"},
+            {"__class__": "MockModelValid", "__module__": ["tests"]},
+            {"__class__": None, "__module__": None},
+        ],
+    )
+    def test_marker_with_non_string_names_raises_decoder_error(self, marker: dict[str, Any], safe: bool) -> None:
+        """Non-string names used to leak a bare TypeError."""
+        with pytest.raises(KajsonDecoderError, match="must be strings"):
+            json.loads(json.dumps(marker), cls=UniversalJSONDecoder, safe=safe)
+
+    @pytest.mark.parametrize("safe", [False, True])
+    def test_generic_name_with_missing_base_in_imported_module_raises_decoder_error(self, safe: bool) -> None:
+        """A subscripted name whose base class is missing used to leak a bare AttributeError."""
+        marker = {"__class__": "NoSuchBase[int]", "__module__": "tests.unit.test_json_decoder"}
+        with pytest.raises(KajsonDecoderError, match="base class 'NoSuchBase' not found"):
+            json.loads(json.dumps(marker), cls=UniversalJSONDecoder, safe=safe)
+
+    def test_generic_name_with_missing_base_after_import_raises_decoder_error(self, mocker: MockerFixture) -> None:
+        mock_registry_instance = mocker.MagicMock()
+        mock_registry_instance.get_class.return_value = None
+        mocker.patch("kajson.kajson_manager.KajsonManager.get_class_registry", return_value=mock_registry_instance)
+        math_module = sys.modules.pop("math", None)
+        try:
+            with pytest.raises(KajsonDecoderError, match="base class 'NoSuchBase' not found in module 'math'"):
+                json.loads('{"__class__": "NoSuchBase[int]", "__module__": "math"}', cls=UniversalJSONDecoder)
+        finally:
+            if math_module is not None:
+                sys.modules["math"] = math_module
+
+    @pytest.mark.parametrize("safe", [False, True])
+    @pytest.mark.parametrize(
+        ("class_name", "module_name"),
+        [
+            ("setup_decoder", "tests.unit.test_json_decoder"),
+            ("sqrt", "math"),
+            ("FALLBACK_MESSAGE", "kajson.json_decoder"),
+        ],
+    )
+    def test_name_resolving_to_a_non_class_raises_decoder_error(self, class_name: str, module_name: str, safe: bool) -> None:
+        """A name that resolves to a function or a value used to leak a bare TypeError from issubclass."""
+        marker = {"__class__": class_name, "__module__": module_name}
+        with pytest.raises(KajsonDecoderError, match="does not name a class"):
+            json.loads(json.dumps(marker), cls=UniversalJSONDecoder, safe=safe)
+
+    @pytest.mark.parametrize(("safe", "expected"), [(False, "a bug inside the hook"), (True, "failed: AttributeError")])
+    def test_attribute_error_inside_json_decode_raises(self, safe: bool, expected: str) -> None:
+        """An AttributeError raised by the hook used to be swallowed, and the constructor ran instead."""
+        marker = {"__class__": "MockClassWithAttributeErrorInJsonDecode", "__module__": "tests.unit.test_json_decoder"}
+        with pytest.raises(KajsonDecoderError, match=expected):
+            json.loads(json.dumps(marker), cls=UniversalJSONDecoder, safe=safe)
+
+    @pytest.mark.parametrize("safe", [False, True])
+    def test_enum_with_unhashable_name_raises_decoder_error(self, safe: bool) -> None:
+        """An unhashable _name_ used to leak a bare TypeError."""
+        marker = {"__class__": "MockEnum", "__module__": "tests.unit.test_json_decoder", "_name_": ["ALPHA"]}
+        with pytest.raises(KajsonDecoderError, match="Could not reconstruct enum"):
+            json.loads(json.dumps(marker), cls=UniversalJSONDecoder, safe=safe)

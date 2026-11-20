@@ -50,6 +50,31 @@ except kajson.KajsonDecoderError as e:
         print(f"Details: {e.__cause__}")
 ```
 
+### Malformed Markers and Safe-Mode Refusals
+
+Every problem with a class marker raises `KajsonDecoderError`, in both the default mode and safe mode, so one `except` clause covers them:
+
+- a `__class__` without a `__module__`, or a `__class__` or `__module__` that is not a string;
+- a name that is not found, or a subscripted generic name such as `Box[int]` whose base class `Box` is not found;
+- a name that resolves to something other than a class, such as a function;
+- a malformed `timedelta` payload.
+
+With `safe=True`, the decoder also refuses, with `KajsonDecoderError` raised before anything runs, a module outside `importable_packages`, a class it would rebuild by calling its constructor, a pydantic class or enum whose construction is overridden, and a pydantic class whose fields would run such code or import a module.
+
+In safe mode, error messages quote the module and class names from the marker, cut to a bounded length, and leave out the payload's values: a validation failure is described by pydantic's error locations and messages without the input, and any other failure by its exception type. A message written by your own validator appears as you wrote it, so keep payload values out of it, and a `KajsonDecoderError` raised by a decoder or hook keeps its message for the same reason. The original exception stays chained as `__cause__` for debugging; it can contain the payload's values, so log it rather than send it back to whoever sent the JSON.
+
+```python
+import kajson
+
+try:
+    data = kajson.loads(untrusted_text, safe=True, importable_packages=["my_app.models"])
+except kajson.KajsonDecoderError as exc:
+    # Reject the request: the payload named something it may not
+    print(f"Refused: {exc}")
+```
+
+See [Decoding Untrusted JSON](untrusted-json.md) for what safe mode rebuilds and what it refuses.
+
 ### Type Registration Errors
 
 Errors when working with custom type registration:

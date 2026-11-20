@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **Safe decoding mode**: `loads()`, `load()` and `UniversalJSONDecoder` take `safe=True` for JSON you did not write yourself. A class marker can then cause an import only inside the packages named in the new `importable_packages` argument, and kajson rebuilds only pydantic models and dataclasses, enums, its built-in standard library types and classes with a registered decoder or `__json_decode__`, using that one strategy with no constructor fallback. A plain class, a stdlib dataclass, a pydantic class or enum whose `__init__`, `__new__`, `model_validate` or metaclass is overridden (pydantic-settings' `BaseSettings` among them), and a pydantic class whose fields hold such a class or an `ImportString` are refused with `KajsonDecoderError` before any of their code runs. Safe-mode error messages leave out the payload's values. Safe mode is off by default, it also applies when a decoder subclass calls `_apply_decoder_strategies`, and the new guide page "Decoding Untrusted JSON" says what it does not cover.
+
+### Changed
+- **Malformed class markers raise `KajsonDecoderError` (Breaking)**: in both modes, a `__class__` without a `__module__`, a marker whose names are not strings, a generic name whose base class is missing, a name that resolves to something other than a class, and an enum payload whose `_name_` is unhashable now raise `KajsonDecoderError` instead of a bare `KeyError`, `TypeError` or `AttributeError`. A generic name whose base class is missing from a loaded module is now looked up in the global class registry before the error, as a plain name already was. Error messages quote the class and module names a marker gives and cut very long ones.
+- **`timedelta` has a registered decoder (Breaking)**: a `timedelta` is rebuilt from the constructor's keyword arguments by a registered decoder, and a payload with an unknown key, a value that is not a number, a bool or a value that overflows now raises `KajsonDecoderError` instead of coming back as a plain dict. Its messages count the unknown keys and leave the values out.
+- **An `AttributeError` inside `__json_decode__` raises (Breaking)**: it raises `KajsonDecoderError` like any other failure of the hook, where the decoder used to swallow it and fall back to calling the class's constructor.
+- **Documentation**: the README's security section, the user guide and the API reference describe safe mode, and the guide's advice on untrusted data uses it; the API reference gives `loads()` and `load()` their real signatures with `class_registry`, and documents the decoder and encoder class methods that exist (`clear_decoders`, `is_decoder_registered`, `get_registered_decoder` and their encoder counterparts) in place of `unregister` and `get_registered_types`, which never did.
+
 ## [v0.8.0] - 2026-11-19
 
 ### Changed

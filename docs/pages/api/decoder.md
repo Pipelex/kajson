@@ -18,17 +18,27 @@ class UniversalJSONDecoder(json.JSONDecoder):
 ```python
 def __init__(
     self,
-    *,
-    object_hook: Callable[[dict[str, Any]], Any] | None = None,
-    parse_float: Callable[[str], Any] | None = None,
-    parse_int: Callable[[str], Any] | None = None,
-    parse_constant: Callable[[str], Any] | None = None,
-    strict: bool = True,
-    object_pairs_hook: Callable[[list[tuple[str, Any]]], Any] | None = None
+    *args: Any,
+    class_registry: ClassRegistryAbstract | None = None,
+    safe: bool = False,
+    importable_packages: Collection[str] = (),
+    **kwargs: Any,
 ) -> None
 ```
 
-**Parameters:** Same as `json.JSONDecoder`, with enhanced object_hook functionality
+The decoder takes kajson's own options as keyword arguments and passes every other argument to `json.JSONDecoder`, installing its own `object_hook`. Because the options are constructor arguments, `json.loads(s, cls=UniversalJSONDecoder, safe=True)` behaves like `kajson.loads(s, safe=True)`.
+
+**Parameters:**
+
+- `class_registry`: An explicit class registry, consulted first when a class marker is resolved
+- `safe`: Refuse imports outside `importable_packages`, and classes that kajson would rebuild by calling their constructor with the payload's keys. See [Decoding Untrusted JSON](../guide/untrusted-json.md).
+- `importable_packages`: Packages under which safe mode may import a module, matched on package boundaries. Only allowed with `safe=True`; kept as a `frozenset`.
+- `strict` and the other arguments of `json.JSONDecoder`: unchanged. `strict` is the standard library's option controlling control characters inside strings; it is unrelated to safe mode.
+
+**Raises:**
+
+- `TypeError`: If `safe` is not a bool, or `importable_packages` is a single string or holds something other than strings
+- `ValueError`: If a non-empty `importable_packages` is given without `safe=True`, or holds an entry that is not a dotted package name
 
 ### Methods
 
@@ -54,19 +64,20 @@ Decode a JSON document to a Python object with type reconstruction.
 #### register
 
 ```python
-@classmethod
+@staticmethod
 def register(
-    cls,
-    type_class: Type,
-    decoder: Callable[[dict], Any]
+    obj_type: Type[T],
+    decoding_function: Callable[[dict[str, Any]], T],
 ) -> None
 ```
 
-Register a custom decoder function for a specific type.
+Register a custom decoder function for a specific type. Registering a type again replaces its decoder. Registrations are process-wide, and they apply in safe mode too.
 
 **Parameters:**
-- `type_class`: The Python type to register
-- `decoder`: Function that reconstructs instances from a dict
+- `obj_type`: The Python type to register
+- `decoding_function`: Function that reconstructs an instance from the payload's dict
+
+**Raises:** `TypeError` if `obj_type` is not a class or `decoding_function` is not callable.
 
 **Example:**
 
@@ -83,28 +94,32 @@ def decode_decimal(data: dict) -> Decimal:
 kajson.UniversalJSONDecoder.register(Decimal, decode_decimal)
 ```
 
-#### unregister
+#### clear_decoders
 
 ```python
 @classmethod
-def unregister(cls, type_class: Type) -> None
+def clear_decoders(cls) -> None
 ```
 
-Remove a previously registered decoder for a type.
+Remove every registered decoder, kajson's built-in ones included. Meant for tests.
 
-**Parameters:**
-- `type_class`: The type to unregister
-
-#### get_registered_types
+#### is_decoder_registered
 
 ```python
 @classmethod
-def get_registered_types(cls) -> List[Type]
+def is_decoder_registered(cls, obj_type: Type[Any]) -> bool
 ```
 
-Get a list of all registered types.
+Whether a decoder is registered for `obj_type`.
 
-**Returns:** List of types with custom decoders
+#### get_registered_decoder
+
+```python
+@classmethod
+def get_registered_decoder(cls, obj_type: Type[Any]) -> Callable[[dict[str, Any]], Any] | None
+```
+
+The decoder registered for `obj_type`, or `None`.
 
 ## Built-in Decoders
 
@@ -184,9 +199,10 @@ def json_decode_fixed_timezone(obj_dict: Dict[str, Any]) -> datetime.timezone:
 
 ### Timedelta Decoder
 
+`json_decode_timedelta` rebuilds a `timedelta` from the keyword arguments of its constructor: `days`, `seconds`, `microseconds`, `milliseconds`, `minutes`, `hours` and `weeks`. The encoder writes only `seconds`, the total number of seconds. Each value must be a number and not a bool. Any other key, a non-number, or a value the constructor rejects, such as one that overflows, raises `KajsonDecoderError`.
+
 ```python
-# Timedelta objects are automatically reconstructed from the "seconds" field
-# No explicit decoder needed - the constructor handles it directly
+{"seconds": 86400.0, "__class__": "timedelta", "__module__": "datetime"}
 ```
 
 ## Custom Decoder Implementation

@@ -34,6 +34,7 @@ docs = [
 ]
 dev = [
   "mypy>=1.11.2",
+  "pydantic-settings>=2.7.1",
   "pyright==1.1.398",
   "pytest>=8.3.3",
   "pytest-cov>=6.1.1",
