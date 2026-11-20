@@ -375,11 +375,11 @@ class User(BaseModel):
 
 ### 2. Handle Validation Errors
 
-Always handle potential validation errors when deserializing untrusted data:
+Always handle potential validation errors when deserializing untrusted data, and decode it in safe mode so the JSON can only name your own models (see [Decoding Untrusted JSON](untrusted-json.md)):
 
 ```python
 try:
-    user = kajson.loads(untrusted_json)
+    user = kajson.loads(untrusted_json, safe=True, importable_packages=["my_app.models"])
 except kajson.KajsonDecoderError as e:
     # Log error, return error response, etc.
     print(f"Invalid data: {e}")

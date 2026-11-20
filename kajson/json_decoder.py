@@ -27,9 +27,9 @@ import json
 import logging
 import sys
 import warnings
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from enum import Enum, EnumMeta
-from typing import Any, Callable, ClassVar, Dict, FrozenSet, List, Type, TypeVar, cast
+from typing import Any, ClassVar, TypeVar, cast
 
 from pydantic import BaseModel, RootModel, ValidationError
 from pydantic.dataclasses import is_pydantic_dataclass, rebuild_dataclass
@@ -94,6 +94,7 @@ class _DecodeStrategy(Enum):
 
 # The construction steps of the library classes safe mode compares against, by identity.
 _BASE_MODEL_INIT: Any = BaseModel.__init__
+_BASE_MODEL_VALIDATE_FUNC: Any = cast(Any, BaseModel.model_validate).__func__
 _ROOT_MODEL_INIT: Any = cast(Any, RootModel).__init__
 _ENUM_META_CALL: Any = EnumMeta.__call__
 _ENUM_META_GETITEM: Any = EnumMeta.__getitem__
@@ -127,29 +128,33 @@ def _generic_base_name(class_name: str) -> str | None:
     return None
 
 
-def _validate_importable_packages(importable_packages: Any) -> FrozenSet[str]:
+def _validate_importable_packages(importable_packages: Any) -> frozenset[str]:
     """Check the `importable_packages` argument and freeze it."""
     if isinstance(importable_packages, (str, bytes)):
-        raise TypeError("importable_packages must be a collection of package names, not a single string")
+        msg = "importable_packages must be a collection of package names, not a single string"
+        raise TypeError(msg)
     if not isinstance(importable_packages, Iterable):
-        raise TypeError(f"importable_packages must be a collection of package names, got {type(importable_packages).__name__}")
-    packages: List[str] = []
+        msg = f"importable_packages must be a collection of package names, got {type(importable_packages).__name__}"
+        raise TypeError(msg)
+    packages: list[str] = []
     for entry in cast(Iterable[Any], importable_packages):
         if not isinstance(entry, str):
-            raise TypeError(f"importable_packages entries must be strings, got {type(entry).__name__}")
+            msg = f"importable_packages entries must be strings, got {type(entry).__name__}"
+            raise TypeError(msg)
         if not all(segment.isidentifier() for segment in entry.split(".")):
-            raise ValueError(f"importable_packages entry {entry!r} is not a dotted package name")
+            msg = f"importable_packages entry {entry!r} is not a dotted package name"
+            raise ValueError(msg)
         packages.append(entry)
     return frozenset(packages)
 
 
-def _classify(the_class: Type[Any]) -> List[_DecodeStrategy]:
+def _classify(the_class: type[Any]) -> list[_DecodeStrategy]:
     """Return, in order, the strategies the decoder tries to rebuild an instance of `the_class`.
 
     Hooks come first (a registered decoder, then `__json_decode__`), followed by exactly one
     structural strategy. Permissive mode walks the whole list; safe mode takes the first entry only.
     """
-    strategies: List[_DecodeStrategy] = []
+    strategies: list[_DecodeStrategy] = []
     if the_class in UniversalJSONDecoder._decoders:  # pyright: ignore[reportPrivateUsage]
         strategies.append(_DecodeStrategy.REGISTERED_DECODER)
     if hasattr(the_class, "__json_decode__"):
@@ -167,11 +172,11 @@ def _classify(the_class: Type[Any]) -> List[_DecodeStrategy]:
     return strategies
 
 
-def _construction_override(the_class: Type[Any], strategy: _DecodeStrategy) -> str | None:
+def _construction_override(the_class: type[Any], strategy: _DecodeStrategy) -> str | None:
     """Name the construction step `the_class` overrides, for a class safe mode rebuilds structurally.
 
     Validation is not enough on its own: pydantic's `model_validate` runs a model's own `__init__`
-    and `__new__`, and pydantic-settings' `BaseSettings.__init__` reads the files its arguments
+    and `__new__`, a model may override `model_validate` itself, and pydantic-settings' `BaseSettings.__init__` reads the files its arguments
     name. Safe mode therefore rebuilds a pydantic class only when constructing it runs nothing but
     pydantic, and an enum only when its lookups are the stdlib's. Returns None when nothing is
     overridden.
@@ -180,11 +185,11 @@ def _construction_override(the_class: Type[Any], strategy: _DecodeStrategy) -> s
         case _DecodeStrategy.ROOT_MODEL:
             if the_class.__init__ is not _ROOT_MODEL_INIT:
                 return "__init__"
-            return _pydantic_new_or_call_override(the_class)
+            return _model_validate_override(the_class) or _pydantic_new_or_call_override(the_class)
         case _DecodeStrategy.BASE_MODEL:
             if the_class.__init__ is not _BASE_MODEL_INIT:
                 return "__init__"
-            return _pydantic_new_or_call_override(the_class)
+            return _model_validate_override(the_class) or _pydantic_new_or_call_override(the_class)
         case _DecodeStrategy.PYDANTIC_DATACLASS:
             # Safe mode runs the dataclass's validator directly and never calls its __init__.
             return _pydantic_new_or_call_override(the_class)
@@ -199,7 +204,14 @@ def _construction_override(the_class: Type[Any], strategy: _DecodeStrategy) -> s
             return None
 
 
-def _pydantic_new_or_call_override(the_class: Type[Any]) -> str | None:
+def _model_validate_override(the_class: type[Any]) -> str | None:
+    """Name the `model_validate` override of a pydantic model, or None: safe mode rebuilds a model by calling it."""
+    if getattr(the_class.model_validate, "__func__", None) is not _BASE_MODEL_VALIDATE_FUNC:
+        return "model_validate"
+    return None
+
+
+def _pydantic_new_or_call_override(the_class: type[Any]) -> str | None:
     """Name the `__new__` or metaclass `__call__` override of a pydantic class, or None.
 
     pydantic's validator runs an overridden `__new__`; calling the class runs the metaclass `__call__`.
@@ -238,10 +250,10 @@ class UniversalJSONDecoder(json.JSONDecoder):
     """
 
     # The registered decoding functions:
-    _decoders: ClassVar[Dict[Type[Any], Callable[[Dict[str, Any]], Any]]] = {}
+    _decoders: ClassVar[dict[type[Any], Callable[[dict[str, Any]], Any]]] = {}
 
     @staticmethod
-    def register(obj_type: Type[T], decoding_function: Callable[[Dict[str, Any]], T]) -> None:
+    def register(obj_type: type[T], decoding_function: Callable[[dict[str, Any]], T]) -> None:
         """
         Register a function as a decoder for the provided type/class. The provided
         decoder should take a single argument (the raw dict to deserialise) and return
@@ -267,12 +279,12 @@ class UniversalJSONDecoder(json.JSONDecoder):
         cls._decoders.clear()
 
     @classmethod
-    def is_decoder_registered(cls, obj_type: Type[Any]) -> bool:
+    def is_decoder_registered(cls, obj_type: type[Any]) -> bool:
         """Check if a decoder is registered for the given type. Primarily for testing purposes."""
         return obj_type in cls._decoders
 
     @classmethod
-    def get_registered_decoder(cls, obj_type: Type[Any]) -> Callable[[Dict[str, Any]], Any] | None:
+    def get_registered_decoder(cls, obj_type: type[Any]) -> Callable[[dict[str, Any]], Any] | None:
         """Get the registered decoder for the given type. Primarily for testing purposes."""
         return cls._decoders.get(obj_type)
 
@@ -296,19 +308,21 @@ class UniversalJSONDecoder(json.JSONDecoder):
         self._class_registry: ClassRegistryAbstract | None = kwargs.pop("class_registry", None)
         safe = kwargs.pop("safe", False)
         if not isinstance(safe, bool):
-            raise TypeError(f"safe must be a bool, got {type(safe).__name__}")
+            msg = f"safe must be a bool, got {type(safe).__name__}"
+            raise TypeError(msg)
         importable_packages = _validate_importable_packages(kwargs.pop("importable_packages", ()))
         if importable_packages and not safe:
-            raise ValueError("importable_packages only applies with safe=True; without it, every module is importable")
+            msg = "importable_packages only applies with safe=True; without it, every module is importable"
+            raise ValueError(msg)
         self._safe: bool = safe
-        self._importable_packages: FrozenSet[str] = importable_packages
+        self._importable_packages: frozenset[str] = importable_packages
         json.JSONDecoder.__init__(self, object_hook=self.universal_decoder, *args, **kwargs)
         self.logger = logging.getLogger(DECODER_LOGGER_CHANNEL_NAME)
 
     def log(self, message: str) -> None:
         self.logger.debug(message)
 
-    def universal_decoder(self, the_dict: Dict[str, Any]) -> Any:
+    def universal_decoder(self, the_dict: dict[str, Any]) -> Any:
         """
         Universal decoder for JSON objects encoded using the UniversalJSONEncoder.
 
@@ -337,24 +351,27 @@ class UniversalJSONDecoder(json.JSONDecoder):
         class_name, module_name = self._pop_marker(the_dict)
         the_class = self._resolve_marker_class(class_name=class_name, module_name=module_name)
         if not isinstance(the_class, type):
-            raise KajsonDecoderError(f"Class marker {_quote_name(class_name)} in module {_quote_name(module_name)} does not name a class")
+            msg = f"Class marker {_quote_name(class_name)} in module {_quote_name(module_name)} does not name a class"
+            raise KajsonDecoderError(msg)
 
         if self._safe:
             return self._apply_safe_strategy(the_class, class_name, module_name, the_dict)
         return self._apply_decoder_strategies(the_class, class_name, the_dict)
 
     @staticmethod
-    def _pop_marker(the_dict: Dict[str, Any]) -> tuple[str, str]:
+    def _pop_marker(the_dict: dict[str, Any]) -> tuple[str, str]:
         """Remove and return the `__class__` and `__module__` marker, checking its shape."""
         class_name = the_dict.pop("__class__")
         if "__module__" not in the_dict:
-            raise KajsonDecoderError("Malformed class marker: '__class__' without '__module__'")
+            msg = "Malformed class marker: '__class__' without '__module__'"
+            raise KajsonDecoderError(msg)
         module_name = the_dict.pop("__module__")
         if not isinstance(class_name, str) or not isinstance(module_name, str):
-            raise KajsonDecoderError(
+            msg = (
                 f"Malformed class marker: '__class__' and '__module__' must be strings, "
                 f"got {type(class_name).__name__} and {type(module_name).__name__}"
             )
+            raise KajsonDecoderError(msg)
         return class_name, module_name
 
     def _lookup_in_module(self, module: Any, name: str) -> Any:
@@ -368,24 +385,27 @@ class UniversalJSONDecoder(json.JSONDecoder):
             namespace = getattr(module, "__dict__", None)
             if not isinstance(namespace, dict):
                 return _MISSING
-            return cast(Dict[str, Any], namespace).get(name, _MISSING)
+            return cast(dict[str, Any], namespace).get(name, _MISSING)
         try:
             return getattr(module, name)
         except AttributeError:
             return _MISSING
 
-    def _lookup_generic_base(self, module: Any, class_name: str, module_name: str) -> Any:
-        """For a subscripted generic name absent from its module, look up its base class instead."""
+    def _lookup_generic_base(self, module: Any, class_name: str) -> Any:
+        """For a subscripted generic name absent from its module, look up its base class instead, or return `_MISSING`."""
         base_class_name = _generic_base_name(class_name)
         if base_class_name is None:
             return _MISSING
-        self.log(f"Generic type '{class_name}' not found in module, trying base class '{base_class_name}'")
-        base_class = self._lookup_in_module(module, base_class_name)
-        if base_class is _MISSING:
-            raise KajsonDecoderError(
-                f"Generic class {_quote_name(class_name)}: base class {_quote_name(base_class_name)} not found in module {_quote_name(module_name)}"
-            )
-        return base_class
+        self.log(f"Generic type {_quote_name(class_name)} not found in module, trying base class {_quote_name(base_class_name)}")
+        return self._lookup_in_module(module, base_class_name)
+
+    @staticmethod
+    def _not_found_message(class_name: str, module_name: str, *, where: str) -> str:
+        """Say that a class was not found, naming the missing base class of a generic name."""
+        base_class_name = _generic_base_name(class_name)
+        if base_class_name is not None:
+            return f"Generic class {_quote_name(class_name)}: base class {_quote_name(base_class_name)} not found in {where}"
+        return f"Class {_quote_name(class_name)} not found in {where}"
 
     def _may_import(self, module_name: str) -> bool:
         """Whether resolving a class may import `module_name`: always in permissive mode, inside `importable_packages` in safe mode."""
@@ -399,7 +419,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
         if self._class_registry is not None:
             explicit_class = self._class_registry.get_class(name=class_name)
             if explicit_class is not None:
-                self.log(f"Found class '{class_name}' in explicit registry")
+                self.log(f"Found class {_quote_name(class_name)} in explicit registry")
                 return explicit_class
 
         # Check if the module is already imported using sys.modules
@@ -408,45 +428,48 @@ class UniversalJSONDecoder(json.JSONDecoder):
             found = self._lookup_in_module(module, class_name)
             if found is not _MISSING:
                 return found
-            base_class = self._lookup_generic_base(module, class_name, module_name)
+            base_class = self._lookup_generic_base(module, class_name)
             if base_class is not _MISSING:
                 return base_class
             # Module is loaded but class is not in it — fall through to global registry
             # before raising. This handles dynamically built classes (e.g. with pydantic's
             # create_model) whose __module__ names a loaded module that does not hold them,
             # such as 'builtins', and that were registered in the global ClassRegistry.
-            self.log(f"Class '{class_name}' not found in module '{module_name}', checking global registry")
+            self.log(f"Class {_quote_name(class_name)} not found in module {_quote_name(module_name)}, checking global registry")
             registered_class = KajsonManager.get_class_registry().get_class(name=class_name)
             if registered_class is not None:
                 return registered_class
-            raise KajsonDecoderError(f"Class '{class_name}' not found in module '{module_name}' or global registry")
+            error_msg = self._not_found_message(class_name, module_name, where=f"module {_quote_name(module_name)} or global registry")
+            raise KajsonDecoderError(error_msg)
 
         if registered_class := KajsonManager.get_class_registry().get_class(name=class_name):
-            self.log(f"Found class '{class_name}' in registry")
+            self.log(f"Found class {_quote_name(class_name)} in registry")
             return registered_class
 
         if not self._may_import(module_name):
-            raise KajsonDecoderError(
+            msg = (
                 f"Refusing to import module {_quote_name(module_name)} to resolve class {_quote_name(class_name)}: "
                 "safe mode imports only modules inside importable_packages"
             )
-        self.log(f"Module '{module_name}' not found either in imported modules or registry, now importing")
+            raise KajsonDecoderError(msg)
+        self.log(f"Module {_quote_name(module_name)} not found either in imported modules or registry, now importing")
         try:
             module = importlib.import_module(module_name)
         except Exception as exc:
-            error_msg = f"Error while trying to import module {module_name}: {exc}"
+            error_msg = f"Error while trying to import module {_quote_name(module_name)}: {exc}"
             self.log(error_msg)
             raise KajsonDecoderError(error_msg) from exc
-        self.log(f"Module '{module_name}' imported")
+        self.log(f"Module {_quote_name(module_name)} imported")
         found = self._lookup_in_module(module, class_name)
         if found is not _MISSING:
             return found
-        base_class = self._lookup_generic_base(module, class_name, module_name)
+        base_class = self._lookup_generic_base(module, class_name)
         if base_class is not _MISSING:
             return base_class
-        raise KajsonDecoderError(f"Class '{class_name}' not found in module '{module_name}'")
+        error_msg = self._not_found_message(class_name, module_name, where=f"module {_quote_name(module_name)}")
+        raise KajsonDecoderError(error_msg)
 
-    def _apply_decoder_strategies(self, the_class: Type[Any], class_name: str, the_dict: Dict[str, Any]) -> Any:
+    def _apply_decoder_strategies(self, the_class: type[Any], class_name: str, the_dict: dict[str, Any]) -> Any:
         """Rebuild an object in permissive mode, walking every strategy that applies to the resolved class.
 
         A failed hook moves on to the next strategy only when `IS_DECODER_FALLBACK_ENABLED` is set.
@@ -459,20 +482,22 @@ class UniversalJSONDecoder(json.JSONDecoder):
         # The last strategy, structural, never declines.
         return the_dict
 
-    def _apply_safe_strategy(self, the_class: Type[Any], class_name: str, module_name: str, the_dict: Dict[str, Any]) -> Any:
+    def _apply_safe_strategy(self, the_class: type[Any], class_name: str, module_name: str, the_dict: dict[str, Any]) -> Any:
         """Rebuild an object in safe mode: refuse unless the first strategy rebuilds by validation or a hook, then use it alone."""
         strategy = _classify(the_class)[0]
         qualified = f"{_quote_name(module_name)}.{_quote_name(class_name)}"
         if not strategy.is_allowed_in_safe_mode:
-            raise KajsonDecoderError(
+            msg = (
                 f"Refusing to instantiate {qualified}: safe mode does not call a class's constructor with the payload's keys. "
                 f"It rebuilds {SAFE_MODE_REBUILDABLE_KINDS}."
             )
+            raise KajsonDecoderError(msg)
         if (override := _construction_override(the_class, strategy)) is not None:
-            raise KajsonDecoderError(
+            msg = (
                 f"Refusing to instantiate {qualified}: safe mode rebuilds a {strategy.kind_label} "
                 f"only when constructing it runs nothing but the library's own code, and this class overrides {override}."
             )
+            raise KajsonDecoderError(msg)
         try:
             result = self._rebuild(strategy, the_class, class_name, the_dict, safe=True)
         except KajsonDecoderError:
@@ -480,13 +505,14 @@ class UniversalJSONDecoder(json.JSONDecoder):
         except Exception as exc:
             # Unbounded surface: the rebuild runs the class's validators, model_post_init,
             # __post_init__, _missing_ and decoding hooks. Safe-mode callers catch KajsonDecoderError only.
-            raise KajsonDecoderError(f"Could not decode {qualified}: {type(exc).__name__}: {exc}") from exc
+            msg = f"Could not decode {qualified}: {type(exc).__name__}: {exc}"
+            raise KajsonDecoderError(msg) from exc
         if isinstance(result, _Declined):  # pragma: no cover - safe rebuilds never decline
             msg = f"Could not decode {qualified}"
             raise KajsonDecoderError(msg)
         return result
 
-    def _rebuild(self, strategy: _DecodeStrategy, the_class: Type[Any], class_name: str, the_dict: Dict[str, Any], *, safe: bool) -> Any:
+    def _rebuild(self, strategy: _DecodeStrategy, the_class: type[Any], class_name: str, the_dict: dict[str, Any], *, safe: bool) -> Any:
         """Rebuild an object with one strategy. Returns `_DECLINED` when a permissive hook gives way to the next strategy."""
         match strategy:
             case _DecodeStrategy.REGISTERED_DECODER:
@@ -494,11 +520,11 @@ class UniversalJSONDecoder(json.JSONDecoder):
             case _DecodeStrategy.JSON_DECODE_HOOK:
                 return self._rebuild_with_json_decode_hook(the_class, class_name, the_dict, safe=safe)
             case _DecodeStrategy.ROOT_MODEL:
-                return self._rebuild_root_model(cast(Type[RootModel[Any]], the_class), class_name, the_dict, safe=safe)
+                return self._rebuild_root_model(cast(type[RootModel[Any]], the_class), class_name, the_dict, safe=safe)
             case _DecodeStrategy.ENUM:
-                return self._rebuild_enum(cast(Type[Enum], the_class), class_name, the_dict)
+                return self._rebuild_enum(cast(type[Enum], the_class), class_name, the_dict)
             case _DecodeStrategy.BASE_MODEL:
-                return self._rebuild_base_model(cast(Type[BaseModel], the_class), class_name, the_dict, safe=safe)
+                return self._rebuild_base_model(cast(type[BaseModel], the_class), class_name, the_dict, safe=safe)
             case _DecodeStrategy.PYDANTIC_DATACLASS:
                 return self._rebuild_pydantic_dataclass(the_class, class_name, the_dict, safe=safe)
             case _DecodeStrategy.GENERIC_CONSTRUCTOR:
@@ -512,37 +538,35 @@ class UniversalJSONDecoder(json.JSONDecoder):
             return _DECLINED
         raise KajsonDecoderError(error_msg) from exc
 
-    def _rebuild_with_registered_decoder(self, the_class: Type[Any], class_name: str, the_dict: Dict[str, Any], *, safe: bool) -> Any:
+    def _rebuild_with_registered_decoder(self, the_class: type[Any], class_name: str, the_dict: dict[str, Any], *, safe: bool) -> Any:
         decoder = UniversalJSONDecoder._decoders[the_class]
         try:
             return decoder(the_dict)
         except Exception as exc:
+            # Unbounded surface: the decoder is a function a caller registered.
             func_name = getattr(decoder, "__name__", repr(decoder))
-            error_msg = f"Could not decode '{class_name}' from json because function '{func_name}' failed: '{exc}'."
+            error_msg = f"Could not decode {_quote_name(class_name)} from json because function '{func_name}' failed: '{exc}'."
             return self._hook_failed(error_msg, exc, safe=safe)
 
-    def _rebuild_with_json_decode_hook(self, the_class: Type[Any], class_name: str, the_dict: Dict[str, Any], *, safe: bool) -> Any:
+    def _rebuild_with_json_decode_hook(self, the_class: type[Any], class_name: str, the_dict: dict[str, Any], *, safe: bool) -> Any:
         try:
             return getattr(the_class, "__json_decode__")(the_dict)
-        except AttributeError as exc:
-            if safe:
-                raise KajsonDecoderError(f"Could not decode '{class_name}' from json because static method __json_decode__ failed: '{exc}'.") from exc
-            # Permissive mode has always moved on silently here.
-            return _DECLINED
         except Exception as exc:
-            error_msg = f"Could not decode '{class_name}' from json because static method __json_decode__ failed: '{exc}'."
+            # Unbounded surface: the hook is the class's own decoding code.
+            error_msg = f"Could not decode {_quote_name(class_name)} from json because static method __json_decode__ failed: '{exc}'."
             return self._hook_failed(error_msg, exc, safe=safe)
 
-    def _rebuild_root_model(self, the_class: Type[RootModel[Any]], class_name: str, the_dict: Dict[str, Any], *, safe: bool) -> Any:
+    def _rebuild_root_model(self, the_class: type[RootModel[Any]], class_name: str, the_dict: dict[str, Any], *, safe: bool) -> Any:
         if safe:
             # Validate the root value without calling the class: the construction check has
             # already established that the class's construction is pydantic's own.
             if set(the_dict) != {"root"}:
-                raise KajsonDecoderError(f"Could not decode '{class_name}' pydantic RootModel from json: expected exactly one key, 'root'")
+                msg = f"Could not decode {_quote_name(class_name)} pydantic RootModel from json: expected exactly one key, 'root'"
+                raise KajsonDecoderError(msg)
             try:
                 return the_class.model_validate(the_dict["root"])
             except ValidationError as exc:
-                error_msg = f"Could not decode '{class_name}' pydantic RootModel from json: {exc}"
+                error_msg = f"Could not decode {_quote_name(class_name)} pydantic RootModel from json: {exc}"
                 self.log(error_msg)
                 raise KajsonDecoderError(error_msg) from exc
 
@@ -557,7 +581,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
             # Do NOT include the_dict in the message: payloads may carry secrets
             # (passwords, API keys). The chained exception (from exc) still carries
             # the offending value via pydantic's ValidationError for debugging.
-            error_msg = f"Could not decode '{class_name}' pydantic RootModel from json: {exc}"
+            error_msg = f"Could not decode {_quote_name(class_name)} pydantic RootModel from json: {exc}"
             self.log(error_msg)
             raise KajsonDecoderError(error_msg) from exc
 
@@ -571,7 +595,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
             self.log(error_msg)
             raise KajsonDecoderError(error_msg) from exc
 
-    def _rebuild_enum(self, the_class: Type[Enum], class_name: str, the_dict: Dict[str, Any]) -> Any:
+    def _rebuild_enum(self, the_class: type[Enum], class_name: str, the_dict: dict[str, Any]) -> Any:
         self.log(f"Handling enum class '{the_class}'")
         try:
             # For enums, we need to reconstruct using the enum name or value
@@ -582,14 +606,16 @@ class UniversalJSONDecoder(json.JSONDecoder):
                 # Reconstruct from enum value
                 return the_class(the_dict["_value_"])
             else:
-                raise KajsonDecoderError(f"Could not reconstruct enum '{class_name}': missing _name_ or _value_")
-        except (KeyError, ValueError) as exc:
+                msg = f"Could not reconstruct enum {_quote_name(class_name)}: missing _name_ or _value_"
+                raise KajsonDecoderError(msg)
+        except (KeyError, ValueError, TypeError) as exc:
+            # TypeError: an unhashable name, such as a list, cannot be looked up.
             # Do NOT include the_dict in the message: payloads may carry secrets.
-            error_msg = f"Could not reconstruct enum '{class_name}': {exc}"
+            error_msg = f"Could not reconstruct enum {_quote_name(class_name)}: {exc}"
             self.log(error_msg)
             raise KajsonDecoderError(error_msg) from exc
 
-    def _rebuild_base_model(self, the_class: Type[BaseModel], class_name: str, the_dict: Dict[str, Any], *, safe: bool) -> Any:
+    def _rebuild_base_model(self, the_class: type[BaseModel], class_name: str, the_dict: dict[str, Any], *, safe: bool) -> Any:
         self.log(f"Using model_validate for class '{the_class}'")
         try:
             return the_class.model_validate(the_dict)
@@ -618,7 +644,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
                 self.log(error_msg)
                 raise KajsonDecoderError(error_msg) from exc
 
-    def _rebuild_pydantic_dataclass(self, the_class: Type[Any], class_name: str, the_dict: Dict[str, Any], *, safe: bool) -> Any:
+    def _rebuild_pydantic_dataclass(self, the_class: type[Any], class_name: str, the_dict: dict[str, Any], *, safe: bool) -> Any:
         self.log(f"Using pydantic dataclass validator for class '{the_class}'")
         try:
             if safe:
@@ -638,7 +664,7 @@ class UniversalJSONDecoder(json.JSONDecoder):
             raise KajsonDecoderError(error_msg) from exc
 
     @staticmethod
-    def _rebuild_with_constructor(the_class: Type[Any], the_dict: Dict[str, Any]) -> Any:
+    def _rebuild_with_constructor(the_class: type[Any], the_dict: dict[str, Any]) -> Any:
         """Permissive mode's last resort. Safe mode refuses a class before reaching it."""
         # Try the constructor with the dictionary as arguments:
         try:

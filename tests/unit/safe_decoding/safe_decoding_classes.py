@@ -168,6 +168,27 @@ class NewOverridingModel(BaseModel):
         return super().__new__(cls)
 
 
+class ValidateOverridingModel(BaseModel):
+    calls: ClassVar[int] = 0
+    number: int = 0
+
+    @classmethod
+    @override
+    def model_validate(cls, obj: Any, *args: Any, **kwargs: Any) -> "ValidateOverridingModel":
+        ValidateOverridingModel.calls += 1
+        return super().model_validate(obj, *args, **kwargs)
+
+
+class ValidateOverridingRoot(RootModel[int]):
+    calls: ClassVar[int] = 0
+
+    @classmethod
+    @override
+    def model_validate(cls, obj: Any, *args: Any, **kwargs: Any) -> "ValidateOverridingRoot":
+        ValidateOverridingRoot.calls += 1
+        return super().model_validate(obj, *args, **kwargs)
+
+
 class CountingModelMetaclass(ModelMetaclass):
     calls: ClassVar[int] = 0
 
@@ -224,6 +245,8 @@ COUNTED_CLASSES = (
     InitOverridingModel,
     BaseInitFlaggedModel,
     NewOverridingModel,
+    ValidateOverridingModel,
+    ValidateOverridingRoot,
     CountingModelMetaclass,
     InitOverridingRoot,
     CountingEnumMeta,

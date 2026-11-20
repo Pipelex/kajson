@@ -89,7 +89,7 @@ kajson.UniversalJSONDecoder.register(Decimal, lambda data: Decimal(data["value"]
 ## Best Practices
 
 1. **Use Type Hints**: Always use type hints in your Pydantic models for better IDE support and documentation
-2. **Handle Errors**: Always wrap deserialization in try-except blocks when dealing with untrusted data
+2. **Decode Untrusted Data Safely**: decode JSON you did not write yourself with `safe=True`, as [Decoding Untrusted JSON](untrusted-json.md) explains, and wrap it in try-except blocks
 3. **Test Serialization**: Test that your objects can round-trip (serialize and deserialize) correctly
 4. **Keep It Simple**: Start with built-in support before creating custom encoders
 

@@ -46,7 +46,8 @@ Entries match on package boundaries: `my_app.models` admits `my_app.models` and 
 | --- | --- |
 | A class with a registered decoder (`UniversalJSONDecoder.register`) | Calls the decoder |
 | A class with a `__json_decode__` hook | Calls the hook |
-| A pydantic `BaseModel`, including a generic model under its subscripted name | `model_validate`, with no constructor fallback |
+| A pydantic `BaseModel` | `model_validate`, with no constructor fallback |
+| A generic pydantic model, under its subscripted name such as `Box[int]` | `model_validate` on the parametrized class when its module holds it, and otherwise on the unparametrized base `Box`, whose type parameter is then not checked |
 | A pydantic `RootModel` | Validates the payload's `root` value |
 | A pydantic dataclass | Runs the dataclass's validator |
 | An `Enum` | Looks the member up by name or by value |
@@ -55,7 +56,7 @@ Entries match on package boundaries: `my_app.models` admits `my_app.models` and 
 
 A failed decoder or hook raises an error, even if the module constant `IS_DECODER_FALLBACK_ENABLED` is set. The constructor call, the no-argument constructor and the raw-dict fallback are never reached.
 
-**A pydantic class or enum whose construction is not the library's own is refused.** pydantic's `model_validate` runs a model's own `__init__` and `__new__` when the class overrides them, so validation alone does not keep a payload away from that code. pydantic-settings' `BaseSettings` is the standard example: its `__init__` reads the `.env` file named by the `_env_file` argument, so a payload naming `BaseSettings` could make the process read any file. Safe mode therefore refuses a pydantic model whose `__init__`, `__new__` or metaclass `__call__` is not pydantic's own, a pydantic dataclass whose `__new__` or metaclass `__call__` is overridden, and an enum whose metaclass overrides `__call__` or `__getitem__`. This check applies when safe mode would rebuild the class by validation or lookup; a class with a registered decoder or its own `__json_decode__` is rebuilt by that hook instead, so the hook is the code you vouch for. If one of your own models needs construction logic, write it as a `model_validator(mode="before")`, which runs inside validation and is allowed.
+**A pydantic class or enum whose construction is not the library's own is refused.** pydantic's `model_validate` runs a model's own `__init__` and `__new__` when the class overrides them, so validation alone does not keep a payload away from that code. pydantic-settings' `BaseSettings` is the standard example: its `__init__` reads the `.env` file named by the `_env_file` argument, so a payload naming `BaseSettings` could make the process read any file. Safe mode therefore refuses a pydantic model whose `__init__`, `__new__`, `model_validate` or metaclass `__call__` is not pydantic's own, a pydantic dataclass whose `__new__` or metaclass `__call__` is overridden, and an enum whose metaclass overrides `__call__` or `__getitem__`. This check applies when safe mode would rebuild the class by validation or lookup; a class with a registered decoder or its own `__json_decode__` is rebuilt by that hook instead, so the hook is the code you vouch for. If one of your own models needs construction logic, write it as a `model_validator(mode="before")`, which runs inside validation and is allowed.
 
 Every refusal raises `KajsonDecoderError` before the import or the call it refuses. The message names the module and class the marker gave, and never includes the payload's values. A refused marker nested anywhere in the document, in a model field, a list or a dict, fails the whole decode.
 
@@ -93,7 +94,7 @@ Safe mode narrows the code a payload can cause to run down to code your process 
 - **Code in the allowed kinds, in modules that are already imported.** A payload can name any allowed class in any imported module, whether or not that module is in `importable_packages`. Decoding such a class runs its pydantic validators, its `model_post_init`, a pydantic dataclass's `__post_init__`, an enum's `_missing_`, `__json_decode__` hooks and registered decoders. Keep side effects out of that code.
 - **Imports inside the packages you name.** Importing a module runs its top-level code and that of its parent packages. You vouch for every package you list.
 - **Process-wide registrations.** Decoders registered with `UniversalJSONDecoder.register` and classes in the global class registry are shared by everything in the process. Whatever any library put there applies to safe decodes too, after the same kind check.
-- **The type of the result.** The payload still chooses which allowed class it becomes. If you expect an `Order`, check the result with `isinstance`, or validate it into the type you expect.
+- **The type of the result.** The payload still chooses which allowed class it becomes, and a generic model's type parameter is not checked when the decoder falls back to the unparametrized base. If you expect an `Order`, check the result with `isinstance`, or validate it into the type you expect.
 - **Resource exhaustion.** Deep nesting, very large documents and expensive validators are not bounded. Limit the size of untrusted input before you decode it.
 
 ## Checklist

@@ -5,6 +5,7 @@ import json
 import logging
 import sys
 import warnings
+from enum import Enum
 from typing import Any, Dict, Generator
 
 import pytest
@@ -111,6 +112,17 @@ def setup_decoder() -> Generator[UniversalJSONDecoder, None, None]:
     yield decoder
     UniversalJSONDecoder.clear_decoders()
     UniversalJSONDecoder._decoders.update(saved_decoders)  # pyright: ignore[reportPrivateUsage]
+
+
+class MockEnum(Enum):
+    ALPHA = "alpha"
+
+
+class MockClassWithAttributeErrorInJsonDecode:
+    @staticmethod
+    def __json_decode__(the_dict: Dict[str, Any]) -> "MockClassWithAttributeErrorInJsonDecode":
+        msg = "a bug inside the hook"
+        raise AttributeError(msg)
 
 
 class TestUniversalJSONDecoder:
@@ -598,4 +610,18 @@ class TestUniversalJSONDecoder:
         """A name that resolves to a function or a value used to leak a bare TypeError from issubclass."""
         marker = {"__class__": class_name, "__module__": module_name}
         with pytest.raises(KajsonDecoderError, match="does not name a class"):
+            json.loads(json.dumps(marker), cls=UniversalJSONDecoder, safe=safe)
+
+    @pytest.mark.parametrize("safe", [False, True])
+    def test_attribute_error_inside_json_decode_raises(self, safe: bool) -> None:
+        """An AttributeError raised by the hook used to be swallowed, and the constructor ran instead."""
+        marker = {"__class__": "MockClassWithAttributeErrorInJsonDecode", "__module__": "tests.unit.test_json_decoder"}
+        with pytest.raises(KajsonDecoderError, match="a bug inside the hook"):
+            json.loads(json.dumps(marker), cls=UniversalJSONDecoder, safe=safe)
+
+    @pytest.mark.parametrize("safe", [False, True])
+    def test_enum_with_unhashable_name_raises_decoder_error(self, safe: bool) -> None:
+        """An unhashable _name_ used to leak a bare TypeError."""
+        marker = {"__class__": "MockEnum", "__module__": "tests.unit.test_json_decoder", "_name_": ["ALPHA"]}
+        with pytest.raises(KajsonDecoderError, match="Could not reconstruct enum"):
             json.loads(json.dumps(marker), cls=UniversalJSONDecoder, safe=safe)

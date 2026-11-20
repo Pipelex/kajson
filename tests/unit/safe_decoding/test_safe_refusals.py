@@ -28,6 +28,8 @@ from tests.unit.safe_decoding.safe_decoding_classes import (
     NewOverridingModel,
     NoArgConstructorCounter,
     StdlibDataclass,
+    ValidateOverridingModel,
+    ValidateOverridingRoot,
     error_chain_text,
     make_marker,
 )
@@ -111,11 +113,6 @@ class TestSafeRefusals:
         assert "'KeywordConstructorCounter'" in str(excinfo.value)
         assert "hunter2" not in error_chain_text(excinfo.value)
 
-    def test_refusal_message_cuts_a_very_long_name(self) -> None:
-        with pytest.raises(KajsonDecoderError) as excinfo:
-            kajson.loads(make_marker("A" * 10_000, "not_imported_kajson_module"), safe=True)
-        assert len(str(excinfo.value)) < 1_000
-
     def test_base_settings_reading_an_env_file_is_refused_without_leaking_it(self, tmp_path: Path) -> None:
         env_file = tmp_path / "secrets.env"
         env_file.write_text("SENTINEL_TOKEN=s3cr3t-sentinel-value\n")
@@ -136,6 +133,7 @@ class TestSafeRefusals:
             (InitOverridingModel, InitOverridingModel, "__init__"),
             (BaseInitFlaggedModel, BaseInitFlaggedModel, "__init__"),
             (NewOverridingModel, NewOverridingModel, "__new__"),
+            (ValidateOverridingModel, ValidateOverridingModel, "model_validate"),
             (MetaclassCallModel, CountingModelMetaclass, "metaclass __call__"),
         ],
     )
@@ -148,6 +146,27 @@ class TestSafeRefusals:
         with pytest.raises(KajsonDecoderError, match="__init__"):
             kajson.loads(make_marker("InitOverridingRoot", root=1), safe=True)
         assert InitOverridingRoot.calls == 0
+
+    def test_root_model_overriding_model_validate_is_refused(self) -> None:
+        with pytest.raises(KajsonDecoderError, match="model_validate"):
+            kajson.loads(make_marker("ValidateOverridingRoot", root=1), safe=True)
+        assert ValidateOverridingRoot.calls == 0
+
+    @pytest.mark.parametrize(
+        "marker",
+        [
+            make_marker("A" * 10_000, "not_imported_kajson_module"),
+            make_marker("B" * 10_000, MODULE_NAME),
+            make_marker("Color[" + "C" * 10_000 + "]", _name_="NOPE"),
+            make_marker("WithFailingJsonDecode[" + "D" * 10_000 + "]"),
+            make_marker("PlainModel", "E" * 10_000),
+        ],
+        ids=["refused-import", "not-found", "enum-error", "hook-error", "long-module"],
+    )
+    def test_every_message_cuts_a_very_long_name(self, marker: str) -> None:
+        with pytest.raises(KajsonDecoderError) as excinfo:
+            kajson.loads(marker, safe=True)
+        assert len(str(excinfo.value)) < 1_000
 
     def test_enum_whose_metaclass_overrides_call_is_refused(self) -> None:
         with pytest.raises(KajsonDecoderError, match="metaclass __call__"):

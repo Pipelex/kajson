@@ -23,7 +23,8 @@ All additions and modifications are Copyright (c) 2025 Evotis S.A.S.
 import datetime
 import json
 import re
-from typing import IO, Any, Collection, Dict, Optional, Union
+from collections.abc import Collection
+from typing import IO, Any, Optional, Union
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from kajson.class_registry_abstract import ClassRegistryAbstract
@@ -67,7 +68,7 @@ def dump(obj: Any, fp: IO[str], **kwargs: Any) -> None:
     json.dump(obj, fp, cls=UniversalJSONEncoder, **kwargs)
 
 
-def _add_decoder_options(kwargs: Dict[str, Any], *, safe: bool, importable_packages: Collection[str]) -> None:
+def _add_decoder_options(kwargs: dict[str, Any], *, safe: bool, importable_packages: Collection[str]) -> None:
     """Forward the safe-mode options to the decoder, leaving the default call unchanged when they are not set.
 
     `importable_packages` is forwarded whenever it was given, even empty, so the decoder validates it.
@@ -256,7 +257,7 @@ def _decode_tzinfo(tzinfo_value: Any, utcoffset_seconds: Any, prefer_fixed_offse
     )
 
 
-def json_encode_timezone(t: ZoneInfo) -> Dict[str, Any]:
+def json_encode_timezone(t: ZoneInfo) -> dict[str, Any]:
     """Encoder for IANA named timezones (zoneinfo.ZoneInfo)."""
     return {"zone": t.key}
 
@@ -264,7 +265,7 @@ def json_encode_timezone(t: ZoneInfo) -> Dict[str, Any]:
 UniversalJSONEncoder.register(ZoneInfo, json_encode_timezone)
 
 
-def json_decode_timezone(obj_dict: Dict[str, Any]) -> ZoneInfo:
+def json_decode_timezone(obj_dict: dict[str, Any]) -> ZoneInfo:
     """Decoder for timezones (using zoneinfo from Python 3.9+)."""
     try:
         return ZoneInfo(obj_dict["zone"])
@@ -282,7 +283,7 @@ UniversalJSONDecoder.register(ZoneInfo, json_decode_timezone)
 #########################################################################################
 
 
-def json_encode_fixed_timezone(t: datetime.timezone) -> Dict[str, Any]:
+def json_encode_fixed_timezone(t: datetime.timezone) -> dict[str, Any]:
     """Encoder for fixed-offset timezones (datetime.timezone, including timezone.utc)."""
     return {"name": str(t), "utcoffset": _offset_to_seconds(t.utcoffset(None))}
 
@@ -290,7 +291,7 @@ def json_encode_fixed_timezone(t: datetime.timezone) -> Dict[str, Any]:
 UniversalJSONEncoder.register(datetime.timezone, json_encode_fixed_timezone)
 
 
-def json_decode_fixed_timezone(obj_dict: Dict[str, Any]) -> datetime.timezone:
+def json_decode_fixed_timezone(obj_dict: dict[str, Any]) -> datetime.timezone:
     """Decoder for fixed-offset timezones (datetime.timezone, including timezone.utc)."""
     offset = datetime.timedelta(seconds=_validate_utcoffset_seconds(obj_dict["utcoffset"]))
     return _fixed_offset_timezone(offset, obj_dict.get("name"))
@@ -300,7 +301,7 @@ UniversalJSONDecoder.register(datetime.timezone, json_decode_fixed_timezone)
 
 
 #########################################################################################
-def json_encode_date(d: datetime.date) -> Dict[str, str]:
+def json_encode_date(d: datetime.date) -> dict[str, str]:
     """Encoder for dates (from module datetime)."""
     return {"date": str(d)}
 
@@ -308,7 +309,7 @@ def json_encode_date(d: datetime.date) -> Dict[str, str]:
 UniversalJSONEncoder.register(datetime.date, json_encode_date)
 
 
-def json_decode_date(obj_dict: Dict[str, str]) -> datetime.date:
+def json_decode_date(obj_dict: dict[str, str]) -> datetime.date:
     """Decoder for dates (from module datetime)."""
     # Split date string into parts and convert to integers
     year, month, day = map(int, obj_dict["date"].split("-"))
@@ -320,7 +321,7 @@ UniversalJSONDecoder.register(datetime.date, json_decode_date)
 #########################################################################################
 
 
-def json_encode_datetime(datetime_value: datetime.datetime) -> Dict[str, Any]:
+def json_encode_datetime(datetime_value: datetime.datetime) -> dict[str, Any]:
     """Encoder for datetimes (from module datetime).
 
     Alongside the tzinfo name, the UTC offset (in seconds) is stored so that aware
@@ -339,7 +340,7 @@ def json_encode_datetime(datetime_value: datetime.datetime) -> Dict[str, Any]:
 UniversalJSONEncoder.register(datetime.datetime, json_encode_datetime)
 
 
-def json_decode_datetime(obj_dict: Dict[str, Any]) -> datetime.datetime:
+def json_decode_datetime(obj_dict: dict[str, Any]) -> datetime.datetime:
     """Decoder for datetimes (from module datetime)."""
     if datetime_str := obj_dict.get("datetime"):
         dt = datetime.datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S.%f")
@@ -374,7 +375,7 @@ UniversalJSONDecoder.register(datetime.datetime, json_decode_datetime)
 #########################################################################################
 
 
-def json_encode_time(t: datetime.time) -> Dict[str, Any]:
+def json_encode_time(t: datetime.time) -> dict[str, Any]:
     """Encoder for times (from module datetime).
 
     The tzinfo is stored as its string name plus the UTC offset in seconds, matching
@@ -388,7 +389,7 @@ def json_encode_time(t: datetime.time) -> Dict[str, Any]:
 UniversalJSONEncoder.register(datetime.time, json_encode_time)
 
 
-def json_decode_time(d: Dict[str, Any]) -> datetime.time:
+def json_decode_time(d: dict[str, Any]) -> datetime.time:
     """Decoder for times (from module datetime)."""
     time_str = d.get("time")
     if not time_str:
@@ -416,7 +417,7 @@ UniversalJSONDecoder.register(datetime.time, json_decode_time)
 #########################################################################################
 
 
-def json_encode_timedelta(t: datetime.timedelta) -> Dict[str, float]:
+def json_encode_timedelta(t: datetime.timedelta) -> dict[str, float]:
     """Encoder for timedeltas (from module datetime)."""
     return {"seconds": t.total_seconds()}
 
@@ -428,7 +429,7 @@ UniversalJSONEncoder.register(datetime.timedelta, json_encode_timedelta)
 _TIMEDELTA_KEYWORDS = frozenset({"days", "seconds", "microseconds", "milliseconds", "minutes", "hours", "weeks"})
 
 
-def json_decode_timedelta(obj_dict: Dict[str, Any]) -> datetime.timedelta:
+def json_decode_timedelta(obj_dict: dict[str, Any]) -> datetime.timedelta:
     """Decoder for timedeltas (from module datetime).
 
     Accepts the timedelta constructor's keyword arguments, each a number (not a bool).
@@ -436,14 +437,17 @@ def json_decode_timedelta(obj_dict: Dict[str, Any]) -> datetime.timedelta:
     """
     unknown_keys = set(obj_dict) - _TIMEDELTA_KEYWORDS
     if unknown_keys:
-        raise KajsonDecoderError(f"Could not decode timedelta: unexpected keys {sorted(unknown_keys)}")
+        msg = f"Could not decode timedelta: unexpected keys {sorted(unknown_keys)}"
+        raise KajsonDecoderError(msg)
     for key, value in obj_dict.items():
         if isinstance(value, bool) or not isinstance(value, (int, float)):
-            raise KajsonDecoderError(f"Could not decode timedelta: expected '{key}' to be a number, got {type(value).__name__}")
+            msg = f"Could not decode timedelta: expected '{key}' to be a number, got {type(value).__name__}"
+            raise KajsonDecoderError(msg)
     try:
         return datetime.timedelta(**obj_dict)
     except (OverflowError, ValueError) as exc:
-        raise KajsonDecoderError(f"Could not decode timedelta: {exc}") from exc
+        msg = f"Could not decode timedelta: {exc}"
+        raise KajsonDecoderError(msg) from exc
 
 
 UniversalJSONDecoder.register(datetime.timedelta, json_decode_timedelta)

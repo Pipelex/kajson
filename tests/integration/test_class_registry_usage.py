@@ -176,7 +176,7 @@ class TestClassRegistryUsage:
         # Without registry, this should fail with import error
         with pytest.raises(KajsonDecoderError) as excinfo:
             kajson.loads(json_str)
-        assert "Error while trying to import module test.fake.module" in str(excinfo.value)
+        assert "Error while trying to import module 'test.fake.module'" in str(excinfo.value)
 
         # Register in class registry
         registry = KajsonManager.get_class_registry()

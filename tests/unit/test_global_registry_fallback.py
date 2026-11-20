@@ -68,3 +68,18 @@ class TestGlobalRegistryFallback:
 
         with pytest.raises(KajsonDecoderError, match="not found in module 'builtins' or global registry"):
             kajson.loads(json_str)
+
+    @pytest.mark.parametrize("safe", [False, True])
+    def test_global_registry_resolves_a_generic_name_whose_base_is_not_in_the_module(self, safe: bool) -> None:
+        """A runtime-built class registered under a subscripted name decodes even though its base is not in the named module."""
+        dynamic_cls = _make_dynamic_class("DynamicBox[int]")
+        KajsonManager.get_class_registry().register_class(dynamic_cls)
+
+        result = kajson.loads(kajson.dumps(dynamic_cls(greeting="Hi")), safe=safe)
+        assert type(result) is dynamic_cls
+        assert result.greeting == "Hi"  # type: ignore[attr-defined]
+
+    def test_generic_name_in_neither_module_nor_global_registry_names_the_missing_base(self) -> None:
+        json_str = '{"__class__": "UnknownBox[int]", "__module__": "builtins"}'
+        with pytest.raises(KajsonDecoderError, match="base class 'UnknownBox' not found in module 'builtins' or global registry"):
+            kajson.loads(json_str)

@@ -59,7 +59,7 @@ Every problem with a class marker raises `KajsonDecoderError`, in both the defau
 - a name that resolves to something other than a class, such as a function;
 - a malformed `timedelta` payload.
 
-With `safe=True`, the decoder also refuses, with `KajsonDecoderError` raised before anything runs, a module outside `importable_packages`, a class it would rebuild by calling its constructor, and a pydantic class or enum whose construction is overridden. The message names the module and class from the marker and never the payload's values.
+With `safe=True`, the decoder also refuses, with `KajsonDecoderError` raised before anything runs, a module outside `importable_packages`, a class it would rebuild by calling its constructor, and a pydantic class or enum whose construction is overridden. Error messages quote the module and class names from the marker, cut to a bounded length, and never include the payload's values.
 
 ```python
 import kajson
